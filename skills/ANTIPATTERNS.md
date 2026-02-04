@@ -1,0 +1,177 @@
+# ANTIPATTERNS.md — Demons We've Exorcised
+
+*Mistakes we've made and corrected. Read this. Don't repeat them.*
+
+---
+
+## 🔥 Technical Names Don't Scream
+
+**Date:** 2026-02-04  
+**Origin:** hecate-daemon apprentice
+
+### The Antipattern
+
+Slice names that describe **HOW** (technical implementation) instead of **WHAT** (business intent):
+
+| Technical Name (BAD) | What It Actually Does |
+|---------------------|----------------------|
+| `llm_model_poller` | Detects what models Ollama has |
+| `llm_rpc_listener` | Handles incoming LLM requests from mesh |
+| `*_listener` | Technical concern, not business intent |
+| `*_poller` | Technical concern, not business intent |
+| `*_handler` | Technical concern, not business intent |
+| `*_worker` | Technical concern, not business intent |
+
+These names are **horizontal thinking in disguise**. They describe the mechanism, not the meaning.
+
+### The Rule
+
+> **Slice names must be VERB PHRASES that scream WHAT the slice does, not HOW it does it.**
+
+| ❌ Technical (HOW) | ✅ Screaming (WHAT) |
+|-------------------|---------------------|
+| `poll_llm_models/` | `detect_llm_models/` |
+| `handle_llm_rpc/` | `listen_for_llm_request/` |
+| `capability_listener/` | `discover_remote_capability/` |
+| `event_handler/` | `on_capability_announced_update_index/` |
+
+### Why It Matters
+
+A stranger reading your folder structure should understand **what your system does**, not **what frameworks you used**.
+
+```
+# BAD — I see plumbing
+apps/serve_llm/src/
+├── poll_llm_models/
+├── handle_llm_rpc/
+└── emit_llm_events/
+
+# GOOD — I see capabilities  
+apps/serve_llm/src/
+├── detect_llm_models/
+├── listen_for_llm_request/
+└── announce_llm_availability/
+```
+
+### The Test
+
+Read your slice name aloud. If it sounds like infrastructure, rename it.
+
+- "This slice *polls models*" → Infrastructure. ❌
+- "This slice *detects available LLM models*" → Business. ✅
+
+---
+
+## 🔥 Parallel Domain Infrastructure
+
+**Date:** 2026-02-04  
+**Origin:** hecate-daemon apprentice
+
+### The Antipattern
+
+Creating duplicate command/event/emitter infrastructure in a new domain when an existing domain already handles that concept.
+
+**Example:** `serve_llm` created:
+- `announce_llm_capability_v1` command
+- `llm_capability_announced_v1` event  
+- `llm_capability_announced_v1_to_mesh` emitter
+- `hecate.llm.announced` mesh topic
+
+But `manage_capabilities` already has:
+- `announce_capability_v1` command
+- `capability_announced_v1` event
+- `capability_announced_v1_to_mesh` emitter
+- `hecate.capability.announced` mesh topic
+
+LLM capabilities ARE just capabilities with `type = <<"llm">>`.
+
+### The Rule
+
+> **Don't duplicate domain concepts. Extend existing domains or use Process Managers to integrate.**
+
+### The Solution: Process Managers
+
+When Domain A needs to trigger behavior in Domain B:
+
+```
+Domain A (serve_llm)
+    ↓ emits internal event (llm_model_detected_v1)
+
+Process Manager (on_llm_model_detected_announce_capability)
+    ↓ subscribes to Domain A events
+    ↓ dispatches command to Domain B
+
+Domain B (manage_capabilities)
+    ↓ handles command normally
+    ↓ existing infrastructure does the rest
+```
+
+**Loose coupling. Single source of truth. No duplication.**
+
+---
+
+## 🔥 Incomplete Spokes / Flat Workers
+
+**Date:** 2026-02-04  
+**Origin:** hecate-daemon architecture review
+
+### The Antipattern
+
+CMD slices that are missing components or have workers directly supervised by the domain supervisor.
+
+**Symptoms:**
+```erlang
+%% BAD: Domain sup directly supervises workers
+manage_capabilities_sup
+├── capability_announced_v1_to_mesh   % Worker — WRONG LEVEL
+├── remote_capabilities_listener      % Worker — WRONG LEVEL
+└── ...
+```
+
+**Missing pieces:**
+- No spoke supervisor (`*_spoke_sup.erl`)
+- No responder (`*_responder_v1.erl`) — can't receive HOPEs from mesh
+- Emitters exist but float orphaned at domain level
+
+### The Rule
+
+> **Domain supervisors ONLY start spoke supervisors + shared infra.**
+> **Spoke supervisors start all workers for that spoke.**
+
+```erlang
+%% GOOD: Domain sup → Spoke sups → Workers
+manage_capabilities_sup
+├── manage_capabilities_store         % Shared infra (OK at domain level)
+├── announce_capability_spoke_sup     % Supervisor
+│   ├── announce_capability_responder_v1    % Worker
+│   └── capability_announced_v1_to_mesh     % Worker
+├── update_capability_spoke_sup       % Supervisor
+│   └── ...
+└── retract_capability_spoke_sup      % Supervisor
+    └── ...
+```
+
+### Complete Spoke Checklist
+
+Every CMD spoke MUST have:
+- [ ] `*_spoke_sup.erl` — Spoke supervisor
+- [ ] `*_v1.erl` — Command record
+- [ ] `*_v1.erl` — Event record  
+- [ ] `maybe_*.erl` — Handler
+- [ ] `*_responder_v1.erl` — HOPE → Command (mesh inbound)
+- [ ] `*_to_mesh.erl` — Event → FACT emitter (mesh outbound)
+
+Optional:
+- [ ] `on_{event}_maybe_*.erl` — Policy/PM for cross-domain
+
+### Why It Matters
+
+Without responders, your domain can emit but not receive. You have a mouth but no ears.
+
+Without spoke supervisors, your supervision tree is flat and you lose fault isolation per feature.
+
+See `~/work/github.com/CARTWHEEL.md` for the complete canonical structure.
+
+---
+
+*Add more demons as we exorcise them.* 🔥🗝️🔥

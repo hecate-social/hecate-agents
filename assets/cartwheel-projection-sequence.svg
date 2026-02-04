@@ -1,0 +1,295 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 600">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="projectorGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0ea5e9"/>
+      <stop offset="100%" stop-color="#3b82f6"/>
+    </linearGradient>
+    <linearGradient id="exchangeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#14b8a6"/>
+      <stop offset="100%" stop-color="#10b981"/>
+    </linearGradient>
+    <linearGradient id="dbGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#dc2626"/>
+      <stop offset="100%" stop-color="#991b1b"/>
+    </linearGradient>
+    <linearGradient id="infraGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#a855f7"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+
+    <!-- Filters -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+
+    <!-- Markers -->
+    <marker id="arrowWhite" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#94a3b8"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#10b981"/>
+    </marker>
+    <marker id="arrowPurple" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#a855f7"/>
+    </marker>
+  </defs>
+
+  <style>
+    @keyframes flowRight {
+      0% { stroke-dashoffset: 20; }
+      100% { stroke-dashoffset: 0; }
+    }
+    @keyframes flowDown {
+      0% { stroke-dashoffset: 20; }
+      100% { stroke-dashoffset: 0; }
+    }
+    @keyframes streamPulse {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+    @keyframes projectorGlow {
+      0%, 100% { filter: none; }
+      50% { filter: url(#glow); }
+    }
+    .flow-right { stroke-dasharray: 10 6; animation: flowRight 1s linear infinite; }
+    .flow-down { stroke-dasharray: 10 6; animation: flowDown 1s linear infinite; }
+    .stream-pulse { animation: streamPulse 2s ease-in-out infinite; }
+    .projector-glow { animation: projectorGlow 3s ease-in-out infinite; }
+  </style>
+
+  <!-- Background -->
+  <rect width="1000" height="600" fill="#0f172a"/>
+
+  <!-- Grid -->
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/>
+    </pattern>
+  </defs>
+  <rect width="1000" height="600" fill="url(#grid)" opacity="0.5"/>
+
+  <!-- Title -->
+  <text x="500" y="40" text-anchor="middle" font-family="system-ui, sans-serif" font-size="24" font-weight="bold" fill="#fff">Projection Sequence (PRJ)</text>
+  <text x="500" y="62" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#94a3b8">How events become read models — projections can target ANY destination</text>
+
+  <!-- Event Log (Source) -->
+  <g transform="translate(30, 100)">
+    <rect x="0" y="0" width="120" height="160" rx="8" fill="#1e293b" stroke="#10b981" stroke-width="2"/>
+    <text x="60" y="25" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" fill="#fff">EVENT LOG</text>
+    <text x="60" y="42" text-anchor="middle" font-family="monospace" font-size="9" fill="#64748b">ReckonDB</text>
+
+    <!-- Event streams -->
+    <g transform="translate(10, 55)">
+      <rect x="0" y="0" width="100" height="10" rx="2" fill="#10b981" class="stream-pulse"/>
+      <rect x="0" y="14" width="80" height="10" rx="2" fill="#059669" class="stream-pulse"/>
+      <rect x="0" y="28" width="90" height="10" rx="2" fill="#047857" class="stream-pulse"/>
+      <rect x="0" y="42" width="70" height="10" rx="2" fill="#065f46" class="stream-pulse"/>
+      <rect x="0" y="56" width="85" height="10" rx="2" fill="#064e3b" class="stream-pulse"/>
+    </g>
+
+    <text x="60" y="148" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#64748b">Event Streams</text>
+  </g>
+
+  <!-- Stream Arrow -->
+  <g transform="translate(155, 170)">
+    <line x1="0" y1="0" x2="45" y2="0" stroke="#f59e0b" stroke-width="3" marker-end="url(#arrowWhite)" class="flow-right"/>
+    <rect x="5" y="-20" width="55" height="18" rx="4" fill="#f59e0b"/>
+    <text x="32" y="-7" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" font-weight="bold" fill="#fff">STREAM</text>
+  </g>
+
+  <!-- Projector Bar -->
+  <g transform="translate(210, 100)">
+    <rect x="0" y="0" width="140" height="160" rx="8" fill="url(#projectorGrad)" class="projector-glow"/>
+    <text x="70" y="35" text-anchor="middle" font-family="system-ui, sans-serif" font-size="14" font-weight="bold" fill="#fff">PROJECTOR</text>
+    <text x="70" y="55" text-anchor="middle" font-family="monospace" font-size="8" fill="#bfdbfe">*_subscriber.erl</text>
+
+    <!-- Subscription indicator -->
+    <g transform="translate(25, 75)">
+      <circle cx="8" cy="8" r="6" fill="#22c55e"/>
+      <text x="22" y="12" font-family="system-ui, sans-serif" font-size="9" fill="#86efac">Subscribed</text>
+    </g>
+
+    <line x1="15" y1="100" x2="125" y2="100" stroke="#334155"/>
+
+    <text x="70" y="120" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#bfdbfe">Routes events to</text>
+    <text x="70" y="135" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#bfdbfe">Table Projections</text>
+  </g>
+
+  <!-- Events flowing out of Projector -->
+  <g transform="translate(355, 115)">
+    <line x1="0" y1="0" x2="40" y2="0" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrowWhite)" class="flow-right"/>
+    <line x1="0" y1="35" x2="40" y2="35" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrowWhite)" class="flow-right"/>
+    <line x1="0" y1="70" x2="40" y2="70" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrowWhite)" class="flow-right"/>
+    <line x1="0" y1="105" x2="40" y2="105" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrowWhite)" class="flow-right"/>
+    <line x1="0" y1="140" x2="40" y2="140" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrowWhite)" class="flow-right"/>
+  </g>
+
+  <!-- Table Projections (different ones pointing to different destinations) -->
+  <g transform="translate(400, 95)">
+    <!-- Projection to SQLite -->
+    <g transform="translate(0, 0)">
+      <rect x="0" y="0" width="110" height="40" rx="6" fill="#1e293b" stroke="#10b981" stroke-width="2"/>
+      <text x="55" y="18" text-anchor="middle" font-family="monospace" font-size="9" font-weight="bold" fill="#10b981">*_to_caps</text>
+      <text x="55" y="32" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#64748b">→ SQLite</text>
+    </g>
+
+    <!-- Projection to PostgreSQL -->
+    <g transform="translate(0, 50)">
+      <rect x="0" y="0" width="110" height="40" rx="6" fill="#1e293b" stroke="#f97316" stroke-width="2"/>
+      <text x="55" y="18" text-anchor="middle" font-family="monospace" font-size="9" font-weight="bold" fill="#f97316">*_to_rep</text>
+      <text x="55" y="32" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#64748b">→ PostgreSQL</text>
+    </g>
+
+    <!-- Projection to Redis -->
+    <g transform="translate(0, 100)">
+      <rect x="0" y="0" width="110" height="40" rx="6" fill="#1e293b" stroke="#8b5cf6" stroke-width="2"/>
+      <text x="55" y="18" text-anchor="middle" font-family="monospace" font-size="9" font-weight="bold" fill="#8b5cf6">*_to_cache</text>
+      <text x="55" y="32" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#64748b">→ Redis</text>
+    </g>
+
+    <!-- EMITTER - Special projection to infrastructure -->
+    <g transform="translate(0, 150)">
+      <rect x="0" y="0" width="110" height="40" rx="6" fill="#7c3aed" stroke="#a855f7" stroke-width="2"/>
+      <text x="55" y="18" text-anchor="middle" font-family="monospace" font-size="9" font-weight="bold" fill="#fff">*_emitter</text>
+      <text x="55" y="32" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#e9d5ff">→ Mesh/NATS</text>
+    </g>
+  </g>
+
+  <!-- Arrows to destinations -->
+  <g transform="translate(515, 115)">
+    <line x1="0" y1="0" x2="65" y2="0" stroke="#10b981" stroke-width="2" marker-end="url(#arrowGreen)" class="flow-right"/>
+    <line x1="0" y1="70" x2="65" y2="35" stroke="#f97316" stroke-width="2" marker-end="url(#arrowWhite)" class="flow-right"/>
+    <line x1="0" y1="120" x2="65" y2="70" stroke="#8b5cf6" stroke-width="2" marker-end="url(#arrowWhite)" class="flow-right"/>
+    <line x1="0" y1="170" x2="65" y2="170" stroke="#a855f7" stroke-width="2" marker-end="url(#arrowPurple)" class="flow-right"/>
+  </g>
+
+  <!-- Database Targets -->
+  <g transform="translate(590, 85)">
+    <!-- SQLite -->
+    <g transform="translate(0, 0)">
+      <rect x="0" y="0" width="100" height="50" rx="6" fill="url(#dbGrad)"/>
+      <text x="50" y="25" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" fill="#fff">SQLite</text>
+      <text x="50" y="42" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#fca5a5">Read Models</text>
+    </g>
+
+    <!-- PostgreSQL -->
+    <g transform="translate(0, 60)">
+      <rect x="0" y="0" width="100" height="50" rx="6" fill="#1e293b" stroke="#f97316" stroke-width="2"/>
+      <text x="50" y="25" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" fill="#f97316">PostgreSQL</text>
+      <text x="50" y="42" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#64748b">OLAP / Reports</text>
+    </g>
+
+    <!-- Redis -->
+    <g transform="translate(0, 120)">
+      <rect x="0" y="0" width="100" height="50" rx="6" fill="#1e293b" stroke="#8b5cf6" stroke-width="2"/>
+      <text x="50" y="25" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" fill="#8b5cf6">Redis</text>
+      <text x="50" y="42" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#64748b">Hot Cache</text>
+    </g>
+
+    <!-- Infrastructure (Mesh/NATS/Kafka) -->
+    <g transform="translate(0, 195)">
+      <rect x="0" y="0" width="100" height="65" rx="6" fill="url(#infraGrad)"/>
+      <text x="50" y="22" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="bold" fill="#fff">INFRA</text>
+      <text x="50" y="38" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#e9d5ff">Macula Mesh</text>
+      <text x="50" y="50" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#e9d5ff">NATS / Kafka</text>
+    </g>
+  </g>
+
+  <!-- Key Insight Box 1: Emitter -->
+  <g transform="translate(720, 85)">
+    <rect x="0" y="0" width="250" height="110" rx="8" fill="#1e293b" stroke="#a855f7" stroke-width="2"/>
+    <text x="125" y="25" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" fill="#a855f7">EMITTER = SPECIAL PROJECTOR</text>
+    <line x1="15" y1="35" x2="235" y2="35" stroke="#334155"/>
+
+    <g transform="translate(15, 50)" font-family="system-ui, sans-serif" font-size="10">
+      <text x="0" y="0" fill="#94a3b8">An Emitter is just a projection that</text>
+      <text x="0" y="16" fill="#94a3b8">writes to infrastructure instead of a DB.</text>
+      <text x="0" y="40" fill="#c4b5fd" font-weight="bold">EVENT → EMITTER → FACT (mesh)</text>
+    </g>
+  </g>
+
+  <!-- Key Insight Box 2: Multiple Targets -->
+  <g transform="translate(720, 210)">
+    <rect x="0" y="0" width="250" height="95" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="2"/>
+    <text x="125" y="22" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="bold" fill="#fbbf24">PROJECTIONS → ANY TARGET</text>
+    <line x1="15" y1="32" x2="235" y2="32" stroke="#334155"/>
+
+    <g transform="translate(15, 45)" font-family="system-ui, sans-serif" font-size="10">
+      <circle cx="6" cy="4" r="4" fill="#10b981"/>
+      <text x="18" y="8" fill="#94a3b8">SQLite, PostgreSQL, Redis...</text>
+
+      <circle cx="6" cy="26" r="4" fill="#a855f7"/>
+      <text x="18" y="30" fill="#94a3b8">Mesh, NATS, Kafka, Webhooks...</text>
+    </g>
+  </g>
+
+  <!-- Direct FACT → Projection section -->
+  <g transform="translate(30, 320)">
+    <rect x="0" y="0" width="940" height="130" rx="8" fill="#1e293b" stroke="#22c55e" stroke-width="2"/>
+    <rect x="0" y="0" width="940" height="35" rx="8" fill="#22c55e"/>
+    <text x="470" y="24" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" font-weight="bold" fill="#fff">ALTERNATIVE: Direct FACT → Projection (Read-Only Consumption)</text>
+
+    <g transform="translate(30, 55)">
+      <!-- External Source -->
+      <g transform="translate(0, 0)">
+        <rect x="0" y="0" width="100" height="55" rx="6" fill="#7c3aed"/>
+        <text x="50" y="22" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="bold" fill="#fff">External</text>
+        <text x="50" y="38" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#e9d5ff">FACT source</text>
+      </g>
+
+      <!-- Arrow -->
+      <line x1="105" y1="27" x2="155" y2="27" stroke="#a855f7" stroke-width="3" marker-end="url(#arrowPurple)" class="flow-right"/>
+      <text x="130" y="18" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#c4b5fd">FACT</text>
+
+      <!-- Listener/Translator -->
+      <g transform="translate(160, 0)">
+        <rect x="0" y="0" width="100" height="55" rx="6" fill="#1e293b" stroke="#10b981" stroke-width="2"/>
+        <text x="50" y="22" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="bold" fill="#10b981">Listener</text>
+        <text x="50" y="38" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#64748b">(translator)</text>
+      </g>
+
+      <!-- Arrow -->
+      <line x1="265" y1="27" x2="315" y2="27" stroke="#10b981" stroke-width="3" marker-end="url(#arrowGreen)" class="flow-right"/>
+
+      <!-- Direct Projection -->
+      <g transform="translate(320, 0)">
+        <rect x="0" y="0" width="100" height="55" rx="6" fill="#1e293b" stroke="#f97316" stroke-width="2"/>
+        <text x="50" y="22" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="bold" fill="#f97316">Projection</text>
+        <text x="50" y="38" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#64748b">(direct)</text>
+      </g>
+
+      <!-- Arrow -->
+      <line x1="425" y1="27" x2="475" y2="27" stroke="#f97316" stroke-width="3" marker-end="url(#arrowWhite)" class="flow-right"/>
+
+      <!-- Read Model -->
+      <g transform="translate(480, 0)">
+        <rect x="0" y="0" width="90" height="55" rx="6" fill="url(#dbGrad)"/>
+        <text x="45" y="22" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="bold" fill="#fff">Read</text>
+        <text x="45" y="38" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="bold" fill="#fff">Model</text>
+      </g>
+
+      <!-- When to use -->
+      <g transform="translate(600, 0)">
+        <text x="0" y="12" font-family="system-ui, sans-serif" font-size="10" fill="#22c55e" font-weight="bold">Use when:</text>
+        <text x="0" y="28" font-family="system-ui, sans-serif" font-size="9" fill="#94a3b8">• Just caching external data</text>
+        <text x="0" y="42" font-family="system-ui, sans-serif" font-size="9" fill="#94a3b8">• No domain decisions needed</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- Standard Flow Box -->
+  <g transform="translate(30, 470)">
+    <rect x="0" y="0" width="940" height="80" rx="8" fill="#1e293b" stroke="#334155"/>
+    <text x="470" y="25" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" fill="#94a3b8">STANDARD FLOW (for domain participation)</text>
+    <text x="470" y="50" text-anchor="middle" font-family="monospace" font-size="11" fill="#64748b">
+      FACT → Listener → COMMAND → Aggregate → EVENT → stored → projected
+    </text>
+    <text x="470" y="68" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#475569">Use when external facts affect your domain logic</text>
+  </g>
+
+  <!-- Attribution -->
+  <text x="970" y="590" text-anchor="end" font-family="system-ui, sans-serif" font-size="9" fill="#475569">macula-hecate • Projection Sequence</text>
+</svg>

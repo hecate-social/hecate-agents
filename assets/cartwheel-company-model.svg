@@ -1,0 +1,284 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 700">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="cmdGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#8B5CF6;stop-opacity:0.3"/>
+      <stop offset="100%" style="stop-color:#8B5CF6;stop-opacity:0.1"/>
+    </linearGradient>
+    <linearGradient id="prjGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#10B981;stop-opacity:0.3"/>
+      <stop offset="100%" style="stop-color:#10B981;stop-opacity:0.1"/>
+    </linearGradient>
+    <linearGradient id="qryGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#F59E0B;stop-opacity:0.3"/>
+      <stop offset="100%" style="stop-color:#F59E0B;stop-opacity:0.1"/>
+    </linearGradient>
+    
+    <!-- Arrow marker -->
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#64748B"/>
+    </marker>
+    <marker id="arrowPurple" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#8B5CF6"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#10B981"/>
+    </marker>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1000" height="700" fill="#0F172A"/>
+  
+  <!-- Title -->
+  <text x="500" y="35" text-anchor="middle" fill="#F8FAFC" font-family="system-ui, sans-serif" font-size="24" font-weight="bold">
+    Domain Service: The Company Model
+  </text>
+  <text x="500" y="55" text-anchor="middle" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="12">
+    manage_capabilities domain
+  </text>
+  
+  <!-- Company Border -->
+  <rect x="30" y="70" width="940" height="580" rx="12" fill="none" stroke="#334155" stroke-width="2"/>
+  <text x="50" y="95" fill="#CBD5E1" font-family="system-ui, sans-serif" font-size="14" font-weight="600">
+    CAPABILITY COMPANY
+  </text>
+  
+  <!-- CMD Department -->
+  <rect x="50" y="110" width="290" height="520" rx="8" fill="url(#cmdGrad)" stroke="#8B5CF6" stroke-width="2"/>
+  <text x="195" y="135" text-anchor="middle" fill="#A78BFA" font-family="system-ui, sans-serif" font-size="16" font-weight="bold">
+    CMD Department
+  </text>
+  <text x="195" y="152" text-anchor="middle" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="11">
+    (Processing)
+  </text>
+  
+  <!-- CMD Frontdesks -->
+  <rect x="65" y="165" width="260" height="130" rx="6" fill="#1E1B4B" stroke="#6366F1" stroke-width="1" stroke-dasharray="4,2"/>
+  <text x="195" y="185" text-anchor="middle" fill="#A5B4FC" font-family="system-ui, sans-serif" font-size="12" font-weight="600">
+    FRONTDESKS
+  </text>
+  
+  <!-- HOPE Inbox -->
+  <rect x="80" y="200" width="105" height="80" rx="4" fill="#312E81" stroke="#818CF8" stroke-width="1"/>
+  <text x="132" y="225" text-anchor="middle" fill="#C7D2FE" font-family="system-ui, sans-serif" font-size="11" font-weight="500">
+    HOPE Inbox
+  </text>
+  <text x="132" y="242" text-anchor="middle" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="9">
+    (Responder)
+  </text>
+  <text x="132" y="265" text-anchor="middle" fill="#64748B" font-family="system-ui, sans-serif" font-size="9">
+    ← mesh requests
+  </text>
+  
+  <!-- FACT Subscription -->
+  <rect x="200" y="200" width="110" height="80" rx="4" fill="#312E81" stroke="#818CF8" stroke-width="1"/>
+  <text x="255" y="225" text-anchor="middle" fill="#C7D2FE" font-family="system-ui, sans-serif" font-size="11" font-weight="500">
+    FACT Sub
+  </text>
+  <text x="255" y="242" text-anchor="middle" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="9">
+    (Listener)
+  </text>
+  <text x="255" y="265" text-anchor="middle" fill="#64748B" font-family="system-ui, sans-serif" font-size="9">
+    ← external facts
+  </text>
+  
+  <!-- CMD Backoffice -->
+  <rect x="65" y="310" width="260" height="305" rx="6" fill="#1E1B4B" stroke="#6366F1" stroke-width="1" stroke-dasharray="4,2"/>
+  <text x="195" y="330" text-anchor="middle" fill="#A5B4FC" font-family="system-ui, sans-serif" font-size="12" font-weight="600">
+    BACKOFFICE DESKS
+  </text>
+  
+  <!-- Announce Desk -->
+  <rect x="80" y="345" width="230" height="120" rx="4" fill="#312E81" stroke="#818CF8" stroke-width="1"/>
+  <text x="195" y="365" text-anchor="middle" fill="#E0E7FF" font-family="system-ui, sans-serif" font-size="11" font-weight="600">
+    announce_capability desk
+  </text>
+  
+  <!-- Inboxes -->
+  <rect x="90" y="375" width="100" height="35" rx="3" fill="#3730A3" stroke="#6366F1" stroke-width="1"/>
+  <text x="140" y="396" text-anchor="middle" fill="#C7D2FE" font-family="system-ui, sans-serif" font-size="9">
+    Command Inbox
+  </text>
+  
+  <rect x="200" y="375" width="100" height="35" rx="3" fill="#3730A3" stroke="#6366F1" stroke-width="1"/>
+  <text x="250" y="390" text-anchor="middle" fill="#C7D2FE" font-family="system-ui, sans-serif" font-size="9">
+    PM Inbox
+  </text>
+  <text x="250" y="402" text-anchor="middle" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="8">
+    on_llm_detected
+  </text>
+  
+  <!-- Tube Mail -->
+  <rect x="90" y="420" width="210" height="35" rx="3" fill="#4C1D95" stroke="#A78BFA" stroke-width="1"/>
+  <text x="195" y="435" text-anchor="middle" fill="#DDD6FE" font-family="system-ui, sans-serif" font-size="9">
+    📬 Tube Mail: capability_announced_v1
+  </text>
+  <text x="195" y="448" text-anchor="middle" fill="#A78BFA" font-family="system-ui, sans-serif" font-size="8">
+    → to PRJ Dept
+  </text>
+  
+  <!-- More desks indicator -->
+  <rect x="80" y="475" width="230" height="50" rx="4" fill="#1E1B4B" stroke="#4C1D95" stroke-width="1" stroke-dasharray="3,3"/>
+  <text x="195" y="500" text-anchor="middle" fill="#6366F1" font-family="system-ui, sans-serif" font-size="10">
+    update_capability desk
+  </text>
+  <text x="195" y="515" text-anchor="middle" fill="#6366F1" font-family="system-ui, sans-serif" font-size="10">
+    revoke_capability desk ...
+  </text>
+  
+  <!-- PRJ Department -->
+  <rect x="355" y="110" width="290" height="520" rx="8" fill="url(#prjGrad)" stroke="#10B981" stroke-width="2"/>
+  <text x="500" y="135" text-anchor="middle" fill="#6EE7B7" font-family="system-ui, sans-serif" font-size="16" font-weight="bold">
+    PRJ Department
+  </text>
+  <text x="500" y="152" text-anchor="middle" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="11">
+    (Filing)
+  </text>
+  
+  <!-- PRJ Frontdesk -->
+  <rect x="370" y="165" width="260" height="80" rx="6" fill="#022C22" stroke="#059669" stroke-width="1" stroke-dasharray="4,2"/>
+  <text x="500" y="185" text-anchor="middle" fill="#6EE7B7" font-family="system-ui, sans-serif" font-size="12" font-weight="600">
+    FRONTDESK
+  </text>
+  
+  <rect x="385" y="200" width="230" height="35" rx="4" fill="#064E3B" stroke="#10B981" stroke-width="1"/>
+  <text x="500" y="222" text-anchor="middle" fill="#A7F3D0" font-family="system-ui, sans-serif" font-size="10">
+    📨 Tube Mail Receiving Room (Router)
+  </text>
+  
+  <!-- PRJ Backoffice -->
+  <rect x="370" y="260" width="260" height="355" rx="6" fill="#022C22" stroke="#059669" stroke-width="1" stroke-dasharray="4,2"/>
+  <text x="500" y="280" text-anchor="middle" fill="#6EE7B7" font-family="system-ui, sans-serif" font-size="12" font-weight="600">
+    BACKOFFICE FILERS
+  </text>
+  
+  <!-- Capabilities Filer -->
+  <rect x="385" y="295" width="230" height="85" rx="4" fill="#064E3B" stroke="#10B981" stroke-width="1"/>
+  <text x="500" y="315" text-anchor="middle" fill="#A7F3D0" font-family="system-ui, sans-serif" font-size="11" font-weight="500">
+    capabilities_filer
+  </text>
+  <rect x="395" y="325" width="210" height="45" rx="3" fill="#065F46" stroke="#34D399" stroke-width="1"/>
+  <text x="500" y="345" text-anchor="middle" fill="#6EE7B7" font-family="system-ui, sans-serif" font-size="10">
+    📁 Files to: capabilities table
+  </text>
+  <text x="500" y="360" text-anchor="middle" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="9">
+    (local cabinet)
+  </text>
+  
+  <!-- Mesh Emitter -->
+  <rect x="385" y="390" width="230" height="85" rx="4" fill="#064E3B" stroke="#F59E0B" stroke-width="1"/>
+  <text x="500" y="410" text-anchor="middle" fill="#FCD34D" font-family="system-ui, sans-serif" font-size="11" font-weight="500">
+    mesh_emitter
+  </text>
+  <rect x="395" y="420" width="210" height="45" rx="3" fill="#78350F" stroke="#F59E0B" stroke-width="1"/>
+  <text x="500" y="440" text-anchor="middle" fill="#FDE68A" font-family="system-ui, sans-serif" font-size="10">
+    📤 Files to: MESH TOPIC
+  </text>
+  <text x="500" y="455" text-anchor="middle" fill="#F59E0B" font-family="system-ui, sans-serif" font-size="9">
+    (→ becomes FACT for others)
+  </text>
+  
+  <!-- Search Filer -->
+  <rect x="385" y="485" width="230" height="60" rx="4" fill="#064E3B" stroke="#10B981" stroke-width="1"/>
+  <text x="500" y="505" text-anchor="middle" fill="#A7F3D0" font-family="system-ui, sans-serif" font-size="11" font-weight="500">
+    search_filer
+  </text>
+  <text x="500" y="525" text-anchor="middle" fill="#6EE7B7" font-family="system-ui, sans-serif" font-size="9">
+    📁 Files to: FTS index
+  </text>
+  
+  <!-- More filers indicator -->
+  <rect x="385" y="555" width="230" height="45" rx="4" fill="#022C22" stroke="#065F46" stroke-width="1" stroke-dasharray="3,3"/>
+  <text x="500" y="582" text-anchor="middle" fill="#059669" font-family="system-ui, sans-serif" font-size="10">
+    cache_filer, analytics_filer ...
+  </text>
+  
+  <!-- QRY Department -->
+  <rect x="660" y="110" width="290" height="520" rx="8" fill="url(#qryGrad)" stroke="#F59E0B" stroke-width="2"/>
+  <text x="805" y="135" text-anchor="middle" fill="#FCD34D" font-family="system-ui, sans-serif" font-size="16" font-weight="bold">
+    QRY Department
+  </text>
+  <text x="805" y="152" text-anchor="middle" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="11">
+    (Inquiries)
+  </text>
+  
+  <!-- QRY Frontdesk -->
+  <rect x="675" y="165" width="260" height="80" rx="6" fill="#451A03" stroke="#D97706" stroke-width="1" stroke-dasharray="4,2"/>
+  <text x="805" y="185" text-anchor="middle" fill="#FCD34D" font-family="system-ui, sans-serif" font-size="12" font-weight="600">
+    FRONTDESK
+  </text>
+  
+  <rect x="690" y="200" width="230" height="35" rx="4" fill="#78350F" stroke="#F59E0B" stroke-width="1"/>
+  <text x="805" y="222" text-anchor="middle" fill="#FDE68A" font-family="system-ui, sans-serif" font-size="10">
+    🪟 Inquiry Window (API/RPC)
+  </text>
+  
+  <!-- QRY Backoffice -->
+  <rect x="675" y="260" width="260" height="355" rx="6" fill="#451A03" stroke="#D97706" stroke-width="1" stroke-dasharray="4,2"/>
+  <text x="805" y="280" text-anchor="middle" fill="#FCD34D" font-family="system-ui, sans-serif" font-size="12" font-weight="600">
+    INQUIRY SPECIALISTS
+  </text>
+  
+  <!-- Find Capability -->
+  <rect x="690" y="295" width="230" height="70" rx="4" fill="#78350F" stroke="#F59E0B" stroke-width="1"/>
+  <text x="805" y="315" text-anchor="middle" fill="#FDE68A" font-family="system-ui, sans-serif" font-size="11" font-weight="500">
+    find_capability
+  </text>
+  <text x="805" y="335" text-anchor="middle" fill="#FCD34D" font-family="system-ui, sans-serif" font-size="9">
+    📖 Reads from: capabilities table
+  </text>
+  <text x="805" y="355" text-anchor="middle" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="9">
+    GET /api/capabilities/:mri
+  </text>
+  
+  <!-- List by Agent -->
+  <rect x="690" y="375" width="230" height="70" rx="4" fill="#78350F" stroke="#F59E0B" stroke-width="1"/>
+  <text x="805" y="395" text-anchor="middle" fill="#FDE68A" font-family="system-ui, sans-serif" font-size="11" font-weight="500">
+    list_by_agent
+  </text>
+  <text x="805" y="415" text-anchor="middle" fill="#FCD34D" font-family="system-ui, sans-serif" font-size="9">
+    📖 Reads from: capabilities + index
+  </text>
+  <text x="805" y="435" text-anchor="middle" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="9">
+    GET /api/capabilities?agent=...
+  </text>
+  
+  <!-- Search -->
+  <rect x="690" y="455" width="230" height="70" rx="4" fill="#78350F" stroke="#F59E0B" stroke-width="1"/>
+  <text x="805" y="475" text-anchor="middle" fill="#FDE68A" font-family="system-ui, sans-serif" font-size="11" font-weight="500">
+    search_capabilities
+  </text>
+  <text x="805" y="495" text-anchor="middle" fill="#FCD34D" font-family="system-ui, sans-serif" font-size="9">
+    📖 Reads from: FTS index
+  </text>
+  <text x="805" y="515" text-anchor="middle" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="9">
+    GET /api/capabilities/search?q=...
+  </text>
+  
+  <!-- Read-only badge -->
+  <rect x="720" y="545" width="170" height="30" rx="15" fill="#1E1B4B" stroke="#6366F1" stroke-width="1"/>
+  <text x="805" y="565" text-anchor="middle" fill="#A5B4FC" font-family="system-ui, sans-serif" font-size="10" font-weight="500">
+    🔒 READ-ONLY
+  </text>
+  
+  <!-- Flow arrows -->
+  <!-- Frontdesk to Backoffice -->
+  <line x1="195" y1="280" x2="195" y2="340" stroke="#8B5CF6" stroke-width="2" marker-end="url(#arrowPurple)"/>
+  
+  <!-- Tube mail to PRJ -->
+  <path d="M 300 440 Q 340 440 340 217 Q 340 217 380 217" stroke="#A78BFA" stroke-width="2" fill="none" marker-end="url(#arrowPurple)" stroke-dasharray="6,3"/>
+  
+  <!-- PRJ router to filers -->
+  <line x1="500" y1="235" x2="500" y2="290" stroke="#10B981" stroke-width="2" marker-end="url(#arrowGreen)"/>
+  
+  <!-- Cabinet to QRY -->
+  <path d="M 615 350 Q 650 350 650 350 Q 650 350 685 350" stroke="#F59E0B" stroke-width="2" fill="none" marker-end="url(#arrowhead)" stroke-dasharray="4,2"/>
+  
+  <!-- Legend -->
+  <rect x="30" y="660" width="940" height="35" rx="4" fill="#1E293B"/>
+  <text x="50" y="682" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="10">
+    HOPE = Request from mesh  •  FACT = Event from other company  •  Tube Mail = Internal event routing  •  📁 = Filing cabinet (read model)
+  </text>
+  
+</svg>

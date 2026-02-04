@@ -1,0 +1,326 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 950 600">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="cmdGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#14b8a6"/>
+      <stop offset="100%" stop-color="#10b981"/>
+    </linearGradient>
+    <linearGradient id="prjGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f97316"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+    <linearGradient id="qryGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#0ea5e9"/>
+    </linearGradient>
+    <linearGradient id="eventLogGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#a855f7"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+    <linearGradient id="cacheGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#dc2626"/>
+      <stop offset="100%" stop-color="#991b1b"/>
+    </linearGradient>
+
+    <!-- Markers -->
+    <marker id="arrowWhite" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#94a3b8"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#10b981"/>
+    </marker>
+    <marker id="arrowOrange" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#f97316"/>
+    </marker>
+    <marker id="arrowBlue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#3b82f6"/>
+    </marker>
+    <marker id="arrowPurple" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#a855f7"/>
+    </marker>
+
+    <!-- Filters -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <style>
+    @keyframes flowRight {
+      0% { stroke-dashoffset: 30; }
+      100% { stroke-dashoffset: 0; }
+    }
+    @keyframes flowDown {
+      0% { stroke-dashoffset: 20; }
+      100% { stroke-dashoffset: 0; }
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.7; }
+      50% { opacity: 1; }
+    }
+    @keyframes streamPulse {
+      0%, 100% { transform: scaleX(1); }
+      50% { transform: scaleX(1.02); }
+    }
+    .flow-right { stroke-dasharray: 15 8; animation: flowRight 1s linear infinite; }
+    .flow-down { stroke-dasharray: 12 6; animation: flowDown 1s linear infinite; }
+    .pulse { animation: pulse 2s ease-in-out infinite; }
+    .stream-pulse { animation: streamPulse 2s ease-in-out infinite; transform-origin: left center; }
+  </style>
+
+  <!-- Background -->
+  <rect width="950" height="600" fill="#0f172a"/>
+
+  <!-- Grid -->
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/>
+    </pattern>
+  </defs>
+  <rect width="950" height="600" fill="url(#grid)" opacity="0.5"/>
+
+  <!-- Title -->
+  <text x="475" y="40" text-anchor="middle" font-family="system-ui, sans-serif" font-size="26" font-weight="bold" fill="#fff">Complete Data Flow</text>
+  <text x="475" y="65" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" fill="#94a3b8">The Three Sequences Connected — CMD → PRJ → QRY</text>
+
+  <!-- ========== 1. WRITE SEQUENCE (CMD) ========== -->
+  <g transform="translate(30, 95)">
+    <rect x="0" y="0" width="520" height="110" rx="10" fill="#1e293b" stroke="#10b981" stroke-width="2"/>
+    <rect x="0" y="0" width="180" height="30" rx="10" fill="url(#cmdGrad)"/>
+    <text x="90" y="21" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" font-weight="bold" fill="#fff">1. WRITE SEQUENCE (CMD)</text>
+
+    <!-- API Input -->
+    <g transform="translate(20, 50)">
+      <rect x="0" y="0" width="50" height="40" rx="5" fill="#1e293b" stroke="#3b82f6" stroke-width="1"/>
+      <text x="25" y="18" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#60a5fa">API</text>
+      <text x="25" y="32" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#64748b">Request</text>
+    </g>
+
+    <line x1="75" y1="70" x2="100" y2="70" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrowBlue)" class="flow-right"/>
+
+    <!-- Responder -->
+    <g transform="translate(105, 50)">
+      <rect x="0" y="0" width="70" height="40" rx="5" fill="#c2410c" stroke="#f97316" stroke-width="1"/>
+      <text x="35" y="25" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="bold" fill="#fff">Responder</text>
+    </g>
+
+    <line x1="180" y1="70" x2="205" y2="70" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrowWhite)" class="flow-right"/>
+
+    <!-- Pipeline -->
+    <g transform="translate(210, 50)">
+      <rect x="0" y="0" width="70" height="40" rx="5" fill="#334155"/>
+      <text x="35" y="25" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="bold" fill="#fff">Pipeline</text>
+    </g>
+
+    <line x1="285" y1="70" x2="310" y2="70" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrowWhite)" class="flow-right"/>
+
+    <!-- Aggregate -->
+    <g transform="translate(315, 50)">
+      <rect x="0" y="0" width="70" height="40" rx="5" fill="#2d1b4e" stroke="#a855f7" stroke-width="1" filter="url(#glow)"/>
+      <text x="35" y="25" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="bold" fill="#fff">Aggregate</text>
+    </g>
+
+    <line x1="390" y1="70" x2="415" y2="70" stroke="#a855f7" stroke-width="2" marker-end="url(#arrowPurple)" class="flow-right"/>
+
+    <!-- Event -->
+    <g transform="translate(420, 50)">
+      <rect x="0" y="0" width="55" height="40" rx="5" fill="#10b981"/>
+      <text x="27" y="25" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="bold" fill="#fff">EVENT</text>
+    </g>
+
+    <!-- Arrow to Event Log -->
+    <line x1="480" y1="70" x2="520" y2="70" stroke="#10b981" stroke-width="2" class="flow-right"/>
+  </g>
+
+  <!-- ========== EVENT LOG (Central) ========== -->
+  <g transform="translate(570, 95)">
+    <rect x="0" y="0" width="160" height="250" rx="10" fill="#1e293b" stroke="#a855f7" stroke-width="2"/>
+    <rect x="0" y="0" width="160" height="35" rx="10" fill="url(#eventLogGrad)"/>
+    <text x="80" y="24" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" font-weight="bold" fill="#fff">EVENT LOG</text>
+    <text x="80" y="55" text-anchor="middle" font-family="monospace" font-size="10" fill="#64748b">ReckonDB</text>
+
+    <!-- Event streams -->
+    <g transform="translate(15, 70)">
+      <rect x="0" y="0" width="130" height="10" rx="2" fill="#10b981" class="stream-pulse"/>
+      <rect x="0" y="14" width="110" height="10" rx="2" fill="#059669" class="stream-pulse"/>
+      <rect x="0" y="28" width="120" height="10" rx="2" fill="#047857" class="stream-pulse"/>
+      <rect x="0" y="42" width="95" height="10" rx="2" fill="#f97316" class="stream-pulse"/>
+      <rect x="0" y="56" width="115" height="10" rx="2" fill="#ea580c" class="stream-pulse"/>
+      <rect x="0" y="70" width="100" height="10" rx="2" fill="#3b82f6" class="stream-pulse"/>
+      <rect x="0" y="84" width="125" height="10" rx="2" fill="#2563eb" class="stream-pulse"/>
+      <rect x="0" y="98" width="108" height="10" rx="2" fill="#a855f7" class="stream-pulse"/>
+      <rect x="0" y="112" width="118" height="10" rx="2" fill="#9333ea" class="stream-pulse"/>
+      <rect x="0" y="126" width="90" height="10" rx="2" fill="#ec4899" class="stream-pulse"/>
+      <rect x="0" y="140" width="130" height="10" rx="2" fill="#db2777" class="stream-pulse"/>
+    </g>
+
+    <!-- Stream output label -->
+    <g transform="translate(40, 225)">
+      <rect x="0" y="0" width="80" height="20" rx="4" fill="#f59e0b"/>
+      <text x="40" y="14" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" font-weight="bold" fill="#fff">STREAM</text>
+    </g>
+  </g>
+
+  <!-- Arrow from Event Log to PRJ -->
+  <path d="M570,320 L540,320 L540,265 L30,265" stroke="#f59e0b" stroke-width="2" fill="none" stroke-dasharray="8 4" marker-end="url(#arrowOrange)"/>
+
+  <!-- ========== 2. PROJECTION SEQUENCE (PRJ) ========== -->
+  <g transform="translate(30, 240)">
+    <rect x="0" y="0" width="520" height="110" rx="10" fill="#1e293b" stroke="#f97316" stroke-width="2"/>
+    <rect x="0" y="0" width="220" height="30" rx="10" fill="url(#prjGrad)"/>
+    <text x="110" y="21" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" font-weight="bold" fill="#fff">2. PROJECTION SEQUENCE (PRJ)</text>
+
+    <!-- Projector -->
+    <g transform="translate(20, 50)">
+      <rect x="0" y="0" width="70" height="40" rx="5" fill="#0369a1" stroke="#3b82f6" stroke-width="1"/>
+      <text x="35" y="25" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="bold" fill="#fff">Projector</text>
+    </g>
+
+    <line x1="95" y1="70" x2="120" y2="70" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrowWhite)" class="flow-right"/>
+
+    <!-- Events -->
+    <g transform="translate(125, 50)">
+      <rect x="0" y="0" width="60" height="40" rx="5" fill="#10b981"/>
+      <text x="30" y="25" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="bold" fill="#fff">Events</text>
+    </g>
+
+    <line x1="190" y1="70" x2="215" y2="70" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrowWhite)" class="flow-right"/>
+
+    <!-- Exchange -->
+    <g transform="translate(220, 50)">
+      <rect x="0" y="0" width="70" height="40" rx="5" fill="#059669" stroke="#10b981" stroke-width="1"/>
+      <text x="35" y="25" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="bold" fill="#fff">Exchange</text>
+    </g>
+
+    <line x1="295" y1="70" x2="320" y2="70" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrowWhite)" class="flow-right"/>
+
+    <!-- Table Projection -->
+    <g transform="translate(325, 50)">
+      <rect x="0" y="0" width="80" height="40" rx="5" fill="#1e293b" stroke="#f97316" stroke-width="1"/>
+      <text x="40" y="18" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#64748b">Table</text>
+      <text x="40" y="32" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="bold" fill="#f97316">Projection</text>
+    </g>
+
+    <!-- Arrow to Cache/DB -->
+    <line x1="410" y1="70" x2="520" y2="70" stroke="#dc2626" stroke-width="2" class="flow-right"/>
+  </g>
+
+  <!-- Arrow from PRJ to Cache/DB -->
+  <path d="M550,310 L570,310 L570,370 L750,370" stroke="#dc2626" stroke-width="2" fill="none" marker-end="url(#arrowWhite)"/>
+
+  <!-- ========== CACHE/DB ========== -->
+  <g transform="translate(750, 360)">
+    <rect x="0" y="0" width="160" height="130" rx="10" fill="#1e293b" stroke="#dc2626" stroke-width="2"/>
+    <rect x="0" y="0" width="160" height="35" rx="10" fill="url(#cacheGrad)"/>
+    <text x="80" y="24" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" font-weight="bold" fill="#fff">CACHE / DB</text>
+    <text x="80" y="55" text-anchor="middle" font-family="monospace" font-size="10" fill="#64748b">SQLite</text>
+    <text x="80" y="72" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#94a3b8">Read Models</text>
+
+    <!-- Tables visualization -->
+    <g transform="translate(20, 85)">
+      <rect x="0" y="0" width="35" height="30" rx="3" fill="#334155" stroke="#64748b"/>
+      <rect x="40" y="0" width="35" height="30" rx="3" fill="#334155" stroke="#64748b"/>
+      <rect x="80" y="0" width="35" height="30" rx="3" fill="#334155" stroke="#64748b"/>
+    </g>
+  </g>
+
+  <!-- ========== 3. QUERY SEQUENCE (QRY) ========== -->
+  <g transform="translate(30, 385)">
+    <rect x="0" y="0" width="520" height="110" rx="10" fill="#1e293b" stroke="#3b82f6" stroke-width="2"/>
+    <rect x="0" y="0" width="200" height="30" rx="10" fill="url(#qryGrad)"/>
+    <text x="100" y="21" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" font-weight="bold" fill="#fff">3. QUERY SEQUENCE (QRY)</text>
+
+    <!-- API Query -->
+    <g transform="translate(20, 50)">
+      <rect x="0" y="0" width="50" height="40" rx="5" fill="#1e293b" stroke="#3b82f6" stroke-width="1"/>
+      <text x="25" y="18" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#60a5fa">API</text>
+      <text x="25" y="32" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#64748b">Query</text>
+    </g>
+
+    <line x1="75" y1="70" x2="100" y2="70" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrowBlue)" class="flow-right"/>
+
+    <!-- Controller -->
+    <g transform="translate(105, 50)">
+      <rect x="0" y="0" width="70" height="40" rx="5" fill="#0369a1" stroke="#3b82f6" stroke-width="1"/>
+      <text x="35" y="25" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="bold" fill="#fff">Controller</text>
+    </g>
+
+    <line x1="180" y1="70" x2="205" y2="70" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrowWhite)" class="flow-right"/>
+
+    <!-- Provider -->
+    <g transform="translate(210, 50)">
+      <rect x="0" y="0" width="70" height="40" rx="5" fill="#059669" stroke="#10b981" stroke-width="1"/>
+      <text x="35" y="25" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="bold" fill="#fff">Provider</text>
+    </g>
+
+    <!-- Arrow to Cache/DB -->
+    <line x1="285" y1="70" x2="520" y2="70" stroke="#3b82f6" stroke-width="2" class="flow-right"/>
+    <text x="400" y="62" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#64748b">Direct Read</text>
+
+    <!-- Response arrow back -->
+    <line x1="520" y1="80" x2="75" y2="80" stroke="#f97316" stroke-width="2" stroke-dasharray="6 3"/>
+    <text x="300" y="95" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#f97316">Response</text>
+  </g>
+
+  <!-- Arrow from QRY to Cache/DB -->
+  <path d="M550,455 L600,455 L600,490 L750,490" stroke="#3b82f6" stroke-width="2" fill="none" marker-end="url(#arrowBlue)"/>
+
+  <!-- Critical Insight Box -->
+  <g transform="translate(750, 95)">
+    <rect x="0" y="0" width="170" height="130" rx="8" fill="#1e293b" stroke="#dc2626" stroke-width="2"/>
+    <rect x="0" y="0" width="170" height="30" rx="8" fill="#dc2626"/>
+    <text x="85" y="21" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="bold" fill="#fff">CRITICAL</text>
+
+    <g transform="translate(15, 45)" font-family="system-ui, sans-serif" font-size="10">
+      <text x="0" y="0" fill="#fca5a5" font-weight="bold">QRY never touches</text>
+      <text x="0" y="16" fill="#fca5a5" font-weight="bold">the Event Log!</text>
+
+      <text x="0" y="40" fill="#94a3b8">It reads from</text>
+      <text x="0" y="55" fill="#94a3b8">pre-computed</text>
+      <text x="0" y="70" fill="#94a3b8">read models only.</text>
+    </g>
+  </g>
+
+  <!-- Flow Summary Legend -->
+  <g transform="translate(30, 520)">
+    <rect x="0" y="0" width="890" height="60" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+
+    <text x="20" y="25" font-family="system-ui, sans-serif" font-size="11" font-weight="bold" fill="#94a3b8">COMPLETE FLOW:</text>
+
+    <g transform="translate(140, 10)">
+      <rect x="0" y="5" width="60" height="22" rx="4" fill="#10b981"/>
+      <text x="30" y="20" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" font-weight="bold" fill="#fff">1. CMD</text>
+      <text x="80" y="20" font-family="system-ui, sans-serif" font-size="10" fill="#64748b">writes events →</text>
+    </g>
+
+    <g transform="translate(280, 10)">
+      <rect x="0" y="5" width="80" height="22" rx="4" fill="#a855f7"/>
+      <text x="40" y="20" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" font-weight="bold" fill="#fff">Event Log</text>
+      <text x="100" y="20" font-family="system-ui, sans-serif" font-size="10" fill="#64748b">streams to →</text>
+    </g>
+
+    <g transform="translate(450, 10)">
+      <rect x="0" y="5" width="60" height="22" rx="4" fill="#f97316"/>
+      <text x="30" y="20" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" font-weight="bold" fill="#fff">2. PRJ</text>
+      <text x="80" y="20" font-family="system-ui, sans-serif" font-size="10" fill="#64748b">updates →</text>
+    </g>
+
+    <g transform="translate(590, 10)">
+      <rect x="0" y="5" width="70" height="22" rx="4" fill="#dc2626"/>
+      <text x="35" y="20" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" font-weight="bold" fill="#fff">Cache/DB</text>
+      <text x="90" y="20" font-family="system-ui, sans-serif" font-size="10" fill="#64748b">← queried by</text>
+    </g>
+
+    <g transform="translate(770, 10)">
+      <rect x="0" y="5" width="60" height="22" rx="4" fill="#3b82f6"/>
+      <text x="30" y="20" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" font-weight="bold" fill="#fff">3. QRY</text>
+    </g>
+
+    <text x="445" y="50" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#64748b" font-style="italic">Separation of concerns: Write side (CMD) is isolated from Read side (QRY) via Event Log and Projections</text>
+  </g>
+
+  <!-- Attribution -->
+  <text x="920" y="595" text-anchor="end" font-family="system-ui, sans-serif" font-size="9" fill="#475569">macula-hecate • Complete Data Flow</text>
+</svg>

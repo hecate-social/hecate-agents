@@ -1,0 +1,297 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 750">
+  <defs>
+    <!-- Gradients -->
+    <radialGradient id="hubGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#a855f7" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#a855f7" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="ringGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="70%" stop-color="#10b981" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#10b981" stop-opacity="0.3"/>
+    </radialGradient>
+    <linearGradient id="spokeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+
+    <!-- Glow filter -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Animated markers -->
+    <marker id="arrowPurple" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#a855f7"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#10b981"/>
+    </marker>
+    <marker id="arrowBlue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#3b82f6"/>
+    </marker>
+    <marker id="arrowOrange" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#f97316"/>
+    </marker>
+  </defs>
+
+  <style>
+    @keyframes pulse {
+      0%, 100% { opacity: 0.4; transform: scale(1); }
+      50% { opacity: 0.8; transform: scale(1.05); }
+    }
+    @keyframes pulseSlow {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 0.6; }
+    }
+    @keyframes rotate {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    @keyframes dash {
+      to { stroke-dashoffset: -20; }
+    }
+    @keyframes flowOut {
+      0% { stroke-dashoffset: 0; }
+      100% { stroke-dashoffset: -30; }
+    }
+    @keyframes flowIn {
+      0% { stroke-dashoffset: 0; }
+      100% { stroke-dashoffset: 30; }
+    }
+    @keyframes breathe {
+      0%, 100% { r: 55; }
+      50% { r: 58; }
+    }
+    .hub-glow { animation: pulse 3s ease-in-out infinite; transform-origin: center; }
+    .ring-pulse { animation: pulseSlow 4s ease-in-out infinite; }
+    .ring-dash { animation: dash 2s linear infinite; }
+    .flow-out { stroke-dasharray: 15 10; animation: flowOut 1.5s linear infinite; }
+    .flow-in { stroke-dasharray: 15 10; animation: flowIn 1.5s linear infinite; }
+    .breathe { animation: breathe 3s ease-in-out infinite; }
+    .spoke-hover:hover { filter: url(#glow); cursor: pointer; }
+  </style>
+
+  <!-- Background with subtle gradient -->
+  <rect width="900" height="750" fill="#0f172a"/>
+  <rect width="900" height="750" fill="url(#ringGlow)" opacity="0.3"/>
+
+  <!-- Grid pattern -->
+  <defs>
+    <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
+      <path d="M 50 0 L 0 0 0 50" fill="none" stroke="#1e293b" stroke-width="0.5"/>
+    </pattern>
+  </defs>
+  <rect width="900" height="750" fill="url(#grid)" opacity="0.4"/>
+
+  <!-- Title -->
+  <text x="450" y="45" text-anchor="middle" font-family="system-ui, sans-serif" font-size="28" font-weight="bold" fill="#fff">Cartwheel Architecture</text>
+  <text x="450" y="72" text-anchor="middle" font-family="system-ui, sans-serif" font-size="14" fill="#94a3b8">"Majestic Modularity" — Vertical Slices with Integration Infrastructure</text>
+
+  <!-- Main wheel group centered -->
+  <g transform="translate(320, 380)">
+    <!-- Outer ring glow -->
+    <circle cx="0" cy="0" r="200" fill="none" stroke="#10b981" stroke-width="50" opacity="0.1" class="ring-pulse"/>
+
+    <!-- Outer ring (Integration Infrastructure) -->
+    <circle cx="0" cy="0" r="200" fill="none" stroke="#10b981" stroke-width="3" stroke-dasharray="12 6" class="ring-dash"/>
+    <circle cx="0" cy="0" r="175" fill="none" stroke="#10b981" stroke-width="1" opacity="0.3"/>
+    <circle cx="0" cy="0" r="225" fill="none" stroke="#10b981" stroke-width="1" opacity="0.3"/>
+
+    <!-- Infrastructure labels on ring -->
+    <g font-family="system-ui, sans-serif" font-size="11" fill="#34d399" font-weight="bold">
+      <text x="0" y="-210" text-anchor="middle">STORAGE</text>
+      <text x="155" y="-155" text-anchor="middle" transform="rotate(45, 155, -155)">EVENT LOG</text>
+      <text x="220" y="5" text-anchor="middle">MESSAGING</text>
+      <text x="155" y="165" text-anchor="middle" transform="rotate(-45, 155, 165)">TELEMETRY</text>
+      <text x="0" y="230" text-anchor="middle">CACHING</text>
+      <text x="-155" y="165" text-anchor="middle" transform="rotate(45, -155, 165)">INTERNET</text>
+      <text x="-220" y="5" text-anchor="middle">HARDWARE</text>
+      <text x="-155" y="-155" text-anchor="middle" transform="rotate(-45, -155, -155)">SECURITY</text>
+    </g>
+
+    <!-- Spokes (Vertical Slices) -->
+    <g id="spokes">
+      <!-- 8 spokes evenly distributed -->
+      <g class="spoke-hover">
+        <line x1="0" y1="-60" x2="0" y2="-160" stroke="url(#spokeGrad)" stroke-width="10" stroke-linecap="round" filter="url(#softGlow)"/>
+        <rect x="-50" y="-195" width="100" height="32" rx="5" fill="#1e3a5f" stroke="#3b82f6" stroke-width="2"/>
+        <text x="0" y="-175" text-anchor="middle" font-family="monospace" font-size="10" fill="#60a5fa">announce_capability</text>
+      </g>
+
+      <g class="spoke-hover" transform="rotate(45)">
+        <line x1="0" y1="-60" x2="0" y2="-160" stroke="url(#spokeGrad)" stroke-width="10" stroke-linecap="round" filter="url(#softGlow)"/>
+        <g transform="rotate(-45) translate(115, -115)">
+          <rect x="-45" y="-16" width="90" height="32" rx="5" fill="#1e3a5f" stroke="#3b82f6" stroke-width="2"/>
+          <text x="0" y="4" text-anchor="middle" font-family="monospace" font-size="10" fill="#60a5fa">track_rpc_call</text>
+        </g>
+      </g>
+
+      <g class="spoke-hover" transform="rotate(90)">
+        <line x1="0" y1="-60" x2="0" y2="-160" stroke="url(#spokeGrad)" stroke-width="10" stroke-linecap="round" filter="url(#softGlow)"/>
+        <g transform="rotate(-90) translate(175, 0)">
+          <rect x="-50" y="-16" width="100" height="32" rx="5" fill="#1e3a5f" stroke="#3b82f6" stroke-width="2"/>
+          <text x="0" y="4" text-anchor="middle" font-family="monospace" font-size="10" fill="#60a5fa">grant_capability</text>
+        </g>
+      </g>
+
+      <g class="spoke-hover" transform="rotate(135)">
+        <line x1="0" y1="-60" x2="0" y2="-160" stroke="url(#spokeGrad)" stroke-width="10" stroke-linecap="round" filter="url(#softGlow)"/>
+        <g transform="rotate(-135) translate(115, 115)">
+          <rect x="-40" y="-16" width="80" height="32" rx="5" fill="#1e3a5f" stroke="#3b82f6" stroke-width="2"/>
+          <text x="0" y="4" text-anchor="middle" font-family="monospace" font-size="10" fill="#60a5fa">flag_dispute</text>
+        </g>
+      </g>
+
+      <g class="spoke-hover" transform="rotate(180)">
+        <line x1="0" y1="-60" x2="0" y2="-160" stroke="url(#spokeGrad)" stroke-width="10" stroke-linecap="round" filter="url(#softGlow)"/>
+        <g transform="rotate(-180) translate(0, 175)">
+          <rect x="-40" y="-16" width="80" height="32" rx="5" fill="#1e3a5f" stroke="#3b82f6" stroke-width="2"/>
+          <text x="0" y="4" text-anchor="middle" font-family="monospace" font-size="10" fill="#60a5fa">subscribe</text>
+        </g>
+      </g>
+
+      <g class="spoke-hover" transform="rotate(225)">
+        <line x1="0" y1="-60" x2="0" y2="-160" stroke="url(#spokeGrad)" stroke-width="10" stroke-linecap="round" filter="url(#softGlow)"/>
+        <g transform="rotate(-225) translate(-115, 115)">
+          <rect x="-45" y="-16" width="90" height="32" rx="5" fill="#1e3a5f" stroke="#3b82f6" stroke-width="2"/>
+          <text x="0" y="4" text-anchor="middle" font-family="monospace" font-size="10" fill="#60a5fa">follow_agent</text>
+        </g>
+      </g>
+
+      <g class="spoke-hover" transform="rotate(270)">
+        <line x1="0" y1="-60" x2="0" y2="-160" stroke="url(#spokeGrad)" stroke-width="10" stroke-linecap="round" filter="url(#softGlow)"/>
+        <g transform="rotate(-270) translate(-175, 0)">
+          <rect x="-55" y="-16" width="110" height="32" rx="5" fill="#1e3a5f" stroke="#3b82f6" stroke-width="2"/>
+          <text x="0" y="4" text-anchor="middle" font-family="monospace" font-size="10" fill="#60a5fa">register_identity</text>
+        </g>
+      </g>
+
+      <g class="spoke-hover" transform="rotate(315)">
+        <line x1="0" y1="-60" x2="0" y2="-160" stroke="url(#spokeGrad)" stroke-width="10" stroke-linecap="round" filter="url(#softGlow)"/>
+        <g transform="rotate(-315) translate(-115, -115)">
+          <rect x="-50" y="-16" width="100" height="32" rx="5" fill="#1e3a5f" stroke="#3b82f6" stroke-width="2"/>
+          <text x="0" y="4" text-anchor="middle" font-family="monospace" font-size="10" fill="#60a5fa">resolve_dispute</text>
+        </g>
+      </g>
+    </g>
+
+    <!-- Hub glow effect -->
+    <circle cx="0" cy="0" r="80" fill="url(#hubGlow)" class="hub-glow"/>
+
+    <!-- Hub (Aggregate State) -->
+    <circle cx="0" cy="0" r="55" fill="#2d1b4e" stroke="#a855f7" stroke-width="4" filter="url(#glow)" class="breathe"/>
+    <text x="0" y="-8" text-anchor="middle" font-family="system-ui, sans-serif" font-size="14" font-weight="bold" fill="#fff">AGGREGATE</text>
+    <text x="0" y="12" text-anchor="middle" font-family="system-ui, sans-serif" font-size="14" font-weight="bold" fill="#fff">STATE</text>
+    <text x="0" y="32" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#c4b5fd">(Hub)</text>
+  </g>
+
+  <!-- Integration Components Panel -->
+  <g transform="translate(620, 130)">
+    <rect x="0" y="0" width="250" height="280" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+    <text x="125" y="28" text-anchor="middle" font-family="system-ui, sans-serif" font-size="14" font-weight="bold" fill="#fff">Mesh Integration</text>
+    <line x1="20" y1="42" x2="230" y2="42" stroke="#334155" stroke-width="1"/>
+
+    <!-- Emitter -->
+    <g transform="translate(20, 65)">
+      <rect x="0" y="0" width="100" height="40" rx="6" fill="#7c3aed" stroke="#a855f7" stroke-width="2"/>
+      <text x="50" y="25" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" fill="#fff">EMITTER</text>
+      <line x1="105" y1="20" x2="140" y2="20" stroke="#a855f7" stroke-width="2" marker-end="url(#arrowPurple)" class="flow-out"/>
+      <text x="170" y="18" font-family="system-ui, sans-serif" font-size="10" fill="#c4b5fd">EVENT</text>
+      <text x="170" y="30" font-family="system-ui, sans-serif" font-size="10" fill="#94a3b8">→ FACT</text>
+    </g>
+
+    <!-- Listener -->
+    <g transform="translate(20, 120)">
+      <rect x="0" y="0" width="100" height="40" rx="6" fill="#059669" stroke="#10b981" stroke-width="2"/>
+      <text x="50" y="25" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" fill="#fff">LISTENER</text>
+      <line x1="140" y1="20" x2="105" y2="20" stroke="#10b981" stroke-width="2" marker-end="url(#arrowGreen)" class="flow-in"/>
+      <text x="170" y="18" font-family="system-ui, sans-serif" font-size="10" fill="#6ee7b7">FACT</text>
+      <text x="170" y="30" font-family="system-ui, sans-serif" font-size="10" fill="#94a3b8">→ CMD</text>
+    </g>
+
+    <!-- Requester -->
+    <g transform="translate(20, 175)">
+      <rect x="0" y="0" width="100" height="40" rx="6" fill="#0369a1" stroke="#3b82f6" stroke-width="2"/>
+      <text x="50" y="25" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" fill="#fff">REQUESTER</text>
+      <line x1="105" y1="20" x2="140" y2="20" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrowBlue)" class="flow-out"/>
+      <text x="170" y="18" font-family="system-ui, sans-serif" font-size="10" fill="#93c5fd">sends</text>
+      <text x="170" y="30" font-family="system-ui, sans-serif" font-size="10" fill="#94a3b8">HOPE</text>
+    </g>
+
+    <!-- Responder -->
+    <g transform="translate(20, 230)">
+      <rect x="0" y="0" width="100" height="40" rx="6" fill="#c2410c" stroke="#f97316" stroke-width="2"/>
+      <text x="50" y="25" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" fill="#fff">RESPONDER</text>
+      <line x1="140" y1="20" x2="105" y2="20" stroke="#f97316" stroke-width="2" marker-end="url(#arrowOrange)" class="flow-in"/>
+      <text x="170" y="18" font-family="system-ui, sans-serif" font-size="10" fill="#fdba74">HOPE →</text>
+      <text x="170" y="30" font-family="system-ui, sans-serif" font-size="10" fill="#94a3b8">FEEDBACK</text>
+    </g>
+  </g>
+
+  <!-- Key Principles Panel -->
+  <g transform="translate(620, 430)">
+    <rect x="0" y="0" width="250" height="200" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+    <text x="125" y="28" text-anchor="middle" font-family="system-ui, sans-serif" font-size="14" font-weight="bold" fill="#fff">Key Principles</text>
+    <line x1="20" y1="42" x2="230" y2="42" stroke="#334155" stroke-width="1"/>
+
+    <g transform="translate(20, 60)" font-family="system-ui, sans-serif" font-size="11">
+      <circle cx="8" cy="4" r="5" fill="#3b82f6"/>
+      <text x="22" y="8" fill="#fff">Spokes = Vertical Slices</text>
+
+      <circle cx="8" cy="30" r="5" fill="#a855f7"/>
+      <text x="22" y="34" fill="#fff">Hub = Aggregate State</text>
+
+      <circle cx="8" cy="56" r="5" fill="#10b981"/>
+      <text x="22" y="60" fill="#fff">Ring = Integration Infra</text>
+
+      <circle cx="8" cy="82" r="5" fill="#f97316"/>
+      <text x="22" y="86" fill="#fff">Names "Scream" Intent</text>
+
+      <circle cx="8" cy="108" r="5" fill="#ec4899"/>
+      <text x="22" y="112" fill="#fff">Unit of Deployment</text>
+
+      <circle cx="8" cy="134" r="5" fill="#06b6d4"/>
+      <text x="22" y="138" fill="#fff">Works with DDD/ES/CQRS</text>
+    </g>
+  </g>
+
+  <!-- Legend -->
+  <g transform="translate(50, 680)">
+    <rect x="0" y="0" width="800" height="55" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+
+    <text x="400" y="20" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" fill="#94a3b8">CRITICAL: FACTS ≠ EVENTS</text>
+
+    <g transform="translate(60, 38)" font-family="system-ui, sans-serif" font-size="10">
+      <rect x="0" y="-10" width="60" height="20" rx="3" fill="#a855f7" opacity="0.3" stroke="#a855f7"/>
+      <text x="30" y="4" text-anchor="middle" fill="#e9d5ff">EVENT</text>
+      <text x="80" y="4" fill="#94a3b8">= Internal (ReckonDB)</text>
+
+      <rect x="230" y="-10" width="50" height="20" rx="3" fill="#10b981" opacity="0.3" stroke="#10b981"/>
+      <text x="255" y="4" text-anchor="middle" fill="#6ee7b7">FACT</text>
+      <text x="295" y="4" fill="#94a3b8">= External (Mesh)</text>
+
+      <rect x="440" y="-10" width="50" height="20" rx="3" fill="#3b82f6" opacity="0.3" stroke="#3b82f6"/>
+      <text x="465" y="4" text-anchor="middle" fill="#93c5fd">HOPE</text>
+      <text x="505" y="4" fill="#94a3b8">= RPC Request</text>
+
+      <rect x="630" y="-10" width="80" height="20" rx="3" fill="#f97316" opacity="0.3" stroke="#f97316"/>
+      <text x="670" y="4" text-anchor="middle" fill="#fdba74">FEEDBACK</text>
+      <text x="720" y="4" fill="#94a3b8">= Response</text>
+    </g>
+  </g>
+
+  <!-- Attribution -->
+  <text x="870" y="745" text-anchor="end" font-family="system-ui, sans-serif" font-size="9" fill="#475569">macula-hecate • Cartwheel Architecture</text>
+</svg>
