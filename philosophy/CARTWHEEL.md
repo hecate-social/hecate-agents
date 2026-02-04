@@ -1,6 +1,6 @@
 # CARTWHEEL.md — The Canonical Architecture
 
-*DisComCo in practice. This is the blueprint.*
+*The Cartwheel in practice. This is the blueprint.*
 
 ---
 

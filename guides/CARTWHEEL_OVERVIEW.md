@@ -6,7 +6,7 @@
 
 ## What is Cartwheel?
 
-The Cartwheel Architecture is a visual and conceptual model for organizing complex, event-sourced systems. Originally developed at DisComCo, it provides a powerful mental model for understanding how different parts of a system relate to each other.
+The Cartwheel Architecture is a visual and conceptual model for organizing complex, event-sourced systems. It provides a powerful mental model for understanding how different parts of a system relate to each other.
 
 Think of it as a wheel:
 
@@ -208,7 +208,6 @@ Dive deeper into each sequence:
 
 - [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md) — Full architecture documentation
 - [CLAUDE.md](../CLAUDE.md) — Development guidelines
-- [DisComCo Talks](https://www.youtube.com/@DisComCo) — Original Cartwheel presentations
 
 ---
 
