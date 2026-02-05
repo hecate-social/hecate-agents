@@ -1,4 +1,4 @@
-# HECATE_AnD — Analysis & Discovery
+# HECATE_DnA — Discovery & Analysis
 
 *Understand the problem before solving it.*
 
@@ -14,7 +14,7 @@ Before writing any code, understand:
 - What constraints exist?
 - What could go wrong?
 
-**AnD is about questions, not answers.**
+**DnA is about questions, not answers.**
 
 ---
 
@@ -148,13 +148,13 @@ See: [DDD.md](DDD.md)
 
 ## Checklists
 
-### Before Starting AnD
+### Before Starting DnA
 
 - [ ] Scope is roughly defined
 - [ ] Time allocated for discovery
 - [ ] Access to stakeholders/domain experts (if needed)
 
-### Before Leaving AnD
+### Before Leaving DnA
 
 - [ ] Problem is clearly stated
 - [ ] Requirements are documented
@@ -215,13 +215,13 @@ See: [DDD.md](DDD.md)
 
 ## Transition to AnP
 
-When AnD is complete:
+When DnA is complete:
 
 1. Review outputs with stakeholders
 2. Confirm understanding is correct
 3. Identify first iteration scope
-4. Proceed to [HECATE_AnP](HECATE_AnP.md)
+4. Proceed to [HECATE_AnP](HECATE_ARCHITECTURE_N_PLANNING.md)
 
 ---
 
-*Understand first. Solve second.* 🗝️
+*Understand first. Solve second.*

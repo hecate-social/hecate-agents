@@ -9,11 +9,10 @@
 HECATE_ALC defines how Hecate agents approach software development. Four phases, each with clear purpose, activities, and outputs.
 
 ```
-┌─────────┐    ┌─────────┐    ┌─────────┐    ┌─────────┐
-│   AnD   │ →  │   AnP   │ →  │   InT   │ →  │   DoO   │
-│Analysis │    │  Arch   │    │  Impl   │    │ Deploy  │
-│Discovery│    │Planning │    │ Testing │    │  Ops    │
-└─────────┘    └─────────┘    └─────────┘    └─────────┘
+┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐
+│  Discovery   │ →  │ Architecture │ →  │   Testing    │ →  │  Deployment  │
+│  & Analysis  │    │  & Planning  │    │ & Implement  │    │ & Operations │
+└──────────────┘    └──────────────┘    └──────────────┘    └──────────────┘
 ```
 
 **The wheel turns. Each phase feeds the next.**
@@ -24,16 +23,16 @@ HECATE_ALC defines how Hecate agents approach software development. Four phases,
 
 | Phase | Name | Purpose | Detailed Guide |
 |-------|------|---------|----------------|
-| **AnD** | Analysis & Discovery | Understand the problem | [HECATE_AnD.md](HECATE_AnD.md) |
-| **AnP** | Architecture & Planning | Design the solution | [HECATE_AnP.md](HECATE_AnP.md) |
-| **InT** | Implementation & Testing | Build it right | [HECATE_InT.md](HECATE_InT.md) |
-| **DoO** | Deployment & Operations | Ship and run it | [HECATE_DoO.md](HECATE_DoO.md) |
+| **DnA** | Discovery & Analysis | Understand the problem | [HECATE_DISCOVERY_N_ANALYSIS.md](HECATE_DISCOVERY_N_ANALYSIS.md) |
+| **AnP** | Architecture & Planning | Design the solution | [HECATE_ARCHITECTURE_N_PLANNING.md](HECATE_ARCHITECTURE_N_PLANNING.md) |
+| **TnI** | Testing & Implementation | Build it right | [HECATE_TESTING_N_IMPLEMENTATION.md](HECATE_TESTING_N_IMPLEMENTATION.md) |
+| **DnO** | Deployment & Operations | Ship and run it | [HECATE_DEPLOYMENT_N_OPERATIONS.md](HECATE_DEPLOYMENT_N_OPERATIONS.md) |
 
 ---
 
 ## Phase Summary
 
-### AnD — Analysis & Discovery
+### DnA — Discovery & Analysis
 
 *"What problem am I solving?"*
 
@@ -59,7 +58,7 @@ HECATE_ALC defines how Hecate agents approach software development. Four phases,
 
 ---
 
-### InT — Implementation & Testing
+### TnI — Testing & Implementation
 
 *"Does it work?"*
 
@@ -74,7 +73,7 @@ HECATE_ALC defines how Hecate agents approach software development. Four phases,
 
 ---
 
-### DoO — Deployment & Operations
+### DnO — Deployment & Operations
 
 *"Is it running well?"*
 
@@ -95,10 +94,10 @@ HECATE_ALC is a cycle, not a waterfall:
     ┌──────────────────────────────────────┐
     │                                      │
     ▼                                      │
-  AnD → AnP → InT → DoO ──── feedback ────┘
+  DnA → AnP → TnI → DnO ──── feedback ────┘
 ```
 
-After DoO, learnings feed back into the next AnD phase.
+After DnO, learnings feed back into the next DnA phase.
 
 **Small cycles, fast feedback.**
 
@@ -106,28 +105,28 @@ After DoO, learnings feed back into the next AnD phase.
 
 ## Phase Transitions
 
-### AnD → AnP
+### DnA → AnP
 
 - [ ] Problem is understood
 - [ ] Requirements documented
 - [ ] Domain concepts identified
 - [ ] Constraints and risks known
 
-### AnP → InT
+### AnP → TnI
 
 - [ ] Dossiers and spokes defined
 - [ ] Architecture documented
 - [ ] Implementation plan ready
 - [ ] First iteration scoped
 
-### InT → DoO
+### TnI → DnO
 
 - [ ] Code implemented and tested
 - [ ] CI/CD pipeline working
 - [ ] All verifications passing
 - [ ] Release prepared
 
-### DoO → AnD (next cycle)
+### DnO → DnA (next cycle)
 
 - [ ] Production stable
 - [ ] Feedback collected
@@ -140,10 +139,10 @@ After DoO, learnings feed back into the next AnD phase.
 
 | Doctrine | Applies To | Description |
 |----------|------------|-------------|
-| [Walking Skeleton](HECATE_WALKING_SKELETON.md) | InT | Fully operational system from day 1 |
+| [Walking Skeleton](HECATE_WALKING_SKELETON.md) | TnI | Fully operational system from day 1 |
 | [Dossier Principle](DDD.md) | AnP | Process-centric domain modeling |
-| [Vertical Slicing](VERTICAL_SLICING.md) | AnP, InT | Features live together |
-| [Screaming Architecture](SCREAMING_ARCHITECTURE.md) | AnP, InT | Names reveal intent |
+| [Vertical Slicing](VERTICAL_SLICING.md) | AnP, TnI | Features live together |
+| [Screaming Architecture](SCREAMING_ARCHITECTURE.md) | AnP, TnI | Names reveal intent |
 
 ---
 
@@ -151,7 +150,7 @@ After DoO, learnings feed back into the next AnD phase.
 
 When working on a project:
 
-1. **Know which phase you're in** — Don't implement during AnD, don't design during InT
+1. **Know which phase you're in** — Don't implement during DnA, don't design during TnI
 2. **Complete the phase** — Finish phase outputs before moving on
 3. **Respect the gates** — Check transition criteria
 4. **Follow the doctrines** — Walking Skeleton, Vertical Slicing, etc.

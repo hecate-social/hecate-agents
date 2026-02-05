@@ -1,4 +1,4 @@
-# HECATE_DoO — Deployment & Operations
+# HECATE_DnO — Deployment & Operations
 
 *Ship it and keep it running.*
 
@@ -14,7 +14,7 @@ Get the software into production and keep it healthy:
 - Respond to incidents
 - Collect feedback for the next cycle
 
-**DoO is where software meets reality.**
+**DnO is where software meets reality.**
 
 ---
 
@@ -209,7 +209,7 @@ curl https://prod.example.com/api/{resource}
 
 ### 8. Iteration Planning
 
-**Feed back into AnD:**
+**Feed back into DnA:**
 
 ```
 Production feedback
@@ -218,7 +218,7 @@ Prioritize issues/improvements
     ↓
 Add to backlog
     ↓
-Next AnD cycle
+Next DnA cycle
 ```
 
 **Categories:**
@@ -338,16 +338,16 @@ kubectl scale deployment/{name} --replicas=N
 
 ---
 
-## Transition to AnD (Next Cycle)
+## Transition to DnA (Next Cycle)
 
-After DoO stabilizes:
+After DnO stabilizes:
 
 1. Production is stable and monitored
 2. Feedback collected and organized
 3. Issues triaged and prioritized
 4. Next iteration scope identified
-5. Return to [HECATE_AnD](HECATE_AnD.md)
+5. Return to [HECATE_DnA](HECATE_DISCOVERY_N_ANALYSIS.md)
 
 ---
 
-*Ship it. Watch it. Learn from it. Improve it.* 🗝️
+*Ship it. Watch it. Learn from it. Improve it.*

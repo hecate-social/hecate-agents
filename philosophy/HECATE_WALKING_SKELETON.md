@@ -2,7 +2,7 @@
 
 *Build the thinnest possible slice through all layers, deployed to all environments, before adding features.*
 
-**A doctrine for [HECATE_InT](HECATE_InT.md)**
+**A doctrine for [HECATE_TnI](HECATE_TESTING_N_IMPLEMENTATION.md)**
 
 ---
 
@@ -258,11 +258,11 @@ curl https://{env}.example.com/api/{dossier}/test-001
 
 **You know the skeleton works when:**
 
-1. ✓ Code compiles and passes all checks
-2. ✓ CI/CD pipeline is green
-3. ✓ GitOps syncs to all environments
-4. ✓ Health checks pass in all environments
-5. ✓ You can create and query a dossier in PROD
+1. Code compiles and passes all checks
+2. CI/CD pipeline is green
+3. GitOps syncs to all environments
+4. Health checks pass in all environments
+5. You can create and query a dossier in PROD
 
 **Only then do you add features.**
 
@@ -306,7 +306,7 @@ Once the skeleton walks, each feature follows the same path:
 ## The Doctrine
 
 > **If you can't deploy an empty system to production on day 1, you have infrastructure problems.**
-> 
+>
 > **Find them now, not after you've built features.**
 
 The Walking Skeleton is not optional. It is the **first task** of every project.
@@ -315,10 +315,10 @@ The Walking Skeleton is not optional. It is the **first task** of every project.
 
 ## See Also
 
-- [HECATE_InT](HECATE_InT.md) — Implementation & Testing phase
+- [HECATE_TnI](HECATE_TESTING_N_IMPLEMENTATION.md) — Testing & Implementation phase
 - [HECATE_ALC](HECATE_ALC.md) — The full lifecycle
 - [CODEGEN_ERLANG_EVOQ.md](../skills/codegen/erlang/CODEGEN_ERLANG_EVOQ.md) — Templates for spokes
 
 ---
 
-*Build the skeleton. Make it walk. Then add the flesh.* 🦴🗝️
+*Build the skeleton. Make it walk. Then add the flesh.*

@@ -180,7 +180,7 @@ GET /api/{resource}?filter=value
 
 ### 7. Risk Mitigation Design
 
-**Address risks from AnD:**
+**Address risks from DnA:**
 
 | Risk | Mitigation in Design |
 |------|---------------------|
@@ -274,7 +274,7 @@ GET /api/{resource}?filter=value
 
 ### Before Starting AnP
 
-- [ ] AnD outputs available
+- [ ] DnA outputs available
 - [ ] Problem understood
 - [ ] Requirements clear
 - [ ] Constraints known
@@ -302,15 +302,15 @@ GET /api/{resource}?filter=value
 
 ---
 
-## Transition to InT
+## Transition to TnI
 
 When AnP is complete:
 
 1. Review architecture with team
 2. Confirm walking skeleton scope
 3. Ensure CI/CD requirements known
-4. Proceed to [HECATE_InT](HECATE_InT.md)
+4. Proceed to [HECATE_TnI](HECATE_TESTING_N_IMPLEMENTATION.md)
 
 ---
 
-*Design the system. Plan the work. Then build.* 🗝️
+*Design the system. Plan the work. Then build.*

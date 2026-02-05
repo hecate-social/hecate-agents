@@ -1,4 +1,4 @@
-# HECATE_InT — Implementation & Testing
+# HECATE_TnI — Testing & Implementation
 
 *Build it right.*
 
@@ -14,7 +14,7 @@ Transform the design into working software:
 - Implement spokes following templates
 - Test and verify continuously
 
-**InT is about disciplined execution.**
+**TnI is about disciplined execution.**
 
 ---
 
@@ -31,7 +31,7 @@ Transform the design into working software:
 
 ## The Walking Skeleton Doctrine
 
-**🦴 Before implementing features, establish a fully operational system.**
+**Before implementing features, establish a fully operational system.**
 
 See: [HECATE_WALKING_SKELETON.md](HECATE_WALKING_SKELETON.md)
 
@@ -282,7 +282,7 @@ Before merging, verify:
 
 ## Checklists
 
-### Before Starting InT
+### Before Starting TnI
 
 - [ ] PLAN_*.md complete
 - [ ] Spokes prioritized
@@ -299,7 +299,7 @@ Before merging, verify:
 - [ ] Deployed to TEST, STAGING, PROD
 - [ ] Smoke tests passing
 
-### Before Leaving InT
+### Before Leaving TnI
 
 - [ ] All planned spokes implemented
 - [ ] All tests passing
@@ -323,16 +323,16 @@ Before merging, verify:
 
 ---
 
-## Transition to DoO
+## Transition to DnO
 
-When InT is complete:
+When TnI is complete:
 
 1. All spokes implemented and tested
 2. CI/CD pipeline fully operational
 3. STAGING deployment verified
 4. Release prepared (version, changelog)
-5. Proceed to [HECATE_DoO](HECATE_DoO.md)
+5. Proceed to [HECATE_DnO](HECATE_DEPLOYMENT_N_OPERATIONS.md)
 
 ---
 
-*Build the skeleton. Add the flesh. Test every step.* 🗝️
+*Build the skeleton. Add the flesh. Test every step.*
