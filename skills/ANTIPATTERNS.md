@@ -354,4 +354,118 @@ Ask: "Does this listener exist ONLY to trigger spoke X?"
 
 ---
 
+## 🔥 Using Mesh for Internal Integration
+
+**Date:** 2026-02-08
+**Origin:** hecate-daemon walking skeleton debugging
+
+### The Antipattern
+
+Using Macula mesh (`*_to_mesh.erl` emitters) for communication between umbrella apps within the same BEAM VM.
+
+**Example (WRONG):**
+```
+manage_torches (CMD app)
+    → torch_initiated_v1_to_mesh.erl
+    → Macula mesh (QUIC, DHT, NAT traversal)
+    → on_torch_initiated_from_mesh.erl
+    → query_torches (PRJ+QRY app)
+```
+
+This uses WAN-grade infrastructure for intra-process communication.
+
+### Why It's Wrong
+
+1. **Massive overhead** — QUIC, DHT discovery, NAT traversal for processes in the same VM
+2. **Wrong tool** — Mesh is designed for WAN, agent-to-agent communication
+3. **Doesn't work in K8s** — Container networking breaks mesh protocols
+4. **Adds latency** — Network round-trip for what should be direct message passing
+
+### The Rule
+
+> **Use `pg` (OTP process groups) for internal integration. Reserve `mesh` for external/WAN integration.**
+
+### The Correct Pattern
+
+```
+manage_torches (CMD app)
+    → torch_initiated_v1_to_pg.erl    # Internal via pg
+    → Direct Erlang message passing
+    → on_torch_initiated_v1_from_pg_project_to_sqlite_torches.erl
+    → query_torches (PRJ+QRY app)
+```
+
+### Two Integration Layers
+
+| Layer | Transport | Scope |
+|-------|-----------|-------|
+| **Internal** | `pg` | Same BEAM VM, intra-daemon |
+| **External** | `mesh` | WAN, cross-daemon, agent-to-agent |
+
+### Naming Convention
+
+| Transport | Emitter | Listener |
+|-----------|---------|----------|
+| pg | `{event}_to_pg.erl` | `on_{event}_from_pg_*.erl` |
+| mesh | `{event}_to_mesh.erl` | `on_{event}_from_mesh_*.erl` |
+
+See [INTEGRATION_TRANSPORTS.md](../philosophy/INTEGRATION_TRANSPORTS.md) for full details.
+
+---
+
+## 🔥 Centralized Listener Supervisors
+
+**Date:** 2026-02-08
+**Origin:** hecate-daemon architecture refinement
+
+### The Antipattern
+
+Creating a central supervisor for all listeners across domains.
+
+**Example (WRONG):**
+```
+apps/hecate_listeners/src/
+├── hecate_listeners_sup.erl          # Central supervisor
+├── torch_initiated_listener.erl
+├── cartwheel_identified_listener.erl
+└── capability_announced_listener.erl
+```
+
+Or within a domain:
+```
+apps/manage_cartwheels/src/
+├── manage_cartwheels_listeners_sup.erl   # Still wrong!
+├── listeners/                             # Horizontal directory
+│   ├── cartwheel_identified_listener.erl
+│   └── ...
+```
+
+### The Rule
+
+> **Each listener belongs to the spoke it triggers, supervised by that spoke's supervisor.**
+
+### The Correct Structure
+
+```
+apps/manage_cartwheels/src/
+├── initiate_cartwheel/
+│   ├── initiate_cartwheel_sup.erl                              # Spoke supervisor
+│   └── on_cartwheel_identified_v1_from_pg_maybe_initiate_cartwheel.erl
+│
+└── complete_cartwheel/
+    ├── complete_cartwheel_sup.erl                              # Spoke supervisor
+    └── on_all_spokes_implemented_v1_from_pg_maybe_complete_cartwheel.erl
+```
+
+### Why It Matters
+
+- **Fault isolation** — Listener crash only affects its spoke
+- **Discoverability** — To understand spoke X, look only in `X/`
+- **No orphans** — Every listener has a clear owner
+- **Vertical slicing** — No horizontal grouping by technical concern
+
+See [INTEGRATION_TRANSPORTS.md](../philosophy/INTEGRATION_TRANSPORTS.md) for spoke structures.
+
+---
+
 *Add more demons as we exorcise them.* 🔥🗝️🔥
