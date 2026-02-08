@@ -174,4 +174,68 @@ See `~/work/github.com/CARTWHEEL.md` for the complete canonical structure.
 
 ---
 
+## 🔥 Missing or Wrong "Birth" Event
+
+**Date:** 2026-02-08
+**Origin:** Torch/Cartwheel architecture discussion
+
+### The Antipattern
+
+Process/domain aggregates that don't have a clear "birth" event, or use wrong verbs:
+
+| ❌ Wrong | Why |
+|----------|-----|
+| `project_created_v1` | CRUD — "created" says nothing about business intent |
+| `cartwheel_started_v1` | Ambiguous — "started" could mean resumed, begun, etc. |
+| `order_made_v1` | Weak — doesn't convey the initiation of a process |
+| No birth event at all | Aggregate appears from nowhere |
+
+### The Rule
+
+> **Every process/domain aggregate MUST begin with `{aggregate_singular}_initiated_v{N}`**
+
+This event is the "birth" of the aggregate — it marks the moment the process began.
+
+| ✅ Correct | Aggregate |
+|-----------|-----------|
+| `torch_initiated_v1` | Torch |
+| `cartwheel_initiated_v1` | Cartwheel |
+| `order_initiated_v1` | Order |
+| `claim_initiated_v1` | Insurance Claim |
+| `project_initiated_v1` | Project |
+
+### Why "Initiated"?
+
+- **Business verb** — "We initiated a new project" is natural language
+- **Process-oriented** — signals the START of a lifecycle, not just creation of data
+- **Consistent** — one word for all aggregates, easy to search/grep
+- **Not CRUD** — avoids the banned "created/updated/deleted" vocabulary
+
+### The Pattern
+
+```erlang
+%% First event in any aggregate stream
+#{
+    event_type => <<"torch_initiated_v1">>,
+    stream_id => <<"torch-abc123">>,
+    data => #{
+        torch_id => <<"abc123">>,
+        name => <<"macula-geo">>,
+        brief => <<"Geo-restriction for compliance">>,
+        initiated_by => <<"human:rl">>,
+        initiated_at => 1707350400000
+    }
+}
+```
+
+### Checklist
+
+When creating a new aggregate:
+- [ ] First event is `{aggregate}_initiated_v1`
+- [ ] Event includes `initiated_by` (who/what started it)
+- [ ] Event includes `initiated_at` (timestamp)
+- [ ] Handler validates "not already initiated" before accepting
+
+---
+
 *Add more demons as we exorcise them.* 🔥🗝️🔥
