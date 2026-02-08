@@ -220,6 +220,22 @@ torch_routes() ->
         {"/api/torches/:torch_id", get_torch_api, []},
         {"/api/torches/:torch_id/cartwheels/identify", identify_cartwheel_api, []}
     ].
+
+%% Cartwheel routes - organized by ALC phase
+cartwheel_routes() ->
+    [
+        %% Core routes
+        {"/api/cartwheel", get_active_cartwheel_api, []},
+        {"/api/cartwheels", list_cartwheels_api, []},
+        {"/api/cartwheels/initiate", initiate_cartwheel_api, []},
+        {"/api/cartwheels/:cartwheel_id", get_cartwheel_api, []},
+        {"/api/cartwheels/:cartwheel_id/transition", transition_phase_api, []},
+        %% Discovery & Analysis phase
+        {"/api/cartwheels/:cartwheel_id/discovery/start", start_discovery_api, []},
+        {"/api/cartwheels/:cartwheel_id/discovery/findings", list_findings_api, []},
+        {"/api/cartwheels/:cartwheel_id/discovery/findings/record", record_finding_api, []},
+        %% ... (similar for architecture, testing, deployment phases)
+    ].
 ```
 
 ---

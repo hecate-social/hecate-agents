@@ -20,6 +20,10 @@ This directory contains well-documented examples of correct patterns used in the
 |---------|---------|--------------|
 | [PARENT_CHILD_AGGREGATES.md](PARENT_CHILD_AGGREGATES.md) | Torch → Cartwheel | Parent identifies, child initiates; event stream ownership |
 | [VERTICAL_API_HANDLERS.md](VERTICAL_API_HANDLERS.md) | API in spokes | Handlers in spokes, shared utilities, dependency management |
+| [MESH_INTEGRATION.md](MESH_INTEGRATION.md) | Emitter/Listener | FACTS vs EVENTS, cross-agent communication, command layer |
+| [PROCESS_MANAGERS.md](PROCESS_MANAGERS.md) | Cross-domain coordination | PM naming, location in target domain, loose coupling |
+| [PROJECTIONS.md](PROJECTIONS.md) | Read models | Event → read model, naming, SQLite patterns |
+| [BIT_FLAGS_STATUS.md](BIT_FLAGS_STATUS.md) | Aggregate status | Integer bit flags, evoq_bit_flags API, efficient queries |
 
 ---
 
@@ -51,10 +55,10 @@ When adding a new example:
 ## Future Examples (TODO)
 
 - [ ] Event stream patterns (stream-per-aggregate vs stream-per-type)
-- [ ] Projection patterns (SQLite read models)
-- [ ] Mesh integration (Emitter/Listener/Requester/Responder)
-- [ ] Process manager patterns
-- [ ] Bit flag status fields
+- [x] Projection patterns (SQLite read models)
+- [x] Mesh integration (Emitter/Listener/Requester/Responder)
+- [x] Process manager patterns
+- [x] Bit flag status fields
 - [ ] CQRS query optimization
 
 ---
