@@ -238,4 +238,120 @@ When creating a new aggregate:
 
 ---
 
+## 🔥 Auto-Creating Child Aggregates on Parent Initiation
+
+**Date:** 2026-02-08
+**Origin:** Torch → Cartwheel architecture discussion
+
+### The Antipattern
+
+Assuming that when a parent aggregate is initiated, child aggregates should be automatically created.
+
+**Example (WRONG):**
+```
+torch_initiated_v1
+    → listener subscribes
+    → automatically creates cartwheel
+```
+
+This assumes:
+- Every torch needs exactly one cartwheel
+- The relationship is 1:1 and automatic
+- No human/agent decision is needed
+
+**Reality:** A torch might need 0, 1, 5, or 10 cartwheels. This is a deliberate decision, not an automatic consequence.
+
+### The Rule
+
+> **Parent aggregates IDENTIFY children. Child aggregates INITIATE themselves.**
+
+The parent owns the "what exists" decision. The child owns its lifecycle.
+
+### The Correct Flow
+
+```
+1. torch_initiated_v1           # Torch exists
+2. cartwheel_identified_v1      # Torch decides "I need a cartwheel called X"
+   → emitted to mesh
+3. cartwheel_initiated_v1       # Cartwheel service starts X's lifecycle
+```
+
+### Semantic Distinction
+
+| Action | Owner | Meaning |
+|--------|-------|---------|
+| **Identify** | Parent (torch) | "This parent will have a child called X" |
+| **Initiate** | Child (cartwheel) | "Start the lifecycle of X" |
+
+### Why It Matters
+
+- **Flexibility** — Parent can have 0..N children
+- **Explicit decisions** — Humans/agents choose what children exist
+- **Proper DDD** — Parent aggregate owns its children's identities
+- **Separation of concerns** — Identity vs lifecycle are different responsibilities
+
+### The Lesson
+
+> **Skip DnA phase → Make wrong assumptions → Build wrong architecture → Waste time fixing**
+
+This mistake happened because we jumped to implementation without understanding the domain.
+
+---
+
+## 🔥 Listeners as Separate Spokes
+
+**Date:** 2026-02-08
+**Origin:** Cartwheel listener architecture discussion
+
+### The Antipattern
+
+Creating a listener as its own spoke when it only serves one other spoke.
+
+**Example (WRONG):**
+```
+manage_cartwheels/src/
+├── subscribe_to_cartwheel_identified/     # Separate spoke
+│   ├── subscribe_to_cartwheel_identified.erl
+│   └── subscribe_to_cartwheel_identified_sup.erl
+│
+└── initiate_cartwheel/                    # The spoke it triggers
+    ├── initiate_cartwheel_v1.erl
+    └── maybe_initiate_cartwheel.erl
+```
+
+This is **horizontal thinking in disguise** — grouping by "listeners" vs "commands".
+
+### The Rule
+
+> **If a listener's sole purpose is to trigger spoke X, it lives IN spoke X.**
+
+### The Correct Structure
+
+```
+manage_cartwheels/src/
+└── initiate_cartwheel/
+    ├── initiate_cartwheel_v1.erl
+    ├── cartwheel_initiated_v1.erl
+    ├── maybe_initiate_cartwheel.erl
+    ├── subscribe_to_cartwheel_identified.erl           # Lives here
+    └── on_cartwheel_identified_maybe_initiate_cartwheel.erl  # Lives here
+```
+
+The spoke owns **everything needed to initiate cartwheels** — including how it gets triggered.
+
+### When Listeners CAN Be Separate
+
+A listener MAY be its own spoke when:
+- It triggers **multiple** different spokes based on message content
+- It's truly general-purpose infrastructure (rare)
+- It serves a query service, not a command service
+
+### The Test
+
+Ask: "Does this listener exist ONLY to trigger spoke X?"
+- **Yes** → Put it in spoke X
+- **No** → Consider a separate spoke (but think hard)
+
+---
+
 *Add more demons as we exorcise them.* 🔥🗝️🔥
