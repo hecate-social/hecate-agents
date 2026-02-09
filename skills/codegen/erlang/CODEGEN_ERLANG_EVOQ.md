@@ -718,7 +718,463 @@ row_to_result(Row) ->
 
 ---
 
+## Walking Skeleton: Mandatory Spokes
+
+**Every new aggregate MUST implement TWO spokes from the start:**
+
+1. `initiate_{aggregate}` — Birth event, starts the lifecycle
+2. `archive_{aggregate}` — End event, marks as archived (not deleted!)
+
+### Why Both Are Required
+
+Event sourcing means **we never delete**. Without `archive_{aggregate}`:
+- Test data pollutes production-like environments
+- No way to "undo" accidental creations
+- Lists grow unbounded with obsolete records
+
+### Aggregate Status Bit Flags
+
+Every aggregate MUST have a status integer field with AT LEAST these flags:
+
+```erlang
+%% Minimum required status flags
+-define(STATUS_INITIATED, 1).   %% 2^0 - Created/born
+-define(STATUS_ARCHIVED,  2).   %% 2^1 - Soft-deleted, hidden from queries
+```
+
+Additional flags are domain-specific:
+
+```erlang
+%% Example: Torch-specific flags
+-define(STATUS_INITIATED, 1).
+-define(STATUS_ACTIVE,    2).
+-define(STATUS_PAUSED,    4).
+-define(STATUS_COMPLETED, 8).
+-define(STATUS_ARCHIVED, 16).
+```
+
+### Walking Skeleton Checklist
+
+When creating a new aggregate `{noun}`:
+
+**CMD Domain (`manage_{noun}s`):**
+- [ ] `initiate_{noun}/` spoke — emits `{noun}_initiated_v1`
+- [ ] `archive_{noun}/` spoke — emits `{noun}_archived_v1`
+- [ ] `{noun}_aggregate.erl` — with `STATUS_INITIATED` and `STATUS_ARCHIVED` flags
+
+**PRJ Domain (`query_{noun}s`):**
+- [ ] `{noun}_initiated_v1_to_{noun}s/` spoke — inserts row
+- [ ] `{noun}_archived_v1_to_{noun}s/` spoke — sets `status |= ARCHIVED`
+
+**Query Behavior:**
+- Default `list_all/0` MUST filter out archived records: `WHERE status & ?ARCHIVED = 0`
+- Provide `list_all_including_archived/0` for admin/debug purposes
+
+### archive_{noun}_v1.erl Template
+
+```erlang
+-module(archive_{noun}_v1).
+
+-export([new/1, to_map/1, from_map/1, event_type/0]).
+-export([{noun}_id/1, archived_at/1, archived_by/1, reason/1]).
+
+-record(archive_{noun}_v1, {
+    {noun}_id :: binary(),
+    archived_at :: integer(),
+    archived_by :: binary(),
+    reason :: binary() | undefined
+}).
+
+event_type() -> <<"archive_{noun}_v1">>.
+
+new(#{{noun}_id := Id, archived_by := By} = Params) ->
+    {ok, #archive_{noun}_v1{
+        {noun}_id = Id,
+        archived_at = erlang:system_time(millisecond),
+        archived_by = By,
+        reason = maps:get(reason, Params, undefined)
+    }}.
+
+to_map(#archive_{noun}_v1{} = E) ->
+    #{
+        event_type => event_type(),
+        {noun}_id => E#archive_{noun}_v1.{noun}_id,
+        archived_at => E#archive_{noun}_v1.archived_at,
+        archived_by => E#archive_{noun}_v1.archived_by,
+        reason => E#archive_{noun}_v1.reason
+    }.
+
+from_map(#{<<"{noun}_id">> := Id} = Map) ->
+    {ok, #archive_{noun}_v1{
+        {noun}_id = Id,
+        archived_at = maps:get(<<"archived_at">>, Map, 0),
+        archived_by = maps:get(<<"archived_by">>, Map, <<"unknown">>),
+        reason = maps:get(<<"reason">>, Map, undefined)
+    }}.
+
+{noun}_id(#archive_{noun}_v1{{noun}_id = V}) -> V.
+archived_at(#archive_{noun}_v1{archived_at = V}) -> V.
+archived_by(#archive_{noun}_v1{archived_by = V}) -> V.
+reason(#archive_{noun}_v1{reason = V}) -> V.
+```
+
+### {noun}_archived_v1_to_{noun}s.erl Template (Projection)
+
+```erlang
+-module({noun}_archived_v1_to_{noun}s).
+
+-export([project/1]).
+
+-define(ARCHIVED, 2).  %% Must match aggregate flag
+
+project(EventData) ->
+    Id = maps:get(<<"{noun}_id">>, EventData),
+    ArchivedAt = maps:get(<<"archived_at">>, EventData),
+
+    %% Update status to include ARCHIVED flag
+    Sql = "UPDATE {noun}s SET status = status | ?1, archived_at = ?2 WHERE {noun}_id = ?3",
+    query_{noun}s_store:execute(Sql, [?ARCHIVED, ArchivedAt, Id]).
+```
+
+---
+
+## Aggregate Template
+
+### {noun}\_aggregate.erl
+
+**Every aggregate MUST declare the evoq behaviour.** The compiler checks callback signatures exist.
+
+```erlang
+-module({noun}_aggregate).
+-behaviour(evoq_aggregate).
+
+%% Behaviour callbacks
+-export([init/1, execute/2, apply/2]).
+
+%% Testing alias
+-export([initial_state/0, apply_event/2]).
+
+%% Bit flag display
+-export([flag_map/0]).
+
+%% Status bit flags (powers of 2)
+-define(INITIATED,    1).   %% 2^0
+-define(DNA_ACTIVE,   2).   %% 2^1
+-define(DNA_COMPLETE, 4).   %% 2^2
+-define(ARCHIVED,    32).   %% 2^5 (soft deleted)
+
+-record({noun}_state, {
+    {noun}_id :: binary() | undefined,
+    name      :: binary() | undefined,
+    status    :: non_neg_integer()
+}).
+
+-type state() :: #{noun}_state{}.
+-export_type([state/0]).
+
+flag_map() -> #{
+    0           => <<"New">>,
+    ?INITIATED  => <<"Initiated">>,
+    ?ARCHIVED   => <<"Archived">>
+}.
+
+%% Behaviour callback: init/1
+init(_AggregateId) ->
+    {ok, initial_state()}.
+
+initial_state() ->
+    #{noun}_state{
+        {noun}_id = undefined,
+        name = undefined,
+        status = 0
+    }.
+
+%% CRITICAL: execute(State, Payload) — State FIRST!
+execute(State, #{command_type := <<"initiate_{noun}">>} = Payload) ->
+    execute_initiate(Payload, State);
+execute(State, #{command_type := <<"archive_{noun}">>} = Payload) ->
+    execute_archive(Payload, State);
+execute(_State, _Payload) ->
+    {error, unknown_command}.
+
+%% Guards pattern: check preconditions with bit flags
+execute_initiate(_Payload, #{noun}_state{status = 0}) ->
+    %% Only uninitiated aggregates can be initiated
+    {ok, Cmd} = initiate_{noun}_v1:from_map(_Payload),
+    convert_events(maybe_initiate_{noun}:handle(Cmd), fun {noun}_initiated_v1:to_map/1);
+execute_initiate(_Payload, _State) ->
+    {error, {noun}_already_initiated}.
+
+execute_archive(_Payload, #{noun}_state{{noun}_id = undefined}) ->
+    {error, {noun}_not_found};
+execute_archive(_Payload, #{noun}_state{status = Status}) when Status band ?ARCHIVED =/= 0 ->
+    {error, {noun}_already_archived};
+execute_archive(Payload, _State) ->
+    {ok, Cmd} = archive_{noun}_v1:from_map(Payload),
+    convert_events(maybe_archive_{noun}:handle(Cmd), fun {noun}_archived_v1:to_map/1).
+
+convert_events({ok, Events}, ToMapFun) ->
+    {ok, [ToMapFun(E) || E <- Events]};
+convert_events({error, Reason}, _ToMapFun) ->
+    {error, Reason}.
+
+%% Behaviour callback: apply(State, Event) — State FIRST!
+apply(State, Event) ->
+    apply_event(Event, State).
+
+%% apply_event has reversed args for testing convenience
+%% Handle both atom and binary keys (evoq may pass either)
+apply_event(#{<<"event_type">> := <<"{noun}_initiated_v1">>} = E, State) ->
+    apply_initiated(E, State);
+apply_event(#{event_type := <<"{noun}_initiated_v1">>} = E, State) ->
+    apply_initiated(E, State);
+apply_event(#{<<"event_type">> := <<"{noun}_archived_v1">>} = _E, State) ->
+    apply_archived(State);
+apply_event(#{event_type := <<"{noun}_archived_v1">>} = _E, State) ->
+    apply_archived(State);
+apply_event(_E, State) ->
+    State.
+
+apply_initiated(E, State) ->
+    State#{noun}_state{
+        {noun}_id = get_value({noun}_id, E),
+        name = get_value(name, E),
+        status = ?INITIATED bor ?DNA_ACTIVE
+    }.
+
+apply_archived(#{noun}_state{status = Status} = State) ->
+    State#{noun}_state{status = evoq_bit_flags:set(Status, ?ARCHIVED)}.
+
+%% Helper: get value from map with atom or binary keys
+get_value(Key, Map) -> get_value(Key, Map, undefined).
+get_value(Key, Map, Default) when is_atom(Key) ->
+    BinKey = atom_to_binary(Key, utf8),
+    case maps:find(Key, Map) of
+        {ok, V} -> V;
+        error ->
+            case maps:find(BinKey, Map) of
+                {ok, V} -> V;
+                error -> Default
+            end
+    end.
+```
+
+### Aggregate Guard Pattern (Mid-Lifecycle Spokes)
+
+Spokes that operate between initiation and archive follow a guard chain pattern:
+
+```erlang
+%% Iterative update spoke (repeatable, no status change)
+execute(State, #{command_type := <<"refine_{noun}">>} = Payload) ->
+    execute_refine(Payload, State);
+
+execute_refine(_Payload, #{noun}_state{{noun}_id = undefined}) ->
+    {error, {noun}_not_found};
+execute_refine(_Payload, #{noun}_state{status = S}) when S band ?ARCHIVED =/= 0 ->
+    {error, {noun}_archived};
+execute_refine(_Payload, #{noun}_state{status = S}) when S band ?DNA_ACTIVE =:= 0 ->
+    {error, dna_not_active};
+execute_refine(Payload, _State) ->
+    {ok, Cmd} = refine_{noun}_v1:from_map(Payload),
+    convert_events(maybe_refine_{noun}:handle(Cmd), fun {noun}_refined_v1:to_map/1).
+
+%% State transition spoke (one-shot, changes bit flags)
+execute(State, #{command_type := <<"submit_{noun}">>} = Payload) ->
+    execute_submit(Payload, State);
+
+execute_submit(_Payload, #{noun}_state{{noun}_id = undefined}) ->
+    {error, {noun}_not_found};
+execute_submit(_Payload, #{noun}_state{status = S}) when S band ?ARCHIVED =/= 0 ->
+    {error, {noun}_archived};
+execute_submit(_Payload, #{noun}_state{status = S}) when S band ?DNA_ACTIVE =:= 0 ->
+    {error, dna_not_active};
+execute_submit(_Payload, #{noun}_state{status = S}) when S band ?DNA_COMPLETE =/= 0 ->
+    {error, dna_already_complete};
+execute_submit(Payload, _State) ->
+    {ok, Cmd} = submit_{noun}_v1:from_map(Payload),
+    convert_events(maybe_submit_{noun}:handle(Cmd), fun {noun}_submitted_v1:to_map/1).
+```
+
+### Partial Update Apply Pattern
+
+When an event carries optional fields, only update state for non-undefined values:
+
+```erlang
+apply_refined(E, State) ->
+    S1 = case get_value(brief, E) of
+        undefined -> State;
+        Brief -> State#{noun}_state{brief = Brief}
+    end,
+    S2 = case get_value(repos, E) of
+        undefined -> S1;
+        Repos -> S1#{noun}_state{repos = Repos}
+    end,
+    %% ... chain for each optional field
+    S2.
+```
+
+### Status Transition Apply Pattern
+
+When an event transitions between phases, set new flag and unset old:
+
+```erlang
+apply_submitted(#{noun}_state{status = Status} = State) ->
+    NewStatus = evoq_bit_flags:unset(
+        evoq_bit_flags:set(Status, ?DNA_COMPLETE),
+        ?DNA_ACTIVE
+    ),
+    State#{noun}_state{status = NewStatus}.
+```
+
+---
+
+## Internal Emitter Template (pg)
+
+### {event}\_to\_pg.erl
+
+**For intra-daemon integration** (projections, process managers within the same BEAM VM).
+Unlike mesh emitters, pg emitters are **stateless** — no gen_server needed.
+
+```erlang
+-module({event}_to_pg).
+
+-export([emit/1]).
+
+-define(GROUP, {event}).
+-define(SCOPE, pg).
+
+-spec emit(map()) -> ok.
+emit(Event) ->
+    Message = {{event}, Event},
+    Members = pg:get_members(?SCOPE, ?GROUP),
+    lists:foreach(fun(Pid) -> Pid ! Message end, Members),
+    ok.
+```
+
+---
+
+## Test Templates
+
+### CRITICAL: Every aggregate MUST have tests before push.
+
+### {noun}\_aggregate\_tests.erl
+
+```erlang
+-module({noun}_aggregate_tests).
+-include_lib("eunit/include/eunit.hrl").
+
+%%====================================================================
+%% State Helpers
+%%====================================================================
+
+%% Build an initiated aggregate state for testing mid-lifecycle spokes
+initiated_state() ->
+    Initial = {noun}_aggregate:initial_state(),
+    {ok, [EventMap]} = {noun}_aggregate:execute(Initial, #{
+        command_type => <<"initiate_{noun}">>,
+        {noun}_id => <<"test-123">>,
+        name => <<"Test">>
+    }),
+    {noun}_aggregate:apply_event(EventMap, Initial).
+
+%%====================================================================
+%% Argument Order Tests (CRITICAL — catches the #1 bug)
+%%====================================================================
+
+execute_argument_order_test() ->
+    State = {noun}_aggregate:initial_state(),
+    Payload = #{
+        command_type => <<"initiate_{noun}">>,
+        {noun}_id => <<"test-123">>,
+        name => <<"Test">>
+    },
+    Result = {noun}_aggregate:execute(State, Payload),
+    ?assertMatch({ok, [_]}, Result),
+    {ok, [EventMap]} = Result,
+    ?assertEqual(<<"{noun}_initiated_v1">>, maps:get(<<"event_type">>, EventMap)).
+
+unknown_command_test() ->
+    State = {noun}_aggregate:initial_state(),
+    ?assertEqual({error, unknown_command},
+        {noun}_aggregate:execute(State, #{command_type => <<"bogus">>})).
+
+%%====================================================================
+%% Guard Tests (verify business rules)
+%%====================================================================
+
+double_initiate_test() ->
+    State = initiated_state(),
+    Result = {noun}_aggregate:execute(State, #{
+        command_type => <<"initiate_{noun}">>,
+        {noun}_id => <<"test-456">>
+    }),
+    ?assertEqual({error, {noun}_already_initiated}, Result).
+
+archive_uninitiated_test() ->
+    State = {noun}_aggregate:initial_state(),
+    Result = {noun}_aggregate:execute(State, #{
+        command_type => <<"archive_{noun}">>,
+        {noun}_id => <<"test-123">>
+    }),
+    ?assertEqual({error, {noun}_not_found}, Result).
+
+%%====================================================================
+%% Status Transition Tests (verify bit flags)
+%%====================================================================
+
+archive_sets_flag_test() ->
+    State = initiated_state(),
+    {ok, [EventMap]} = {noun}_aggregate:execute(State, #{
+        command_type => <<"archive_{noun}">>,
+        {noun}_id => <<"test-123">>
+    }),
+    NewState = {noun}_aggregate:apply_event(EventMap, State),
+    %% ARCHIVED (32) must be set
+    Status = element(4, NewState),  %% #state.status
+    ?assertNotEqual(0, Status band 32).
+```
+
+### Emitter Tests
+
+```erlang
+-module({event}_to_pg_tests).
+-include_lib("eunit/include/eunit.hrl").
+
+-define(GROUP, {event}).
+-define(SCOPE, pg).
+
+emit_test() ->
+    ensure_pg(),
+    ok = pg:join(?SCOPE, ?GROUP, self()),
+    Event = #{id => <<"test">>},
+    ok = {event}_to_pg:emit(Event),
+    receive
+        {{event}, Received} -> ?assertEqual(Event, Received)
+    after 1000 -> ?assert(false)
+    end,
+    ok = pg:leave(?SCOPE, ?GROUP, self()).
+
+ensure_pg() ->
+    case pg:start(?SCOPE) of
+        {ok, _} -> ok;
+        {error, {already_started, _}} -> ok
+    end.
+```
+
+---
+
 ## Generation Checklist
+
+### New Aggregate (Walking Skeleton)
+
+Given: `noun=capability`, `domain=manage_capabilities`
+
+Generate:
+
+- [ ] `src/capability_aggregate.erl` — with `-behaviour(evoq_aggregate).`
+- [ ] `test/capability_aggregate_tests.erl` — argument order + guard tests
+- [ ] `initiate_capability/` spoke (see New CMD Spoke)
+- [ ] `archive_capability/` spoke (see New CMD Spoke)
 
 ### New CMD Spoke
 
@@ -732,6 +1188,8 @@ Generate:
 - [ ] `src/announce_capability/maybe_announce_capability.erl`
 - [ ] `src/announce_capability/announce_capability_responder_v1.erl`
 - [ ] `src/announce_capability/capability_announced_to_mesh.erl`
+- [ ] `src/announce_capability/capability_announced_to_pg.erl` — internal emitter
+- [ ] `test/capability_announced_to_pg_tests.erl` — emitter test
 - [ ] Update `manage_capabilities_sup.erl` to include spoke supervisor
 - [ ] Update `rebar.config` src_dirs
 
@@ -759,20 +1217,23 @@ Generate:
 
 ## Naming Rules
 
-| Component  | Pattern                      | Example                                     |
-| ---------- | ---------------------------- | ------------------------------------------- |
-| Domain app | `{verb}_{noun}`              | `manage_capabilities`                       |
-| Query app  | `query_{noun}`               | `query_capabilities`                        |
-| Spoke dir  | `{command}/`                 | `announce_capability/`                      |
-| Spoke sup  | `{command}_spoke_sup`        | `announce_capability_spoke_sup`             |
-| Command    | `{command}_v1`               | `announce_capability_v1`                    |
-| Event      | `{noun}_{past_verb}_v1`      | `capability_announced_v1`                   |
-| Handler    | `maybe_{command}`            | `maybe_announce_capability`                 |
-| Responder  | `{command}_responder_v1`     | `announce_capability_responder_v1`          |
-| Emitter    | `{event}_to_mesh`            | `capability_announced_to_mesh`              |
-| Projection | `{event}_to_{read_store}`    | `capability_announced_to_capabilities`      |
-| Policy/PM  | `on_{event}_maybe_{command}` | `on_llm_detected_maybe_announce_capability` |
-| Query      | `{verb}_{noun}`              | `find_capability`                           |
+| Component      | Pattern                      | Example                                     |
+| -------------- | ---------------------------- | ------------------------------------------- |
+| Domain app     | `{verb}_{noun}`              | `manage_capabilities`                       |
+| Query app      | `query_{noun}`               | `query_capabilities`                        |
+| Spoke dir      | `{command}/`                 | `announce_capability/`                      |
+| Spoke sup      | `{command}_spoke_sup`        | `announce_capability_spoke_sup`             |
+| Command        | `{command}_v1`               | `announce_capability_v1`                    |
+| Event          | `{noun}_{past_verb}_v1`      | `capability_announced_v1`                   |
+| Handler        | `maybe_{command}`            | `maybe_announce_capability`                 |
+| Responder      | `{command}_responder_v1`     | `announce_capability_responder_v1`          |
+| Emitter (mesh) | `{event}_to_mesh`            | `capability_announced_to_mesh`              |
+| Emitter (pg)   | `{event}_to_pg`              | `capability_announced_to_pg`                |
+| Aggregate      | `{noun}_aggregate`           | `capability_aggregate`                      |
+| Projection     | `{event}_to_{read_store}`    | `capability_announced_to_capabilities`      |
+| Policy/PM      | `on_{event}_maybe_{command}` | `on_llm_detected_maybe_announce_capability` |
+| Query          | `{verb}_{noun}`              | `find_capability`                           |
+| Tests          | `{module}_tests`             | `capability_aggregate_tests`                |
 
 ---
 
