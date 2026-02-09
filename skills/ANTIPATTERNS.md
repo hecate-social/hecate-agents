@@ -468,4 +468,71 @@ See [INTEGRATION_TRANSPORTS.md](../philosophy/INTEGRATION_TRANSPORTS.md) for spo
 
 ---
 
+## 🔥 Direct Creation Endpoints for Child Aggregates
+
+**Date:** 2026-02-09
+**Origin:** Cartwheel API architecture review
+
+### The Antipattern
+
+Exposing a direct "create" or "initiate" API endpoint for child aggregates that should only exist through their parent.
+
+**Example (WRONG):**
+```
+POST /api/cartwheels/initiate
+{
+  "name": "My Cartwheel",
+  "description": "..."
+}
+```
+
+This bypasses the domain flow:
+- Cartwheels should only exist because a torch identified them
+- Direct creation allows orphan cartwheels (no parent torch)
+- Violates the parent-child aggregate pattern
+
+### The Rule
+
+> **Child aggregates should NOT have direct creation endpoints. They're created through parent identification.**
+
+### The Correct Flow
+
+1. **Parent identifies child**: `POST /api/torches/:torch_id/cartwheels/identify`
+2. **Event emitted**: `cartwheel_identified_v1` to pg (internal) + mesh (external)
+3. **Listener receives**: `subscribe_to_cartwheel_identified` in manage_cartwheels
+4. **Policy decides**: `on_cartwheel_identified_maybe_initiate_cartwheel`
+5. **Child initiated**: `cartwheel_initiated_v1` event created
+
+### When to Use Which
+
+| Aggregate Type | Creation Endpoint? | Why |
+|----------------|-------------------|-----|
+| **Root aggregate** | ✅ Yes | Torch, Order, User — top-level entities |
+| **Child aggregate** | ❌ No | Cartwheel, OrderLine — created via parent |
+
+### API Design Pattern
+
+```erlang
+%% GOOD: Parent creates children through relationship
+POST /api/torches/:torch_id/cartwheels/identify
+
+%% BAD: Direct creation of child
+POST /api/cartwheels/initiate    % REMOVE THIS
+```
+
+### Testing Implications
+
+When testing the walking skeleton:
+- **Respect the domain flow** — Don't bypass event-driven creation with direct APIs
+- **Test the full path** — Parent → Event → Listener → Child
+- **If it doesn't work** — Fix the event flow, don't add a shortcut API
+
+### The Lesson
+
+> **API endpoints should reflect domain operations, not CRUD convenience.**
+
+If you need to create test data, use the proper flow or seed the event store directly.
+
+---
+
 *Add more demons as we exorcise them.* 🔥🗝️🔥
