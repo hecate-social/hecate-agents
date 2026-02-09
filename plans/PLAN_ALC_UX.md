@@ -472,11 +472,11 @@ bounded_contexts:
 
 ## 8. Implementation Phases
 
-### Phase 1: Modal Infrastructure
-- [ ] Mode state machine (Chat → Torch → Cartwheel)
-- [ ] Header bar component (appears/disappears based on mode)
-- [ ] Navigation commands (`/torch`, `/torches`, `/cartwheel`, `/cartwheels`, `/back`, `/chat`)
-- [ ] Context detection on startup (git remote, `.hecate/torch.json`)
+### Phase 1: Modal Infrastructure ✅
+- [x] Mode state machine (Chat → Torch → Cartwheel) - `internal/alc/context.go`, `internal/alc/state.go`
+- [x] Header bar component (appears/disappears based on mode) - `internal/app/app.go:renderContextHeader()`
+- [x] Navigation commands (`/torch`, `/torches`, `/cartwheel`, `/cartwheels`, `/back`, `/chat`) - `internal/commands/torch.go`
+- [x] Context detection on startup (git remote, `.hecate/torch.json`) - `internal/alc/detect.go`
 
 ### Phase 2: Torch Management
 - [ ] Torch CRUD via daemon API
