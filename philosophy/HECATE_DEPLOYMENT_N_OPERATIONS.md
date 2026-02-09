@@ -71,11 +71,111 @@ Get the software into production and keep it healthy:
 1. Merge to main
 2. CI builds and tags image
 3. Update image tag in GitOps repo
-4. ArgoCD syncs to cluster
+4. ArgoCD/Flux syncs to cluster
 5. Kubernetes rolls out new pods
 6. Health checks pass
 7. ✓ Deployed
 ```
+
+---
+
+### 2a. GitOps Deployment Principles
+
+**The Golden Rule: Code Repo ≠ GitOps Repo**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  CODE REPO (hecate-daemon)                                      │
+│  • Source code, tests, Dockerfile                               │
+│  • Semantic versioning in app.src/mix.exs                       │
+│  • Git tags for releases (v0.7.3)                               │
+│  • CI builds docker images                                      │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  CONTAINER REGISTRY (ghcr.io)                                   │
+│  • Images tagged with version (ghcr.io/org/app:v0.7.3)         │
+│  • Immutable once pushed                                        │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  GITOPS REPO (hecate-gitops)                                    │
+│  • Kubernetes manifests only                                    │
+│  • References specific image tags                               │
+│  • Flux/ArgoCD watches this repo                                │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  CLUSTER                                                        │
+│  • Flux reconciles GitOps repo → actual state                   │
+│  • Pulls images from registry                                   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Complete Deployment Flow (Example):**
+
+```bash
+# 1. CODE REPO: Bump version
+cd ~/work/github.com/hecate-social/hecate-daemon
+# Edit src/hecate.app.src: {vsn, "0.7.3"}
+
+# 2. CODE REPO: Commit, tag, push
+git add -A && git commit -m "chore: Bump version to 0.7.3"
+git tag v0.7.3
+git push origin main
+git push origin v0.7.3
+
+# 3. BUILD: Build and push docker image
+docker build -t ghcr.io/hecate-social/hecate-daemon:v0.7.3 .
+docker push ghcr.io/hecate-social/hecate-daemon:v0.7.3
+
+# 4. GITOPS REPO: Update image tag
+cd ~/work/github.com/hecate-social/hecate-gitops
+# Edit infrastructure/hecate/daemonset.yaml:
+#   image: ghcr.io/hecate-social/hecate-daemon:v0.7.3
+git add -A && git commit -m "chore: Bump hecate-daemon to v0.7.3"
+git push origin main
+
+# 5. CLUSTER: Pull and reconcile (on control plane node)
+ssh beam00
+cd ~/.hecate/gitops && git pull
+flux reconcile kustomization hecate-infrastructure
+# Or wait for Flux to auto-reconcile (1 minute)
+```
+
+**Why Explicit Version Tags?**
+
+| ❌ Anti-Pattern | Problem |
+|-----------------|---------|
+| `image: app:latest` | No traceability, unpredictable pulls |
+| `image: app:main` | Same image tag, different content over time |
+| `imagePullPolicy: Always` | Works but hides what version is running |
+| Manual `kubectl set image` | Bypasses GitOps, state drift |
+
+| ✅ Best Practice | Benefit |
+|------------------|---------|
+| `image: app:v0.7.3` | Immutable, traceable, reproducible |
+| Semantic versioning | Clear meaning (major.minor.patch) |
+| GitOps manifests | Single source of truth |
+| Flux/ArgoCD sync | Automated, auditable |
+
+**Rollback is a Forward Action:**
+
+```bash
+# To "rollback" to v0.7.2:
+cd ~/work/github.com/hecate-social/hecate-gitops
+# Edit daemonset.yaml: image: ghcr.io/.../hecate-daemon:v0.7.2
+git commit -m "fix: Rollback to v0.7.2 due to {reason}"
+git push origin main
+# Flux deploys v0.7.2
+```
+
+Rollback is just deploying an older known-good version — via the same GitOps flow.
+
+---
 
 **Deployment strategies:**
 
@@ -335,6 +435,10 @@ kubectl scale deployment/{name} --replicas=N
 | **Manual deployments** | Inconsistent, error-prone | GitOps always |
 | **Blame culture** | People hide mistakes | Blameless post-mortems |
 | **Ignoring feedback** | Same issues recur | Feed back into planning |
+| **`:latest` or `:main` tags** | No traceability, drift | Explicit version tags |
+| **`kubectl set image`** | Bypasses GitOps, state drift | Update GitOps manifests |
+| **Restarting pods manually** | Masks the real deployment flow | Version bump → tag → build → push → GitOps |
+| **Skipping the version bump** | Can't tell what's deployed | Always bump, always tag |
 
 ---
 
