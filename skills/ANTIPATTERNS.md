@@ -377,13 +377,18 @@ This uses WAN-grade infrastructure for intra-process communication.
 ### Why It's Wrong
 
 1. **Massive overhead** — QUIC, DHT discovery, NAT traversal for processes in the same VM
-2. **Wrong tool** — Mesh is designed for WAN, agent-to-agent communication
-3. **Doesn't work in K8s** — Container networking breaks mesh protocols
-4. **Adds latency** — Network round-trip for what should be direct message passing
+2. **QUIC needs addressable URIs** — Doesn't work inside containers (no stable public address)
+3. **Adds latency** — Network round-trip for what should be direct message passing
 
 ### The Rule
 
-> **Use `pg` (OTP process groups) for internal integration. Reserve `mesh` for external/WAN integration.**
+> **Use `pg` (OTP process groups) for internal integration.**
+> **Mesh (Macula/QUIC) is ONLY for:**
+> - **NAT traversal** — when peers are behind different NATs
+> - **Direct Internet** — agent-to-agent over the public Internet
+> - **LAN ↔ LAN** — communication between separate physical networks
+>
+> QUIC requires addressable URIs. Containers don't have them. Mesh does NOT work in K8s.
 
 ### The Correct Pattern
 
@@ -399,8 +404,8 @@ manage_torches (CMD app)
 
 | Layer | Transport | Scope |
 |-------|-----------|-------|
-| **Internal** | `pg` | Same BEAM VM, intra-daemon |
-| **External** | `mesh` | WAN, cross-daemon, agent-to-agent |
+| **Internal** | `pg` | Same BEAM VM, intra-daemon, intra-LAN (Erlang VM cluster) |
+| **External** | `mesh` | NAT traversal, direct Internet, LAN ↔ LAN (QUIC, addressable URIs required) |
 
 ### Naming Convention
 
@@ -616,6 +621,61 @@ execute_argument_order_test() ->
 
 > **Use `-behaviour(evoq_aggregate).`** — The compiler will check callbacks exist.
 > **Write aggregate tests before push** — A 10-line test would have caught this bug.
+
+---
+
+## 🔥 Side Effects Based on Hope Acknowledgment
+
+**Date:** 2026-02-09
+**Origin:** TUI vision command architecture review
+
+### The Antipattern
+
+Performing side effects (file I/O, state changes) in the TUI based on a command's HTTP response rather than on a received event (fact).
+
+**Example (WRONG):**
+```go
+// TUI sends command to daemon
+err := client.RefineVision(torchID, params)
+if err == nil {
+    // WRONG: treating 200 OK as a fact
+    writeVisionToDisk()
+}
+```
+
+The 200 OK means "I received your hope." Not "the vision was refined." Between acknowledgment and event storage, anything can fail.
+
+### The Rule
+
+> **Side effects in external systems (TUI, other agents) must be triggered by received FACTS (events), not by command acknowledgments (hope receipts).**
+
+### The Correct Pattern
+
+```go
+// TUI subscribes to event stream
+events := client.EventStream(ctx, torchID)
+
+// TUI sends hope (fire and forget the response)
+client.RefineVision(torchID, params)  // 202 Accepted
+
+// TUI reacts to fact
+for event := range events {
+    if event.Type == "vision_refined_v1" {
+        writeVisionToDisk()  // NOW it's safe
+    }
+}
+```
+
+### Why It Matters
+
+- Commands can be rejected by aggregate business rules AFTER acknowledgment
+- Event store writes can fail
+- Async processing means acknowledgment ≠ completion
+- The TUI is an **external system** — it must treat the daemon as eventually consistent
+
+### Reference
+
+See [HOPE_FACT_SIDE_EFFECTS.md](HOPE_FACT_SIDE_EFFECTS.md) for the full architectural pattern.
 
 ---
 

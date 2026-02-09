@@ -1,14 +1,15 @@
 # Integration Transports
 
-How umbrella apps communicate within hecate-daemon and across the network.
+How umbrella apps communicate within hecate-daemon, with the TUI, and across the network.
 
 ---
 
-## The Two Integration Layers
+## The Three Integration Layers
 
 | Layer | Transport | Scope | Use Case |
 |-------|-----------|-------|----------|
 | **Internal** | `pg` (OTP process groups) | Same BEAM VM | CMD → PRJ projections, intra-daemon |
+| **Local** | `tui` (SSE over Unix socket) | Same machine, cross-process | Daemon → TUI fact delivery |
 | **External** | `mesh` (Macula) | WAN, cross-daemon | Agent-to-agent facts, inter-daemon |
 
 ```
@@ -24,7 +25,14 @@ How umbrella apps communicate within hecate-daemon and across the network.
 │   │ _to_pg.erl          │          │                         │  │
 │   └─────────────────────┘          └─────────────────────────┘  │
 │            │                                                      │
-│            │ (selective - only external facts)                   │
+│            ├─── (local - facts the TUI needs)                    │
+│            │                                                      │
+│            │   ┌─────────────────────┐                           │
+│            ├──►│ torch_initiated_v1  │                           │
+│            │   │ _to_tui.erl         │ ──► SSE / Unix socket ───┼──► TUI Listener
+│            │   └─────────────────────┘                           │
+│            │                                                      │
+│            │ (selective - only external facts)                    │
 │            ▼                                                      │
 │   ┌─────────────────────┐                                        │
 │   │ torch_initiated_v1  │                                        │
@@ -56,6 +64,30 @@ How umbrella apps communicate within hecate-daemon and across the network.
 2. **Cross-daemon** - Agent-to-agent communication
 3. **DHT discovery** - Find capabilities across the network
 4. **Realm isolation** - Multi-tenant by design
+
+---
+
+## Why `tui` for Local Integration
+
+The TUI is an external process on the same machine. It can't join pg groups (it's Go, not Erlang). It needs its own transport layer.
+
+1. **SSE over Unix socket** — reuses existing streaming infrastructure
+2. **Per-fact emitters** — same pattern as `_to_pg` and `_to_mesh`
+3. **Per-fact listeners** — TUI hosts one listener per fact it cares about
+4. **Transport hidden** — listeners don't know about SSE; a shared bridge multiplexes
+
+**Key distinction from `pg` and `mesh`:**
+- `pg`: listener joins a group, receives messages directly
+- `mesh`: listener subscribes to a topic, receives messages via QUIC
+- `tui`: daemon-side emitter joins pg group, forwards to TUI via SSE bridge
+
+The TUI listener is the **consumer**. The `_to_tui.erl` emitter is the **bridge** — it subscribes to pg internally and pushes facts externally.
+
+### Side Effects Follow Facts
+
+> **The TUI must never perform side effects based on command acknowledgments (HTTP 200/202). Side effects are triggered only by received facts.**
+
+See [HOPE_FACT_SIDE_EFFECTS.md](../skills/HOPE_FACT_SIDE_EFFECTS.md) for the full pattern.
 
 ---
 
@@ -94,12 +126,12 @@ end.
 | Transport | Example |
 |-----------|---------|
 | pg | `torch_initiated_v1_to_pg.erl` |
+| tui | `vision_refined_v1_to_tui.erl` |
 | mesh | `capability_announced_v1_to_mesh.erl` |
-| nats | `order_placed_v1_to_nats.erl` |
 
 ### Listeners (Subscribers)
 
-**For CMD spokes** (listener triggers a command):
+**Daemon-side — CMD spokes** (listener triggers a command):
 ```
 on_{event}_from_{transport}_maybe_{command}.erl
 ```
@@ -109,7 +141,7 @@ Example:
 on_cartwheel_identified_v1_from_pg_maybe_initiate_cartwheel.erl
 ```
 
-**For PRJ spokes** (listener triggers a projection):
+**Daemon-side — PRJ spokes** (listener triggers a projection):
 ```
 on_{event}_from_{transport}_project_to_{storage}_{target}.erl
 ```
@@ -117,6 +149,18 @@ on_{event}_from_{transport}_project_to_{storage}_{target}.erl
 Example:
 ```
 on_torch_initiated_v1_from_pg_project_to_sqlite_torches.erl
+```
+
+**TUI-side — fact listeners** (listener performs a local side effect):
+```
+on_{event}_{side_effect}.go
+```
+
+Examples:
+```
+on_vision_refined_v1_write_vision_to_disk.go
+on_torch_archived_v1_clear_context.go
+on_torch_initiated_v1_scaffold_repo.go
 ```
 
 ---
@@ -288,3 +332,7 @@ handle_info({torch_initiated_v1, Event}, State) ->
 | 2026-02-08 | Naming: `on_{event}_from_{transport}_maybe_{command}.erl` |
 | 2026-02-08 | Naming: `on_{event}_from_{transport}_project_to_{storage}_{target}.erl` |
 | 2026-02-08 | PRJ spoke directory: `{event}_to_{target}/` |
+| 2026-02-09 | Use `tui` (SSE/socket) for local integration (daemon → TUI) |
+| 2026-02-09 | TUI-side listeners: `on_{event}_{side_effect}.go` |
+| 2026-02-09 | Side effects follow facts, not hopes (see HOPE_FACT_SIDE_EFFECTS.md) |
+| 2026-02-09 | Daemon emitters: `{event}_to_tui.erl` — joins pg, bridges to SSE |
