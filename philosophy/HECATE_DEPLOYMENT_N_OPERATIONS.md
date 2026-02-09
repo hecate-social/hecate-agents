@@ -128,11 +128,14 @@ git tag v0.7.3
 git push origin main
 git push origin v0.7.3
 
-# 3. BUILD: Build and push docker image
-docker build -t ghcr.io/hecate-social/hecate-daemon:v0.7.3 .
-docker push ghcr.io/hecate-social/hecate-daemon:v0.7.3
+# 3. CI BUILDS AUTOMATICALLY
+# GitHub Actions triggers on tag push:
+# - .github/workflows/docker.yml builds multi-arch image
+# - Pushes to ghcr.io/hecate-social/hecate-daemon:0.7.3
+# Monitor: gh run list --repo hecate-social/hecate-daemon
+# NEVER build docker images locally for production!
 
-# 4. GITOPS REPO: Update image tag
+# 4. GITOPS REPO: Update image tag (after CI completes)
 cd ~/work/github.com/hecate-social/hecate-gitops
 # Edit infrastructure/hecate/daemonset.yaml:
 #   image: ghcr.io/hecate-social/hecate-daemon:v0.7.3
@@ -437,8 +440,9 @@ kubectl scale deployment/{name} --replicas=N
 | **Ignoring feedback** | Same issues recur | Feed back into planning |
 | **`:latest` or `:main` tags** | No traceability, drift | Explicit version tags |
 | **`kubectl set image`** | Bypasses GitOps, state drift | Update GitOps manifests |
-| **Restarting pods manually** | Masks the real deployment flow | Version bump → tag → build → push → GitOps |
+| **Restarting pods manually** | Masks the real deployment flow | Version bump → tag → CI → GitOps |
 | **Skipping the version bump** | Can't tell what's deployed | Always bump, always tag |
+| **Building images locally** | Unreproducible, no audit trail | Let CI build from tag |
 
 ---
 
