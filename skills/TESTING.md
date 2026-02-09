@@ -176,11 +176,65 @@ projection_test() ->
 
 | Component | What to Test | How |
 |-----------|-------------|-----|
+| **Aggregate** | Execute returns events | Call execute(State, Payload), assert {ok, [EventMaps]} |
 | **Emitter** | Subscribers receive messages | Join pg, emit, assert receive |
 | **Listener** | Events trigger projections | Emit to pg, check database |
 | **Projection** | Correct data written | Call directly, query database |
 | **Query** | Correct data returned | Seed database, call query |
 | **Handler** | Business logic | Call handle/1, assert events |
+
+---
+
+## Aggregate Tests (CRITICAL)
+
+**Always test aggregates match evoq behaviour callback signatures!**
+
+evoq calls:
+- `Module:init(AggregateId)` → `{ok, State}`
+- `Module:execute(State, Payload)` → `{ok, [EventMaps]}` or `{error, Reason}`
+- `Module:apply(State, Event)` → NewState
+
+### Aggregate Test Pattern
+
+```erlang
+-module(my_aggregate_tests).
+-include_lib("eunit/include/eunit.hrl").
+
+%% CRITICAL: Test argument order matches evoq expectations
+execute_argument_order_test() ->
+    %% Initial state
+    State = my_aggregate:initial_state(),
+
+    %% Command payload (from command:to_map/1)
+    Payload = #{
+        command_type => <<"my_command">>,
+        id => <<"test-123">>,
+        name => <<"Test">>
+    },
+
+    %% Execute with correct order: State, Payload
+    Result = my_aggregate:execute(State, Payload),
+
+    %% Should return {ok, [EventMap]}
+    ?assertMatch({ok, [_]}, Result),
+
+    {ok, [EventMap]} = Result,
+    ?assertEqual(<<"my_event_v1">>, maps:get(event_type, EventMap)).
+
+%% Test unknown command returns error
+unknown_command_test() ->
+    State = my_aggregate:initial_state(),
+    Payload = #{command_type => <<"unknown">>},
+    ?assertEqual({error, unknown_command}, my_aggregate:execute(State, Payload)).
+```
+
+### Why This Matters
+
+The aggregate bug (2026-02-09) was caused by wrong argument order:
+- **Wrong:** `execute(Payload, State)` - fails silently with "unknown_command"
+- **Correct:** `execute(State, Payload)` - matches evoq behaviour
+
+This test catches the bug immediately. Without it, the bug only appeared at runtime when evoq dispatched a command and the aggregate returned `{error, unknown_command}`.
 
 ---
 

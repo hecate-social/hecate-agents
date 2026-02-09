@@ -535,4 +535,88 @@ If you need to create test data, use the proper flow or seed the event store dir
 
 ---
 
+## 🔥 Wrong Aggregate Callback Argument Order
+
+**Date:** 2026-02-09
+**Origin:** hecate-daemon cartwheel auto-initiation bug
+
+### The Antipattern
+
+Writing aggregate `execute/2` and `apply/2` callbacks with wrong argument order.
+
+**Example (WRONG):**
+```erlang
+%% WRONG - Payload first, State second
+execute(#{command_type := <<"my_command">>} = Payload, State) ->
+    do_something(Payload, State).
+
+apply_event(#{event_type := <<"my_event_v1">>} = Event, State) ->
+    update_state(Event, State).
+```
+
+### The Rule
+
+> **evoq behaviour callbacks expect: State first, then Payload/Event.**
+
+evoq_aggregate.erl calls:
+```erlang
+Module:execute(AggState, Command#evoq_command.payload)
+Module:apply(AccState, Event)
+```
+
+### The Correct Implementation
+
+```erlang
+-module(my_aggregate).
+-behaviour(evoq_aggregate).
+
+%% Behaviour callbacks
+-export([init/1, execute/2, apply/2]).
+
+%% init/1 returns {ok, State}
+init(_AggregateId) ->
+    {ok, initial_state()}.
+
+%% execute/2: State first, Payload second
+execute(State, #{command_type := <<"my_command">>} = Payload) ->
+    do_something(State, Payload).
+
+%% apply/2: State first, Event second
+apply(State, #{event_type := <<"my_event_v1">>} = Event) ->
+    update_state(State, Event).
+```
+
+### Why This Happens
+
+1. It's natural to write `execute(CommandPayload, State)` — "execute this command on this state"
+2. Many examples online show the wrong order
+3. Without tests, the bug only appears at runtime
+
+### The Symptom
+
+All commands fail with `{error, unknown_command}` because:
+- evoq passes `(State, Payload)`
+- Aggregate receives State where it expects a map
+- Pattern match `#{command_type := ...}` fails on a record
+- Falls through to catch-all: `execute(_State, _Payload) -> {error, unknown_command}`
+
+### Prevention: Always Test Aggregates
+
+```erlang
+execute_argument_order_test() ->
+    State = my_aggregate:initial_state(),
+    Payload = #{command_type => <<"my_command">>, id => <<"test">>},
+
+    %% This test catches wrong argument order immediately
+    Result = my_aggregate:execute(State, Payload),
+    ?assertMatch({ok, [_]}, Result).
+```
+
+### The Lesson
+
+> **Use `-behaviour(evoq_aggregate).`** — The compiler will check callbacks exist.
+> **Write aggregate tests before push** — A 10-line test would have caught this bug.
+
+---
+
 *Add more demons as we exorcise them.* 🔥🗝️🔥
