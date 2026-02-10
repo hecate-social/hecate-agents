@@ -393,15 +393,29 @@ end.
 
 ## Hecate Implementation
 
+**CRITICAL: Query module naming must scream intent. See `skills/codegen/erlang/CODEGEN_ERLANG_QRY_NAMING.md`.**
+
+| Rule | Anti-Pattern | Correct |
+|------|-------------|---------|
+| Specify lookup strategy | `get_torch` | `get_torch_by_id` |
+| Always page list queries | `list_torches` | `get_torches_page` |
+| Never return unbounded | `get_all_cartwheels` | `get_cartwheels_page` |
+
 ```
 apps/query_capabilities/
 └── src/
     ├── query_capabilities_app.erl
     ├── query_capabilities_sup.erl
-    ├── query_capabilities.erl              # Provider (public API)
-    ├── query_capabilities_store.erl        # SQLite access
-    ├── query_capabilities_cache.erl        # Optional ETS cache
-    └── query_capabilities_subscriber.erl   # Projector (updates read model)
+    ├── query_capabilities_store.erl             # SQLite access
+    ├── get_capability_by_id/                    # Single lookup by PK
+    │   ├── get_capability_by_id.erl
+    │   └── get_capability_by_id_api.erl
+    ├── get_capabilities_page/                   # Paged list (bounded)
+    │   ├── get_capabilities_page.erl
+    │   └── get_capabilities_page_api.erl
+    ├── capability_announced_v1_to_capabilities/  # Projection spoke
+    │   └── ...
+    └── query_capabilities_cache.erl             # Optional ETS cache
 ```
 
 ## Testing Queries

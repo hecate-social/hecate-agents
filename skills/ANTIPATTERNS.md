@@ -679,4 +679,218 @@ See [HOPE_FACT_SIDE_EFFECTS.md](HOPE_FACT_SIDE_EFFECTS.md) for the full architec
 
 ---
 
+## 🔥 Read-Time Status Enrichment
+
+**Date:** 2026-02-10
+**Origin:** hecate-daemon torch/cartwheel status handling
+
+### The Antipattern
+
+Computing `status_label` at query time instead of storing it in the read model at projection write time.
+
+**Symptoms:**
+```erlang
+%% BAD: Query module enriches at read time
+list(Opts) ->
+    {ok, Rows} = store:query("SELECT * FROM torches"),
+    [enrich_status(row_to_map(R)) || R <- Rows].
+
+enrich_status(#{status := Status} = Row) ->
+    Label = evoq_bit_flags:to_string(Status, torch_aggregate:flag_map()),
+    Row#{status_label => Label}.
+```
+
+**Related violations:**
+- Magic numbers: `Status = 3` instead of `evoq_bit_flags:set_all(0, [?TORCH_INITIATED, ?TORCH_DNA_ACTIVE])`
+- Duplicated flags: `-define(ARCHIVED, 32)` redefined in projections instead of using shared `.hrl`
+- Query modules importing aggregate internals (`torch_aggregate:flag_map()`)
+- Binary key mismatch: Projections match `#{torch_id := ...}` but events arrive with `<<"torch_id">>` keys
+
+### The Rule
+
+> **Read models store DENORMALIZED data. Compute everything at write time (projection), never at read time (query).**
+
+### The Correct Pattern
+
+**1. Extract flag macros to `.hrl` header in CMD app:**
+```erlang
+%% apps/manage_torches/include/torch_status.hrl
+-define(TORCH_INITIATED,   1).
+-define(TORCH_DNA_ACTIVE,  2).
+-define(TORCH_ARCHIVED,   32).
+
+-define(TORCH_FLAG_MAP, #{
+    0                  => <<"New">>,
+    ?TORCH_INITIATED   => <<"Initiated">>,
+    ?TORCH_DNA_ACTIVE  => <<"Discovering">>,
+    ?TORCH_ARCHIVED    => <<"Archived">>
+}).
+```
+
+**2. Projection computes and stores `status_label` at write time:**
+```erlang
+-include_lib("manage_torches/include/torch_status.hrl").
+
+project(Event) ->
+    TorchId = get(torch_id, Event),
+    Status = evoq_bit_flags:set_all(0, [?TORCH_INITIATED, ?TORCH_DNA_ACTIVE]),
+    Label = evoq_bit_flags:to_string(Status, ?TORCH_FLAG_MAP),
+    store:execute(
+        "INSERT INTO torches (torch_id, status, status_label) VALUES (?1, ?2, ?3)",
+        [TorchId, Status, Label]).
+```
+
+**3. Query module reads `status_label` directly — no enrichment:**
+```erlang
+list(Opts) ->
+    {ok, Rows} = store:query("SELECT torch_id, status, status_label FROM torches"),
+    [row_to_map(R) || R <- Rows].
+%% NO enrich_status function at all
+```
+
+**4. Handle binary keys from events (events arrive with binary keys from evoq/ReckonDB):**
+```erlang
+get(Key, Map) when is_atom(Key) ->
+    case maps:find(Key, Map) of
+        {ok, V} -> V;
+        error -> maps:get(atom_to_binary(Key, utf8), Map, undefined)
+    end.
+```
+
+### Why It Matters
+
+- **CPU waste**: `enrich_status` runs `evoq_bit_flags:to_string/2` on every row, every query, every request
+- **Coupling**: Query modules (PRJ app) depend on aggregate internals (CMD app's `flag_map()`)
+- **Inconsistency**: API handlers compute their own labels with hardcoded magic numbers
+- **Fragility**: If `flag_map()` changes, all cached/stored data still shows old labels until re-queried
+- **CQRS violation**: Read models should be pre-computed and ready to serve — no computation at query time
+
+### The Lesson
+
+> **Projections exist to do the heavy lifting. Queries exist to be dumb and fast.**
+
+---
+
+## 🔥 Ambiguous Query Module Names
+
+**Date:** 2026-02-10
+**Origin:** hecate-daemon get_torch/list_torches rename
+
+### The Antipattern
+
+Query modules with vague names that don't scream their intent or hide scaling dangers.
+
+**Symptoms:**
+```
+apps/query_torches/src/
+├── get_torch/          # Get by what? ID? Name? Status?
+├── list_torches/       # Returns ALL torches? Unbounded!
+└── get_all_cartwheels/ # "All" is a scaling time bomb
+```
+
+**Related violations:**
+- `get_{aggregate}` without specifying lookup strategy
+- `list_{aggregates}` / `get_all_{aggregates}` returning unbounded result sets
+- No pagination in list queries — works in dev, crashes in production
+
+### The Rule
+
+> **1. Single lookups MUST specify the strategy: `get_{aggregate}_by_id`, `get_{aggregate}_by_name`**
+> **2. List queries MUST be paged: `get_{aggregates}_page` — NEVER `list_{aggregates}`**
+
+### The Correct Names
+
+| Anti-Pattern | Correct | Why |
+|-------------|---------|-----|
+| `get_torch` | `get_torch_by_id` | Specifies lookup strategy |
+| `list_torches` | `get_torches_page` | "page" enforces bounded results |
+| `get_all_cartwheels` | `get_cartwheels_page` | No unbounded queries |
+| `find_torches` | `search_torches` or `get_torches_page` | "find" is vague |
+
+### The Correct Structure
+
+```
+apps/query_torches/src/
+├── get_torch_by_id/        # One torch by primary key
+├── get_active_torch/       # The currently active torch
+├── get_torches_page/       # Bounded page of torches
+└── search_torches/         # Full-text search (also paged)
+```
+
+### Why It Matters
+
+- **Scaling**: `list_torches` returning 10,000 rows will kill the daemon
+- **Screaming architecture**: A stranger knows exactly what each module does
+- **Extensibility**: Adding `get_torch_by_name` later doesn't conflict
+- **Client expectations**: "page" in the name tells clients to expect pagination metadata
+
+### The Lesson
+
+> **Query names ARE the API contract. If the name doesn't scream "bounded" and "specific", the query is dangerous.**
+
+Reference: `skills/codegen/erlang/CODEGEN_ERLANG_QRY_NAMING.md`
+
+---
+
+## Demon 14: God Module API Handlers
+
+**Date exorcised:** 2026-02-10
+**Where it appeared:** `apps/hecate_api/src/hecate_api_*.erl`
+**Cost:** 137-file refactoring to fix
+
+### The Demon
+
+Putting all API endpoints for a domain in a single file with multiple `init/2` clauses:
+
+```erlang
+❌ WRONG: God module with 16 init/2 clauses
+-module(hecate_api_mentors).
+-export([init/2]).
+
+init(Req0, [submit]) -> handle_submit(Req0);
+init(Req0, [list_learnings]) -> handle_list_learnings(Req0);
+init(Req0, [get_learning]) -> handle_get_learning(Req0);
+init(Req0, [validate]) -> handle_validate(Req0);
+init(Req0, [reject]) -> handle_reject(Req0);
+init(Req0, [endorse]) -> handle_endorse(Req0);
+%% ... 10 more clauses, 289 lines total
+```
+
+### Why It's Wrong
+
+- **Horizontal grouping** — groups by "all mentors HTTP stuff" instead of by business operation
+- **Violates vertical slicing** — the API handler is separated from the command/event/handler it serves
+- **Growing forever** — every new endpoint adds to the same file
+- **Hard to find** — `handle_validate` could be anything; you must read the whole file
+- **Duplicated helpers** — each god module reinvents `dispatch_result/3`, `error_response/3`
+
+### The Correct Pattern
+
+Each spoke owns its API handler:
+
+```erlang
+✅ CORRECT: Handler lives in its spoke
+apps/mentor_agents/src/validate_learning/
+├── validate_learning_v1.erl
+├── learning_validated_v1.erl
+├── maybe_validate_learning.erl
+└── validate_learning_api.erl    # ~30 lines, single-purpose
+```
+
+### The Lesson
+
+> **API handlers are part of the spoke, not part of the API app.**
+> One endpoint = one `*_api.erl` file in the spoke directory.
+> The routes file (`hecate_api_routes.erl`) just maps URLs to spoke handlers.
+
+### How This Was Fixed
+
+Replaced 11 god modules (1,700+ lines) with 50 spoke-based handlers (~30-50 lines each).
+All handlers use `hecate_api_utils` from the `shared` app for response helpers.
+Routes standardized under `/api/` prefix.
+
+Reference: `skills/codegen/erlang/CODEGEN_ERLANG_EVOQ.md` → API Handler Templates
+
+---
+
 *Add more demons as we exorcise them.* 🔥🗝️🔥

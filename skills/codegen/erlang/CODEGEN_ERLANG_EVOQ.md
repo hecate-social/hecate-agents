@@ -62,13 +62,18 @@ apps/query_{domain_noun}/
 
 ### QRY (inside PRJ app)
 
+**CRITICAL: No `list_*` or `get_all_*`. Use `get_{aggs}_page` for lists, `get_{agg}_by_id` for lookups.**
+
 ```
 apps/query_{domain_noun}/
 └── src/
-    ├── query_{domain_noun}.erl         # Provider (public API)
+    ├── get_{aggregate}_by_id/           # QRY SPOKE: single lookup
+    │   ├── get_{aggregate}_by_id.erl
+    │   └── get_{aggregate}_by_id_api.erl
     │
-    └── {query}/                        # QRY SPOKE directory
-        └── {query}.erl
+    └── get_{aggregates}_page/           # QRY SPOKE: paged list
+        ├── get_{aggregates}_page.erl
+        └── get_{aggregates}_page_api.erl
 ```
 
 ---
@@ -646,53 +651,79 @@ project(EventData) ->
 
 ## QRY Templates
 
-### query\_{domain_noun}.erl (Provider)
+**CRITICAL: See `CODEGEN_ERLANG_QRY_NAMING.md` for full naming conventions.**
+
+### Naming Rules
+
+| Query Type | Module Pattern | Example |
+|------------|---------------|---------|
+| Single by PK | `get_{agg}_by_id` | `get_torch_by_id` |
+| Single by field | `get_{agg}_by_{field}` | `get_torch_by_name` |
+| Single special | `get_active_{agg}` | `get_active_torch` |
+| Paged list | `get_{aggs}_page` | `get_torches_page` |
+| Filtered paged | `get_{aggs}_by_{field}` | `get_cartwheels_by_torch` |
+
+**NEVER use:** `list_{aggs}`, `get_all_{aggs}`, raw `get_{agg}`
+
+### get\_{aggregate}\_by\_id.erl (Single Lookup)
 
 ```erlang
--module(query_{domain_noun}).
-
-%% Public Query API
--export([get/1, find/1, list_all/0, list_all/1]).
-
-%% Get single record by primary key
-get(Id) ->
-    query_{domain_noun}_store:get({read_store}, Id).
-
-%% Find records matching criteria
-find(Criteria) ->
-    query_{domain_noun}_store:find({read_store}, Criteria).
-
-%% List all records
-list_all() ->
-    list_all(#{limit => 100, offset => 0}).
-
-list_all(Opts) ->
-    query_{domain_noun}_store:list({read_store}, Opts).
-```
-
-### {query}/{query}.erl (Query Slice)
-
-```erlang
--module({query}).
+-module(get_{aggregate}_by_id).
 
 -export([execute/1]).
 
-%% Execute query with parameters
-execute(Params) ->
-    %% Extract parameters
-    {pk_field} = maps:get({pk_field}, Params),
-
-    %% Query store
-    case query_{domain_noun}_store:get({read_store}, {pk_field}) of
-        {ok, Row} ->
-            {ok, row_to_result(Row)};
-        {error, not_found} = Error ->
-            Error
+-spec execute(binary()) -> {ok, map()} | {error, not_found | term()}.
+execute(Id) ->
+    Sql = "SELECT {aggregate}_id, name, status, status_label "
+          "FROM {aggregates} WHERE {aggregate}_id = ?1",
+    case query_{domain_noun}_store:query(Sql, [Id]) of
+        {ok, [Row]} ->
+            {ok, row_to_map(Row)};
+        {ok, []} ->
+            {error, not_found};
+        {error, Reason} ->
+            {error, Reason}
     end.
+```
 
-row_to_result(Row) ->
-    %% Transform row to API result
-    Row.
+### get\_{aggregates}\_page.erl (Paged List)
+
+```erlang
+-module(get_{aggregates}_page).
+
+-include_lib("{cmd_domain}/include/{aggregate}_status.hrl").
+
+-export([execute/1]).
+
+-define(DEFAULT_PAGE_SIZE, 50).
+-define(MAX_PAGE_SIZE, 200).
+
+-spec execute(map()) -> {ok, map()} | {error, term()}.
+execute(Opts) ->
+    Page = maps:get(page, Opts, 1),
+    PageSize = min(maps:get(page_size, Opts, ?DEFAULT_PAGE_SIZE), ?MAX_PAGE_SIZE),
+    Offset = (Page - 1) * PageSize,
+
+    {ok, [[Total]]} = query_{domain_noun}_store:query(
+        "SELECT COUNT(*) FROM {aggregates} WHERE (status & ?1) = 0",
+        [?{AGG}_ARCHIVED]),
+
+    Sql = "SELECT {aggregate}_id, name, status, status_label, initiated_at "
+          "FROM {aggregates} "
+          "WHERE (status & ?1) = 0 "
+          "ORDER BY initiated_at DESC "
+          "LIMIT ?2 OFFSET ?3",
+    case query_{domain_noun}_store:query(Sql, [?{AGG}_ARCHIVED, PageSize, Offset]) of
+        {ok, Rows} ->
+            {ok, #{
+                items => [row_to_map(R) || R <- Rows],
+                total => Total,
+                page => Page,
+                page_size => PageSize
+            }};
+        {error, Reason} ->
+            {error, Reason}
+    end.
 ```
 
 ---
@@ -712,7 +743,8 @@ row_to_result(Row) ->
     "src/{command1}",
     "src/{command2}",
     "src/{event1}_to_{read_store1}",
-    "src/{query1}"
+    "src/get_{aggregate}_by_id",
+    "src/get_{aggregates}_page"
 ]}.
 ```
 
@@ -1186,12 +1218,30 @@ Generate:
 - [ ] `src/announce_capability/announce_capability_v1.erl`
 - [ ] `src/announce_capability/capability_announced_v1.erl`
 - [ ] `src/announce_capability/maybe_announce_capability.erl`
+- [ ] `src/announce_capability/announce_capability_api.erl` — API handler (see CMD API Template)
 - [ ] `src/announce_capability/announce_capability_responder_v1.erl`
 - [ ] `src/announce_capability/capability_announced_to_mesh.erl`
 - [ ] `src/announce_capability/capability_announced_to_pg.erl` — internal emitter
 - [ ] `test/capability_announced_to_pg_tests.erl` — emitter test
 - [ ] Update `manage_capabilities_sup.erl` to include spoke supervisor
 - [ ] Update `rebar.config` src_dirs
+- [ ] Add route to `hecate_api_routes.erl`
+
+### New QRY Spoke
+
+Given: `noun=capability`, `query_app=query_capabilities`
+
+**For paged list query:**
+- [ ] `src/get_capabilities_page/get_capabilities_page.erl` — query module
+- [ ] `src/get_capabilities_page/get_capabilities_page_api.erl` — API handler (see QRY Paged API Template)
+- [ ] Update `rebar.config` src_dirs
+- [ ] Add route to `hecate_api_routes.erl`: `GET /api/capabilities`
+
+**For single-by-id query:**
+- [ ] `src/get_capability_by_mri/get_capability_by_mri.erl` — query module
+- [ ] `src/get_capability_by_mri/get_capability_by_mri_api.erl` — API handler (see QRY By-ID API Template)
+- [ ] Update `rebar.config` src_dirs
+- [ ] Add route to `hecate_api_routes.erl`: `GET /api/capabilities/:mri`
 
 ### New PRJ Spoke
 
@@ -1215,6 +1265,147 @@ Generate:
 
 ---
 
+## API Handler Templates
+
+API handlers are Cowboy `init/2` handlers that live **inside spoke directories**, not in `hecate_api`.
+All handlers use `hecate_api_utils` from the `shared` app.
+
+### CMD API Handler Template — `{command}_api.erl`
+
+For command spokes (POST endpoints that dispatch commands via `maybe_*`).
+
+```erlang
+-module({command}_api).
+-export([init/2]).
+
+init(Req0, State) ->
+    case cowboy_req:method(Req0) of
+        <<"POST">> -> handle_post(Req0, State);
+        _ -> hecate_api_utils:method_not_allowed(Req0)
+    end.
+
+handle_post(Req0, _State) ->
+    case hecate_api_utils:read_json_body(Req0) of
+        {ok, Params, Req1} ->
+            do_command(Params, Req1);
+        {error, invalid_json, Req1} ->
+            hecate_api_utils:bad_request(<<"Invalid JSON">>, Req1)
+    end.
+
+do_command(Params, Req) ->
+    CmdParams = #{
+        %% Extract fields from Params here
+        field_a => maps:get(<<"field_a">>, Params, undefined),
+        field_b => maps:get(<<"field_b">>, Params, undefined)
+    },
+    case {command}_v1:new(CmdParams) of
+        {ok, Cmd} ->
+            dispatch_result(maybe_{command}:dispatch(Cmd), Req);
+        {error, Reason} ->
+            hecate_api_utils:json_error(400, Reason, Req)
+    end.
+
+dispatch_result({ok, Version, Events}, Req) ->
+    hecate_api_utils:json_ok(201, #{version => Version, events => Events}, Req);
+dispatch_result({error, Reason}, Req) ->
+    hecate_api_utils:json_error(400, Reason, Req).
+```
+
+**Variations:**
+
+- **URL binding** (e.g., `:learning_id`): Extract with `cowboy_req:binding(learning_id, Req0)` before reading body
+- **No body needed** (e.g., validate, endorse): Skip `read_json_body`, just extract binding and dispatch
+- **Custom status code**: Use `json_ok(201, ...)` for creation, `json_ok(Result, Req)` for 200
+
+### QRY Paged API Handler Template — `get_{nouns}_page_api.erl`
+
+For paged list queries (GET endpoints with optional filters).
+
+```erlang
+-module(get_{nouns}_page_api).
+-export([init/2]).
+
+init(Req0, State) ->
+    case cowboy_req:method(Req0) of
+        <<"GET">> -> handle_get(Req0, State);
+        _ -> hecate_api_utils:method_not_allowed(Req0)
+    end.
+
+handle_get(Req0, _State) ->
+    QS = cowboy_req:parse_qs(Req0),
+    Filters = build_filters(QS),
+    case get_{nouns}_page:execute(Filters) of
+        {ok, Result} ->
+            hecate_api_utils:json_ok(#{{nouns} => Result}, Req0);
+        {error, Reason} ->
+            hecate_api_utils:json_error(500, Reason, Req0)
+    end.
+
+build_filters(QS) ->
+    lists:foldl(fun({K, V}, Acc) ->
+        case K of
+            <<"limit">> -> safe_int(V, limit, Acc);
+            <<"offset">> -> safe_int(V, offset, Acc);
+            %% Add domain-specific filters here
+            _ -> Acc
+        end
+    end, #{}, QS).
+
+safe_int(V, Key, Acc) ->
+    case catch binary_to_integer(V) of
+        I when is_integer(I) -> Acc#{Key => I};
+        _ -> Acc
+    end.
+```
+
+### QRY By-ID API Handler Template — `get_{noun}_by_id_api.erl`
+
+For single-record lookups (GET endpoints with URL binding).
+
+```erlang
+-module(get_{noun}_by_id_api).
+-export([init/2]).
+
+init(Req0, State) ->
+    case cowboy_req:method(Req0) of
+        <<"GET">> -> handle_get(Req0, State);
+        _ -> hecate_api_utils:method_not_allowed(Req0)
+    end.
+
+handle_get(Req0, _State) ->
+    Id = cowboy_req:binding({noun}_id, Req0),
+    case get_{noun}_by_id:execute(Id) of
+        {ok, {Noun}} ->
+            hecate_api_utils:json_ok(#{{noun} => {Noun}}, Req0);
+        {error, not_found} ->
+            hecate_api_utils:not_found(Req0);
+        {error, Reason} ->
+            hecate_api_utils:json_error(500, Reason, Req0)
+    end.
+```
+
+### Route Entry Template
+
+Routes go in `hecate_api_routes.erl`. All routes MUST use the `/api/` prefix.
+
+```erlang
+%% Command routes (POST)
+{"/api/{domain}/{action}", {command}_api, []}
+{"/api/{domain}/:{id}/{action}", {command}_api, []}
+
+%% Query routes (GET)
+{"/api/{domain}", get_{nouns}_page_api, []}
+{"/api/{domain}/:{id}", get_{noun}_by_id_api, []}
+```
+
+**Route conventions:**
+- `POST /api/{domain}/{verb}` — commands (e.g., `/api/social/follow`)
+- `GET /api/{domain}` — paged list (e.g., `/api/capabilities`)
+- `GET /api/{domain}/:id` — single lookup (e.g., `/api/capabilities/:mri`)
+- `POST /api/{domain}/:id/{verb}` — commands on existing aggregates (e.g., `/api/cartwheels/:id/transition`)
+
+---
+
 ## Naming Rules
 
 | Component      | Pattern                      | Example                                     |
@@ -1226,13 +1417,17 @@ Generate:
 | Command        | `{command}_v1`               | `announce_capability_v1`                    |
 | Event          | `{noun}_{past_verb}_v1`      | `capability_announced_v1`                   |
 | Handler        | `maybe_{command}`            | `maybe_announce_capability`                 |
+| CMD API        | `{command}_api`              | `announce_capability_api`                   |
 | Responder      | `{command}_responder_v1`     | `announce_capability_responder_v1`          |
 | Emitter (mesh) | `{event}_to_mesh`            | `capability_announced_to_mesh`              |
 | Emitter (pg)   | `{event}_to_pg`              | `capability_announced_to_pg`                |
 | Aggregate      | `{noun}_aggregate`           | `capability_aggregate`                      |
 | Projection     | `{event}_to_{read_store}`    | `capability_announced_to_capabilities`      |
 | Policy/PM      | `on_{event}_maybe_{command}` | `on_llm_detected_maybe_announce_capability` |
-| Query          | `{verb}_{noun}`              | `find_capability`                           |
+| Query (by PK)  | `get_{noun}_by_id`           | `get_capability_by_id`                      |
+| QRY by-ID API  | `get_{noun}_by_id_api`       | `get_capability_by_id_api`                  |
+| Query (paged)  | `get_{nouns}_page`           | `get_capabilities_page`                     |
+| QRY paged API  | `get_{nouns}_page_api`       | `get_capabilities_page_api`                 |
 | Tests          | `{module}_tests`             | `capability_aggregate_tests`                |
 
 ---

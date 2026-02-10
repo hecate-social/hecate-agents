@@ -24,6 +24,7 @@ This directory contains well-documented examples of correct patterns used in the
 | [PROCESS_MANAGERS.md](PROCESS_MANAGERS.md) | Cross-domain coordination | PM naming, location in target domain, loose coupling |
 | [PROJECTIONS.md](PROJECTIONS.md) | Read models | Event → read model, naming, SQLite patterns |
 | [BIT_FLAGS_STATUS.md](BIT_FLAGS_STATUS.md) | Aggregate status | Integer bit flags, evoq_bit_flags API, efficient queries |
+| [QUERY_NAMING.md](QUERY_NAMING.md) | Query module naming | Screaming names, paged queries, no unbounded lists |
 
 ---
 
@@ -59,7 +60,7 @@ When adding a new example:
 - [x] Mesh integration (Emitter/Listener/Requester/Responder)
 - [x] Process manager patterns
 - [x] Bit flag status fields
-- [ ] CQRS query optimization
+- [x] CQRS query optimization (see QUERY_NAMING.md)
 
 ---
 
@@ -80,4 +81,4 @@ The examples are written to be self-contained and teachable.
 ---
 
 *Maintained by: Hecate Team*
-*Last updated: 2026-02-08*
+*Last updated: 2026-02-10*

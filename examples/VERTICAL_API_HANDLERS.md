@@ -9,11 +9,12 @@
 Instead of grouping API handlers by domain in large files:
 
 ```
-❌ WRONG: Monolithic API handlers
+❌ WRONG: Monolithic API handlers (god modules)
 hecate_api/src/
-├── hecate_api_torch.erl      # 200+ lines, handles 5 endpoints
-├── hecate_api_cartwheel.erl  # 500+ lines, handles 30 endpoints
-└── hecate_api_llm.erl        # 300+ lines, handles 10 endpoints
+├── hecate_api_mentors.erl      # 289 lines, 16 init/2 clauses
+├── hecate_api_capabilities.erl # 215 lines, 5 init/2 clauses
+├── hecate_api_social.erl       # 136 lines, 8 init/2 clauses
+└── hecate_api_connectors.erl   # 149 lines, 4 init/2 clauses
 ```
 
 Put each API handler in its spoke:
@@ -170,11 +171,13 @@ dispatch(Cmd, Req) ->
 
 ---
 
-## Query Handler Template
+## Query Handler Templates
+
+### By-ID Query Handler
 
 ```erlang
 %%% @doc API handler: GET /api/torches/:torch_id
--module(get_torch_api).
+-module(get_torch_by_id_api).
 
 -export([init/2]).
 
@@ -186,19 +189,61 @@ init(Req0, State) ->
 
 handle_get(Req0, _State) ->
     TorchId = cowboy_req:binding(torch_id, Req0),
-    case get_torch:execute(TorchId) of
+    case get_torch_by_id:execute(TorchId) of
         {ok, Torch} ->
             hecate_api_utils:json_ok(#{torch => Torch}, Req0);
         {error, not_found} ->
-            hecate_api_utils:json_error(404, <<"Torch not found">>, Req0);
+            hecate_api_utils:not_found(Req0);
         {error, Reason} ->
             hecate_api_utils:json_error(500, Reason, Req0)
+    end.
+```
+
+### Paged List Query Handler
+
+```erlang
+%%% @doc API handler: GET /api/torches
+-module(get_torches_page_api).
+
+-export([init/2]).
+
+init(Req0, State) ->
+    case cowboy_req:method(Req0) of
+        <<"GET">> -> handle_get(Req0, State);
+        _ -> hecate_api_utils:method_not_allowed(Req0)
+    end.
+
+handle_get(Req0, _State) ->
+    QS = cowboy_req:parse_qs(Req0),
+    Filters = build_filters(QS),
+    case get_torches_page:execute(Filters) of
+        {ok, Result} ->
+            hecate_api_utils:json_ok(#{torches => Result}, Req0);
+        {error, Reason} ->
+            hecate_api_utils:json_error(500, Reason, Req0)
+    end.
+
+build_filters(QS) ->
+    lists:foldl(fun({K, V}, Acc) ->
+        case K of
+            <<"limit">> -> safe_int(V, limit, Acc);
+            <<"offset">> -> safe_int(V, offset, Acc);
+            _ -> Acc
+        end
+    end, #{}, QS).
+
+safe_int(V, Key, Acc) ->
+    case catch binary_to_integer(V) of
+        I when is_integer(I) -> Acc#{Key => I};
+        _ -> Acc
     end.
 ```
 
 ---
 
 ## Routes Configuration
+
+All routes MUST use the `/api/` prefix. Routes reference spoke handlers directly — no `[action]` state args.
 
 ```erlang
 %% hecate_api/src/hecate_api_routes.erl
@@ -216,8 +261,9 @@ torch_routes() ->
     [
         {"/api/torch", get_active_torch_api, []},
         {"/api/torch/initiate", initiate_torch_api, []},
-        {"/api/torches", list_torches_api, []},
-        {"/api/torches/:torch_id", get_torch_api, []},
+        {"/api/torches", get_torches_page_api, []},
+        {"/api/torches/:torch_id", get_torch_by_id_api, []},
+        {"/api/torches/:torch_id/archive", archive_torch_api, []},
         {"/api/torches/:torch_id/cartwheels/identify", identify_cartwheel_api, []}
     ].
 
@@ -226,17 +272,23 @@ cartwheel_routes() ->
     [
         %% Core routes
         {"/api/cartwheel", get_active_cartwheel_api, []},
-        {"/api/cartwheels", list_cartwheels_api, []},
-        {"/api/cartwheels/initiate", initiate_cartwheel_api, []},
-        {"/api/cartwheels/:cartwheel_id", get_cartwheel_api, []},
+        {"/api/cartwheels", get_cartwheels_page_api, []},
+        {"/api/cartwheels/:cartwheel_id", get_cartwheel_by_id_api, []},
         {"/api/cartwheels/:cartwheel_id/transition", transition_phase_api, []},
         %% Discovery & Analysis phase
         {"/api/cartwheels/:cartwheel_id/discovery/start", start_discovery_api, []},
-        {"/api/cartwheels/:cartwheel_id/discovery/findings", list_findings_api, []},
+        {"/api/cartwheels/:cartwheel_id/discovery/findings", get_findings_page_api, []},
         {"/api/cartwheels/:cartwheel_id/discovery/findings/record", record_finding_api, []},
         %% ... (similar for architecture, testing, deployment phases)
     ].
 ```
+
+**Route conventions:**
+- `POST /api/{domain}/{verb}` — commands (e.g., `/api/social/follow`)
+- `GET /api/{domain}` — paged list (e.g., `/api/capabilities`)
+- `GET /api/{domain}/:id` — single by-id lookup (e.g., `/api/torches/:torch_id`)
+- `POST /api/{domain}/:id/{verb}` — action on existing aggregate (e.g., `/api/cartwheels/:id/transition`)
+- No `[action]` state args — each route maps to a dedicated handler module
 
 ---
 
@@ -300,5 +352,5 @@ This example teaches:
 - Handler template patterns
 - Migration from monolithic to vertical
 
-*Date: 2026-02-08*
-*Origin: Hecate daemon API refactoring*
+*Date: 2026-02-10*
+*Origin: Hecate daemon god module refactoring (137 files, 50 spoke handlers)*
