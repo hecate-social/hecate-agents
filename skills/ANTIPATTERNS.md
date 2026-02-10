@@ -828,7 +828,7 @@ apps/query_torches/src/
 
 > **Query names ARE the API contract. If the name doesn't scream "bounded" and "specific", the query is dangerous.**
 
-Reference: `skills/codegen/erlang/CODEGEN_ERLANG_QRY_NAMING.md`
+Reference: `skills/codegen/erlang/CODEGEN_ERLANG_NAMING.md`
 
 ---
 
@@ -889,7 +889,7 @@ Replaced 11 god modules (1,700+ lines) with 50 spoke-based handlers (~30-50 line
 All handlers use `hecate_api_utils` from the `shared` app for response helpers.
 Routes standardized under `/api/` prefix.
 
-Reference: `skills/codegen/erlang/CODEGEN_ERLANG_EVOQ.md` → API Handler Templates
+Reference: `skills/codegen/erlang/CODEGEN_ERLANG_TEMPLATES.md` → API Handler Templates
 
 ---
 

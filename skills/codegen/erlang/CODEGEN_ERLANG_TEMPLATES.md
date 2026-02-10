@@ -1,80 +1,12 @@
-# CODEGEN.md — Deterministic Code Generation Templates
+# CODEGEN_ERLANG_TEMPLATES.md — Erlang Code Templates
 
-_Strict templates for generating Cartwheel architecture code. No AI creativity needed._
+_Complete module templates for generating Cartwheel architecture code. Fill variables, generate code._
 
 **Target:** Erlang/OTP with `reckon_evoq`
 
----
-
-## Variables
-
-Templates use these placeholders:
-
-| Variable          | Example                | Description                    |
-| ----------------- | ---------------------- | ------------------------------ |
-| `{domain}`        | `manage_capabilities`  | Domain app name                |
-| `{command}`       | `announce_capability`  | Command/spoke name (verb_noun) |
-| `{event}`         | `capability_announced` | Event name (noun_past_verb)    |
-| `{read_store}`    | `capabilities`         | Read model read_store name     |
-| `{query}`         | `find_capability`      | Query name                     |
-| `{trigger_event}` | `llm_model_detected`   | Event that triggers a policy   |
-
----
-
-## Directory Structure
-
-### CMD Domain App (WRITE EVENTS)
-
-```
-apps/{domain}/
-├── src/
-│   ├── {domain}_app.erl
-│   ├── {domain}_sup.erl
-│   ├── {domain}_store.erl              # ReckonDB instance
-│   │
-│   └── {command}/                      # SPOKE directory
-│       ├── {command}_spoke_sup.erl
-│       ├── {command}_v1.erl
-│       ├── {event}_v1.erl
-│       ├── maybe_{command}.erl
-│       ├── {command}_responder_v1.erl
-│       ├── {event}_to_mesh.erl
-│       └── on_{trigger_event}_maybe_{command}.erl  # (optional PM)
-│
-└── rebar.config
-```
-
-### PRJ Domain App
-
-```
-apps/query_{domain_noun}/
-├── src/
-│   ├── query_{domain_noun}_app.erl
-│   ├── query_{domain_noun}_sup.erl
-│   ├── query_{domain_noun}_store.erl   # SQLite instance
-│   │
-│   └── {event}_to_{read_store}/             # PRJ SPOKE directory
-│       ├── {event}_to_{read_store}_sup.erl
-│       └── {event}_to_{read_store}.erl
-│
-└── rebar.config
-```
-
-### QRY (inside PRJ app)
-
-**CRITICAL: No `list_*` or `get_all_*`. Use `get_{aggs}_page` for lists, `get_{agg}_by_id` for lookups.**
-
-```
-apps/query_{domain_noun}/
-└── src/
-    ├── get_{aggregate}_by_id/           # QRY SPOKE: single lookup
-    │   ├── get_{aggregate}_by_id.erl
-    │   └── get_{aggregate}_by_id_api.erl
-    │
-    └── get_{aggregates}_page/           # QRY SPOKE: paged list
-        ├── get_{aggregates}_page.erl
-        └── get_{aggregates}_page_api.erl
-```
+**Related files:**
+- [CODEGEN_ERLANG_CHECKLISTS.md](CODEGEN_ERLANG_CHECKLISTS.md) — Generation checklists
+- [CODEGEN_ERLANG_NAMING.md](CODEGEN_ERLANG_NAMING.md) — Naming conventions
 
 ---
 
@@ -458,7 +390,7 @@ event_to_fact(EventData) ->
     }.
 ```
 
-### on*{trigger_event}\_maybe*{command}.erl (Policy/Process Manager)
+### on\_{trigger_event}\_maybe\_{command}.erl (Policy/Process Manager)
 
 ```erlang
 -module(on_{trigger_event}_maybe_{command}).
@@ -651,20 +583,6 @@ project(EventData) ->
 
 ## QRY Templates
 
-**CRITICAL: See `CODEGEN_ERLANG_QRY_NAMING.md` for full naming conventions.**
-
-### Naming Rules
-
-| Query Type | Module Pattern | Example |
-|------------|---------------|---------|
-| Single by PK | `get_{agg}_by_id` | `get_torch_by_id` |
-| Single by field | `get_{agg}_by_{field}` | `get_torch_by_name` |
-| Single special | `get_active_{agg}` | `get_active_torch` |
-| Paged list | `get_{aggs}_page` | `get_torches_page` |
-| Filtered paged | `get_{aggs}_by_{field}` | `get_cartwheels_by_torch` |
-
-**NEVER use:** `list_{aggs}`, `get_all_{aggs}`, raw `get_{agg}`
-
 ### get\_{aggregate}\_by\_id.erl (Single Lookup)
 
 ```erlang
@@ -728,81 +646,9 @@ execute(Opts) ->
 
 ---
 
-## rebar.config Template
+## Walking Skeleton Templates
 
-```erlang
-{erl_opts, [debug_info]}.
-
-{deps, [
-    {reckon_evoq, {git, "https://github.com/reckon-db-org/reckon_evoq.git", {branch, "main"}}}
-]}.
-
-%% Include spoke directories
-{src_dirs, [
-    "src",
-    "src/{command1}",
-    "src/{command2}",
-    "src/{event1}_to_{read_store1}",
-    "src/get_{aggregate}_by_id",
-    "src/get_{aggregates}_page"
-]}.
-```
-
----
-
-## Walking Skeleton: Mandatory Spokes
-
-**Every new aggregate MUST implement TWO spokes from the start:**
-
-1. `initiate_{aggregate}` — Birth event, starts the lifecycle
-2. `archive_{aggregate}` — End event, marks as archived (not deleted!)
-
-### Why Both Are Required
-
-Event sourcing means **we never delete**. Without `archive_{aggregate}`:
-- Test data pollutes production-like environments
-- No way to "undo" accidental creations
-- Lists grow unbounded with obsolete records
-
-### Aggregate Status Bit Flags
-
-Every aggregate MUST have a status integer field with AT LEAST these flags:
-
-```erlang
-%% Minimum required status flags
--define(STATUS_INITIATED, 1).   %% 2^0 - Created/born
--define(STATUS_ARCHIVED,  2).   %% 2^1 - Soft-deleted, hidden from queries
-```
-
-Additional flags are domain-specific:
-
-```erlang
-%% Example: Torch-specific flags
--define(STATUS_INITIATED, 1).
--define(STATUS_ACTIVE,    2).
--define(STATUS_PAUSED,    4).
--define(STATUS_COMPLETED, 8).
--define(STATUS_ARCHIVED, 16).
-```
-
-### Walking Skeleton Checklist
-
-When creating a new aggregate `{noun}`:
-
-**CMD Domain (`manage_{noun}s`):**
-- [ ] `initiate_{noun}/` spoke — emits `{noun}_initiated_v1`
-- [ ] `archive_{noun}/` spoke — emits `{noun}_archived_v1`
-- [ ] `{noun}_aggregate.erl` — with `STATUS_INITIATED` and `STATUS_ARCHIVED` flags
-
-**PRJ Domain (`query_{noun}s`):**
-- [ ] `{noun}_initiated_v1_to_{noun}s/` spoke — inserts row
-- [ ] `{noun}_archived_v1_to_{noun}s/` spoke — sets `status |= ARCHIVED`
-
-**Query Behavior:**
-- Default `list_all/0` MUST filter out archived records: `WHERE status & ?ARCHIVED = 0`
-- Provide `list_all_including_archived/0` for admin/debug purposes
-
-### archive_{noun}_v1.erl Template
+### archive\_{noun}\_v1.erl
 
 ```erlang
 -module(archive_{noun}_v1).
@@ -850,7 +696,7 @@ archived_by(#archive_{noun}_v1{archived_by = V}) -> V.
 reason(#archive_{noun}_v1{reason = V}) -> V.
 ```
 
-### {noun}_archived_v1_to_{noun}s.erl Template (Projection)
+### {noun}\_archived\_v1\_to\_{noun}s.erl (Archive Projection)
 
 ```erlang
 -module({noun}_archived_v1_to_{noun}s).
@@ -1085,6 +931,28 @@ emit(Event) ->
 
 ---
 
+## rebar.config Template
+
+```erlang
+{erl_opts, [debug_info]}.
+
+{deps, [
+    {reckon_evoq, {git, "https://github.com/reckon-db-org/reckon_evoq.git", {branch, "main"}}}
+]}.
+
+%% Include spoke directories
+{src_dirs, [
+    "src",
+    "src/{command1}",
+    "src/{command2}",
+    "src/{event1}_to_{read_store1}",
+    "src/get_{aggregate}_by_id",
+    "src/get_{aggregates}_page"
+]}.
+```
+
+---
+
 ## Test Templates
 
 ### CRITICAL: Every aggregate MUST have tests before push.
@@ -1195,82 +1063,12 @@ ensure_pg() ->
 
 ---
 
-## Generation Checklist
-
-### New Aggregate (Walking Skeleton)
-
-Given: `noun=capability`, `domain=manage_capabilities`
-
-Generate:
-
-- [ ] `src/capability_aggregate.erl` — with `-behaviour(evoq_aggregate).`
-- [ ] `test/capability_aggregate_tests.erl` — argument order + guard tests
-- [ ] `initiate_capability/` spoke (see New CMD Spoke)
-- [ ] `archive_capability/` spoke (see New CMD Spoke)
-
-### New CMD Spoke
-
-Given: `domain=manage_capabilities`, `command=announce_capability`, `event=capability_announced`
-
-Generate:
-
-- [ ] `src/announce_capability/announce_capability_spoke_sup.erl`
-- [ ] `src/announce_capability/announce_capability_v1.erl`
-- [ ] `src/announce_capability/capability_announced_v1.erl`
-- [ ] `src/announce_capability/maybe_announce_capability.erl`
-- [ ] `src/announce_capability/announce_capability_api.erl` — API handler (see CMD API Template)
-- [ ] `src/announce_capability/announce_capability_responder_v1.erl`
-- [ ] `src/announce_capability/capability_announced_to_mesh.erl`
-- [ ] `src/announce_capability/capability_announced_to_pg.erl` — internal emitter
-- [ ] `test/capability_announced_to_pg_tests.erl` — emitter test
-- [ ] Update `manage_capabilities_sup.erl` to include spoke supervisor
-- [ ] Update `rebar.config` src_dirs
-- [ ] Add route to `hecate_api_routes.erl`
-
-### New QRY Spoke
-
-Given: `noun=capability`, `query_app=query_capabilities`
-
-**For paged list query:**
-- [ ] `src/get_capabilities_page/get_capabilities_page.erl` — query module
-- [ ] `src/get_capabilities_page/get_capabilities_page_api.erl` — API handler (see QRY Paged API Template)
-- [ ] Update `rebar.config` src_dirs
-- [ ] Add route to `hecate_api_routes.erl`: `GET /api/capabilities`
-
-**For single-by-id query:**
-- [ ] `src/get_capability_by_mri/get_capability_by_mri.erl` — query module
-- [ ] `src/get_capability_by_mri/get_capability_by_mri_api.erl` — API handler (see QRY By-ID API Template)
-- [ ] Update `rebar.config` src_dirs
-- [ ] Add route to `hecate_api_routes.erl`: `GET /api/capabilities/:mri`
-
-### New PRJ Spoke
-
-Given: `event=capability_announced`, `read_store=capabilities`
-
-Generate:
-
-- [ ] `src/capability_announced_to_capabilities/capability_announced_to_capabilities_sup.erl`
-- [ ] `src/capability_announced_to_capabilities/capability_announced_to_capabilities.erl`
-- [ ] Update `query_capabilities_sup.erl` to include spoke supervisor
-- [ ] Update `rebar.config` src_dirs
-
-### New Policy/PM
-
-Given: `trigger_event=llm_model_detected`, `command=announce_capability`
-
-Generate:
-
-- [ ] `src/announce_capability/on_llm_model_detected_maybe_announce_capability.erl`
-- [ ] Update `announce_capability_spoke_sup.erl` to include PM worker
-
----
-
 ## API Handler Templates
 
 API handlers are Cowboy `init/2` handlers that live **inside spoke directories**, not in `hecate_api`.
 All handlers use `hecate_api_utils` from the `shared` app.
 
-### CMD API Handler Template — `{command}_api.erl`
+### CMD API Handler Template — {command}\_api.erl
 
 For command spokes (POST endpoints that dispatch commands via `maybe_*`).
 
@@ -1317,7 +1115,7 @@ dispatch_result({error, Reason}, Req) ->
 - **No body needed** (e.g., validate, endorse): Skip `read_json_body`, just extract binding and dispatch
 - **Custom status code**: Use `json_ok(201, ...)` for creation, `json_ok(Result, Req)` for 200
 
-### QRY Paged API Handler Template — `get_{nouns}_page_api.erl`
+### QRY Paged API Handler Template — get\_{nouns}\_page\_api.erl
 
 For paged list queries (GET endpoints with optional filters).
 
@@ -1358,7 +1156,7 @@ safe_int(V, Key, Acc) ->
     end.
 ```
 
-### QRY By-ID API Handler Template — `get_{noun}_by_id_api.erl`
+### QRY By-ID API Handler Template — get\_{noun}\_by\_id\_api.erl
 
 For single-record lookups (GET endpoints with URL binding).
 
@@ -1406,30 +1204,4 @@ Routes go in `hecate_api_routes.erl`. All routes MUST use the `/api/` prefix.
 
 ---
 
-## Naming Rules
-
-| Component      | Pattern                      | Example                                     |
-| -------------- | ---------------------------- | ------------------------------------------- |
-| Domain app     | `{verb}_{noun}`              | `manage_capabilities`                       |
-| Query app      | `query_{noun}`               | `query_capabilities`                        |
-| Spoke dir      | `{command}/`                 | `announce_capability/`                      |
-| Spoke sup      | `{command}_spoke_sup`        | `announce_capability_spoke_sup`             |
-| Command        | `{command}_v1`               | `announce_capability_v1`                    |
-| Event          | `{noun}_{past_verb}_v1`      | `capability_announced_v1`                   |
-| Handler        | `maybe_{command}`            | `maybe_announce_capability`                 |
-| CMD API        | `{command}_api`              | `announce_capability_api`                   |
-| Responder      | `{command}_responder_v1`     | `announce_capability_responder_v1`          |
-| Emitter (mesh) | `{event}_to_mesh`            | `capability_announced_to_mesh`              |
-| Emitter (pg)   | `{event}_to_pg`              | `capability_announced_to_pg`                |
-| Aggregate      | `{noun}_aggregate`           | `capability_aggregate`                      |
-| Projection     | `{event}_to_{read_store}`    | `capability_announced_to_capabilities`      |
-| Policy/PM      | `on_{event}_maybe_{command}` | `on_llm_detected_maybe_announce_capability` |
-| Query (by PK)  | `get_{noun}_by_id`           | `get_capability_by_id`                      |
-| QRY by-ID API  | `get_{noun}_by_id_api`       | `get_capability_by_id_api`                  |
-| Query (paged)  | `get_{nouns}_page`           | `get_capabilities_page`                     |
-| QRY paged API  | `get_{nouns}_page_api`       | `get_capabilities_page_api`                 |
-| Tests          | `{module}_tests`             | `capability_aggregate_tests`                |
-
----
-
-_Templates are deterministic. Fill in variables. Generate code. No creativity required._ 🗝️
+_Templates are deterministic. Fill in variables. Generate code. No creativity required._

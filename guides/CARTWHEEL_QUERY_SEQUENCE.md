@@ -393,7 +393,7 @@ end.
 
 ## Hecate Implementation
 
-**CRITICAL: Query module naming must scream intent. See `skills/codegen/erlang/CODEGEN_ERLANG_QRY_NAMING.md`.**
+**CRITICAL: Query module naming must scream intent. See `skills/codegen/erlang/CODEGEN_ERLANG_NAMING.md` and `skills/NAMING_CONVENTIONS.md`.**
 
 | Rule | Anti-Pattern | Correct |
 |------|-------------|---------|

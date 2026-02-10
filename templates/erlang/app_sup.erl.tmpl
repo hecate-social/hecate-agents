@@ -1,0 +1,34 @@
+%%% Domain supervisor: {{domain}}
+%%% Supervises all spoke supervisors for this domain.
+
+%% --- {{domain}}_app.erl ---
+
+-module({{domain}}_app).
+-behaviour(application).
+
+-export([start/2, stop/1]).
+
+start(_StartType, _StartArgs) ->
+    {{domain}}_sup:start_link().
+
+stop(_State) ->
+    ok.
+
+%% --- {{domain}}_sup.erl ---
+
+-module({{domain}}_sup).
+-behaviour(supervisor).
+
+-export([start_link/0, init/1]).
+
+start_link() ->
+    supervisor:start_link({local, ?MODULE}, ?MODULE, []).
+
+init([]) ->
+    Children = [
+        %% ADD SPOKE SUPERVISORS HERE
+        %% #{id => {{spoke}}_spoke_sup,
+        %%   start => {{{spoke}}_spoke_sup, start_link, []},
+        %%   type => supervisor}
+    ],
+    {ok, {#{strategy => one_for_one, intensity => 5, period => 10}, Children}}.

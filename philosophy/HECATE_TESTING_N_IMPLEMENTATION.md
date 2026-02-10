@@ -65,7 +65,7 @@ apps/{domain}/
 └── rebar.config
 ```
 
-**Use CODEGEN templates:** See [CODEGEN_ERLANG_EVOQ.md](../skills/codegen/erlang/CODEGEN_ERLANG_EVOQ.md)
+**Use CODEGEN templates:** See [CODEGEN_ERLANG_TEMPLATES.md](../skills/codegen/erlang/CODEGEN_ERLANG_TEMPLATES.md) and [CODEGEN_ERLANG_CHECKLISTS.md](../skills/codegen/erlang/CODEGEN_ERLANG_CHECKLISTS.md)
 
 ---
 

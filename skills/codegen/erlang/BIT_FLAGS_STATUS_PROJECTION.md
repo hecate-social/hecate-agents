@@ -151,7 +151,7 @@ in Erlang without a race condition between read and write.
 ## Step 6: Query Module (No Enrichment)
 
 **CRITICAL naming:** Use `get_{aggregate}_by_id` for single lookups, `get_{aggregates}_page`
-for lists. NEVER `list_{aggregates}` or `get_all_{aggregates}`. See `CODEGEN_ERLANG_QRY_NAMING.md`.
+for lists. NEVER `list_{aggregates}` or `get_all_{aggregates}`. See `CODEGEN_ERLANG_NAMING.md`.
 
 ```erlang
 -module(get_{aggregates}_page).

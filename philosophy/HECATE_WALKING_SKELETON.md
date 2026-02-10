@@ -317,7 +317,8 @@ The Walking Skeleton is not optional. It is the **first task** of every project.
 
 - [HECATE_TnI](HECATE_TESTING_N_IMPLEMENTATION.md) — Testing & Implementation phase
 - [HECATE_ALC](HECATE_ALC.md) — The full lifecycle
-- [CODEGEN_ERLANG_EVOQ.md](../skills/codegen/erlang/CODEGEN_ERLANG_EVOQ.md) — Templates for spokes
+- [CODEGEN_ERLANG_TEMPLATES.md](../skills/codegen/erlang/CODEGEN_ERLANG_TEMPLATES.md) — Templates for spokes
+- [CODEGEN_ERLANG_CHECKLISTS.md](../skills/codegen/erlang/CODEGEN_ERLANG_CHECKLISTS.md) — Generation checklists
 
 ---
 

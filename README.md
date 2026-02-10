@@ -10,19 +10,75 @@ This repository contains the philosophical foundations, mental models, skills, a
 
 ```
 hecate-agents/
-├── SOUL.md                    # Identity, values, personality
+├── SOUL.md                           # Identity, values, personality
+├── PERSONALITY.md                    # Goddess traits
 │
-├── philosophy/                # Mental models
-│   ├── DDD.md                 # The Dossier Principle
-│   └── CARTWHEEL.md           # Cartwheel Architecture overview
+├── philosophy/                       # Mental models (WHY)
+│   ├── DDD.md                        # The Dossier Principle
+│   ├── CARTWHEEL.md                  # Cartwheel Architecture overview
+│   ├── VERTICAL_SLICING.md           # Features live together
+│   ├── SCREAMING_ARCHITECTURE.md     # Names that reveal intent
+│   ├── INTEGRATION_TRANSPORTS.md     # pg vs mesh
+│   ├── HECATE_VENTURE_LIFECYCLE.md    # Process-centric architecture (venture/company model)
+│   ├── PROCESS_MANAGERS.md           # Cross-domain coordination
+│   ├── PARENT_CHILD_AGGREGATES.md    # Parent identifies, child initiates (superseded by Venture Lifecycle)
+│   ├── HECATE_ALC.md                 # Application Lifecycle
+│   ├── HECATE_DISCOVERY_N_ANALYSIS.md
+│   ├── HECATE_ARCHITECTURE_N_PLANNING.md
+│   ├── HECATE_TESTING_N_IMPLEMENTATION.md
+│   ├── HECATE_DEPLOYMENT_N_OPERATIONS.md
+│   └── HECATE_WALKING_SKELETON.md
 │
-├── skills/                    # Executable knowledge
-│   ├── ANTIPATTERNS.md        # What NOT to do (guardrails)
-│   └── codegen/               # Code generation templates
-│       └── erlang/
-│           └── CODEGEN_ERLANG_EVOQ.md
+├── guides/                           # Deep dives (HOW concepts work)
+│   ├── CARTWHEEL_OVERVIEW.md
+│   ├── CARTWHEEL_COMPANY_MODEL.md
+│   ├── CARTWHEEL_WRITE_SEQUENCE.md
+│   ├── CARTWHEEL_PROJECTION_SEQUENCE.md
+│   └── CARTWHEEL_QUERY_SEQUENCE.md
 │
-└── guides/                    # Detailed reference (optional)
+├── skills/                           # Executable knowledge (HOW to do things)
+│   ├── ANTIPATTERNS.md               # What NOT to do (guardrails)
+│   ├── TESTING.md                    # Testing patterns
+│   ├── CODE_QUALITY.md               # Quality standards
+│   ├── HOPE_FACT_SIDE_EFFECTS.md     # Mesh message patterns
+│   ├── NAMING_CONVENTIONS.md         # Consolidated naming quick-reference
+│   └── codegen/erlang/
+│       ├── CODEGEN_ERLANG_CHECKLISTS.md   # Generation checklists
+│       ├── CODEGEN_ERLANG_TEMPLATES.md    # Code templates
+│       ├── CODEGEN_ERLANG_NAMING.md       # Naming rules (detailed)
+│       └── BIT_FLAGS_STATUS_PROJECTION.md # Status projection patterns
+│
+├── examples/                         # Concrete code examples
+│   ├── PROJECTIONS.md
+│   ├── BIT_FLAGS_STATUS.md
+│   ├── MESH_INTEGRATION.md
+│   └── VERTICAL_API_HANDLERS.md
+│
+├── templates/                        # Parameterized templates for codegen
+│   ├── CHANGELOG.md.tmpl             # Torch scaffolding
+│   ├── README.md.tmpl                # Torch scaffolding
+│   ├── VISION.md.tmpl                # Torch scaffolding
+│   ├── erlang/                       # Erlang spoke templates
+│   │   ├── cmd_spoke.erl.tmpl        # Command spoke (cmd + event + handler)
+│   │   ├── cmd_api.erl.tmpl          # Command API handler
+│   │   ├── qry_page_spoke.erl.tmpl   # Paged query
+│   │   ├── qry_byid_spoke.erl.tmpl   # By-ID query
+│   │   ├── qry_page_api.erl.tmpl     # Paged query API handler
+│   │   ├── qry_byid_api.erl.tmpl     # By-ID query API handler
+│   │   ├── projection.erl.tmpl       # Projection worker
+│   │   ├── listener.erl.tmpl         # Mesh listener
+│   │   ├── emitter.erl.tmpl          # Mesh emitter
+│   │   ├── process_manager.erl.tmpl  # Process manager
+│   │   ├── app_sup.erl.tmpl          # App + supervisor
+│   │   ├── app_src.erl.tmpl          # .app.src
+│   │   └── rebar_config.tmpl         # rebar.config
+│   └── routes/
+│       └── route_entry.erl.tmpl      # Route entry
+│
+├── plans/                            # Active plans
+│   └── PLAN_ALC_UX.md
+│
+└── assets/                           # Images
 ```
 
 ---
@@ -31,10 +87,11 @@ hecate-agents/
 
 | Layer | Purpose | Files |
 |-------|---------|-------|
-| **Soul** | Identity, personality, values | `SOUL.md` |
+| **Soul** | Identity, personality, values | `SOUL.md`, `PERSONALITY.md` |
 | **Philosophy** | Mental models, principles | `philosophy/*.md` |
 | **Skills** | Executable knowledge, templates | `skills/**/*.md` |
 | **Guardrails** | What NOT to do | `skills/ANTIPATTERNS.md` |
+| **Templates** | Parameterized code generation | `templates/**/*.tmpl` |
 
 ---
 
@@ -53,8 +110,16 @@ cat ~/work/github.com/hecate-social/hecate-agents/skills/ANTIPATTERNS.md
 
 Skills are injected contextually based on the current task:
 - Architecture work → Load `philosophy/DDD.md`, `philosophy/CARTWHEEL.md`
-- Code generation → Load `skills/codegen/erlang/CODEGEN_ERLANG_EVOQ.md`
+- Code generation → Load `skills/NAMING_CONVENTIONS.md` + `skills/codegen/erlang/CODEGEN_ERLANG_TEMPLATES.md`
 - Code review → Load `skills/ANTIPATTERNS.md`
+
+### For TnI Codegen (Tier 3)
+
+The LLM reads ONLY:
+1. `skills/NAMING_CONVENTIONS.md` — derivation rules
+2. The relevant `templates/erlang/*.tmpl` — parameterized template
+
+This is enough for mechanical code generation. No creativity required.
 
 ---
 
@@ -65,7 +130,8 @@ These documents shape how agents think. Changes should be deliberate.
 - **Philosophy** changes affect mental models
 - **Skills** changes affect code output
 - **Guardrails** changes affect quality control
+- **Templates** changes affect generated code structure
 
 ---
 
-*The goddess shapes her servants.* 🔥🗝️🔥
+*The goddess shapes her servants.*

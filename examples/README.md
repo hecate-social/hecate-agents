@@ -18,13 +18,17 @@ This directory contains well-documented examples of correct patterns used in the
 
 | Example | Pattern | Key Concepts |
 |---------|---------|--------------|
-| [PARENT_CHILD_AGGREGATES.md](PARENT_CHILD_AGGREGATES.md) | Torch → Cartwheel | Parent identifies, child initiates; event stream ownership |
 | [VERTICAL_API_HANDLERS.md](VERTICAL_API_HANDLERS.md) | API in spokes | Handlers in spokes, shared utilities, dependency management |
 | [MESH_INTEGRATION.md](MESH_INTEGRATION.md) | Emitter/Listener | FACTS vs EVENTS, cross-agent communication, command layer |
-| [PROCESS_MANAGERS.md](PROCESS_MANAGERS.md) | Cross-domain coordination | PM naming, location in target domain, loose coupling |
 | [PROJECTIONS.md](PROJECTIONS.md) | Read models | Event → read model, naming, SQLite patterns |
 | [BIT_FLAGS_STATUS.md](BIT_FLAGS_STATUS.md) | Aggregate status | Integer bit flags, evoq_bit_flags API, efficient queries |
-| [QUERY_NAMING.md](QUERY_NAMING.md) | Query module naming | Screaming names, paged queries, no unbounded lists |
+
+**Moved to philosophy/ (core patterns, not just examples):**
+- [PROCESS_MANAGERS.md](../philosophy/PROCESS_MANAGERS.md) — Cross-domain coordination
+- [PARENT_CHILD_AGGREGATES.md](../philosophy/PARENT_CHILD_AGGREGATES.md) — Parent identifies, child initiates
+
+**Merged into skills/NAMING_CONVENTIONS.md:**
+- QUERY_NAMING.md — now part of consolidated naming reference
 
 ---
 
@@ -60,7 +64,7 @@ When adding a new example:
 - [x] Mesh integration (Emitter/Listener/Requester/Responder)
 - [x] Process manager patterns
 - [x] Bit flag status fields
-- [x] CQRS query optimization (see QUERY_NAMING.md)
+- [x] CQRS query optimization (see `skills/NAMING_CONVENTIONS.md`)
 
 ---
 
