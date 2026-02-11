@@ -146,39 +146,72 @@ These are the aggregate guard clause errors for `setup_venture`. Other lifecycle
 Before tagging a release:
 
 ```bash
-# All unit tests (auto-discovered)
-rebar3 eunit
+# CMD app tests (L1+L2) — use --app= (module names match app modules)
+rebar3 eunit --app=setup_venture
+rebar3 eunit --app=discover_divisions
+rebar3 eunit --app=design_division
+rebar3 eunit --app=plan_division
+rebar3 eunit --app=generate_division
+rebar3 eunit --app=test_division
+rebar3 eunit --app=deploy_division
+rebar3 eunit --app=monitor_division
+rebar3 eunit --app=rescue_division
+rebar3 eunit --app=guide_venture
 
-# All standalone tests per app
-rebar3 eunit --dir=apps/setup_venture/test
-rebar3 eunit --dir=apps/query_ventures/test
-# ... repeat for each app with tests
+# QRY app tests (L3+L4) — MUST use --module= (test module names don't match app modules)
+rebar3 eunit --module=venture_cqrs_integration_tests,venture_projection_tests
+rebar3 eunit --module=discovery_cqrs_integration_tests,discovery_projection_tests
+rebar3 eunit --module=design_cqrs_integration_tests,design_projection_tests
+rebar3 eunit --module=plan_cqrs_integration_tests,plan_projection_tests
+rebar3 eunit --module=generation_cqrs_integration_tests,generation_projection_tests
+rebar3 eunit --module=testing_cqrs_integration_tests,testing_projection_tests
+rebar3 eunit --module=deployment_cqrs_integration_tests,deployment_projection_tests
+rebar3 eunit --module=monitoring_cqrs_integration_tests,monitoring_projection_tests
+rebar3 eunit --module=rescue_cqrs_integration_tests,rescue_projection_tests
 
 # Dialyzer
 rebar3 dialyzer
 
-# Compile warnings
+# Compile warnings (warnings_as_errors applies — one unused function blocks everything)
 rebar3 compile
 ```
 
+**Why `--app=` vs `--module=`?** `rebar3 eunit --app=X` uses EUnit's application discovery, which finds `{module}_tests` modules matching application module names. CMD test modules like `setup_aggregate_tests` match `setup_aggregate`. But QRY test modules like `venture_cqrs_integration_tests` don't match any app module, so `--module=` is required.
+
 ---
 
-## Rollout Plan
+## Rollout Status
 
-After `setup_venture` proves the templates:
+**Completed (2026-02-11):**
 
-1. **For each CMD app** (9 remaining):
-   - Copy `setup_aggregate_tests.erl` -> rename to `{aggregate}_tests.erl`
-   - Fill in template variables from the table above
-   - Copy command/handler/event test patterns
-   - Run and fix
+All 10 CMD apps and 9 QRY apps have full test coverage:
 
-2. **For each QRY app** (8 remaining):
-   - Copy `test_store_proxy.erl` to test directory (or share via rebar3 test deps)
-   - Copy `venture_cqrs_integration_tests.erl` -> rename
-   - Fill in template variables
-   - Copy `venture_projection_tests.erl` -> rename
-   - Run and fix
+| Layer | Apps | Tests | Status |
+|-------|------|-------|--------|
+| L1+L2 (Dossier + Domain) | 10 CMD apps | 137 | Done |
+| L3+L4 (Integration + Projection) | 9 QRY apps | 128 | Done |
+| **Total** | **19 apps** | **265** | **All passing** |
 
-3. **Estimated effort per app**: 30-60 minutes (fill-in-the-blanks)
-4. **Total estimated**: 1-2 sessions for all 19 apps
+### Files Created Per QRY App (Pattern)
+
+Each QRY app gets 3 test files:
+
+1. `{domain}_test_store_proxy.erl` — Gen_server proxy registering as `{store_module}`, creates tables, provides `ensure_tuples/1`
+2. `{domain}_cqrs_integration_tests.erl` — 10+ tests covering start→query→lifecycle→child entities→idempotency→full flow
+3. `{domain}_projection_tests.erl` — 3 tests: correct_flags, label_correct, archive_bits
+
+### CRITICAL: Unique proxy module names
+
+Each QRY app's proxy MUST have a unique module name because all test modules compile into one namespace:
+
+| QRY App | Proxy Module Name |
+|---------|-------------------|
+| `query_ventures` | `ventures_test_store_proxy` |
+| `query_discoveries` | `discoveries_test_store_proxy` |
+| `query_designs` | `designs_test_store_proxy` |
+| `query_plans` | `plans_test_store_proxy` |
+| `query_generations` | `generations_test_store_proxy` |
+| `query_tests` | `tests_test_store_proxy` |
+| `query_deployments` | `deployments_test_store_proxy` |
+| `query_monitoring` | `monitoring_test_store_proxy` |
+| `query_rescues` | `rescues_test_store_proxy` |

@@ -330,83 +330,167 @@ to_list(L) when is_list(L) -> L.
 ## Running Tests
 
 ```bash
-# Layer 1+2 (pure functions, auto-discovered)
-rebar3 eunit --app={CmdApp}
+# Layer 1+2: CMD app tests (auto-discovered via {module}_tests naming)
+rebar3 eunit --app=setup_venture
+rebar3 eunit --app=setup_venture,design_division,plan_division  # multiple
 
-# Layer 1+2 (standalone test modules)
-rebar3 eunit --dir=apps/{CmdApp}/test
+# Layer 3+4: QRY app tests (MUST use --module=, NOT --app=)
+rebar3 eunit --module=monitoring_cqrs_integration_tests,monitoring_projection_tests
 
-# Layer 3+4 (integration, needs SQLite)
-rebar3 eunit --dir=apps/{QryApp}/test
+# All CMD apps at once (137 tests)
+rebar3 eunit --app=setup_venture,discover_divisions,design_division,plan_division,generate_division,test_division,deploy_division,monitor_division,rescue_division
 
-# All tests in the daemon
-rebar3 eunit
-
-# Specific module
-rebar3 eunit --module={test_module}
+# All QRY apps at once (128 tests)
+rebar3 eunit --module=venture_cqrs_integration_tests,venture_projection_tests,design_cqrs_integration_tests,design_projection_tests,discovery_cqrs_integration_tests,discovery_projection_tests,plan_cqrs_integration_tests,plan_projection_tests,generation_cqrs_integration_tests,generation_projection_tests,testing_cqrs_integration_tests,testing_projection_tests,deployment_cqrs_integration_tests,deployment_projection_tests,monitoring_cqrs_integration_tests,monitoring_projection_tests,rescue_cqrs_integration_tests,rescue_projection_tests
 ```
 
-**Note:** `rebar3 eunit --app=X` only auto-discovers `{module}_tests` modules. Use `--dir=apps/X/test` to run standalone test modules.
+### Why `--app=` vs `--module=`
+
+- **`--app=X`** runs EUnit on the application, which only discovers test modules matching `{app_module}_tests`. CMD app tests work because `setup_aggregate_tests` matches `setup_aggregate`.
+- **`--module=X`** runs EUnit on explicitly named test modules. QRY tests REQUIRE this because `monitoring_cqrs_integration_tests` doesn't match any app module name.
+- **`--dir=`** does NOT work reliably in rebar3 umbrella projects.
 
 ---
 
-## Template Variable Reference (per CMD app)
+## Template Variable Reference (all 10 CMD apps)
 
-| Variable | setup_venture | design_division |
-|----------|--------------|----------------|
-| `{CmdApp}` | `setup_venture` | `design_division` |
-| `{Aggregate}` | `setup_aggregate` | `design_aggregate` |
-| `{StatusHrl}` | `setup_venture/include/venture_status.hrl` | `design_division/include/design_status.hrl` |
-| `{StateRecord}` | `setup_state` | `design_state` |
-| `{InitEvent}` | `venture_setup_v1` | `design_started_v1` |
-| `{ArchiveEvent}` | `venture_archived_v1` | `design_archived_v1` |
+| App | Aggregate | Status HRL | Init Event | Archive Event | Flags |
+|-----|-----------|-----------|------------|---------------|-------|
+| `setup_venture` | `setup_aggregate` | `venture_status.hrl` | `venture_setup_v1` | `venture_archived_v1` | SETUP=1, REFINED=2, SUBMITTED=4, ARCHIVED=8 |
+| `discover_divisions` | `discovery_aggregate` | `discovery_status.hrl` | `discovery_started_v1` | `discovery_archived_v1` | INITIATED=1, ACTIVE=2, PAUSED=4, COMPLETED=8, ARCHIVED=16 |
+| `design_division` | `design_aggregate` | `design_status.hrl` | `design_started_v1` | `design_archived_v1` | same lifecycle |
+| `plan_division` | `plan_aggregate` | `plan_status.hrl` | `plan_started_v1` | `plan_archived_v1` | same lifecycle |
+| `generate_division` | `generation_aggregate` | `generation_status.hrl` | `generation_started_v1` | `generation_archived_v1` | same lifecycle |
+| `test_division` | `testing_aggregate` | `testing_status.hrl` | `testing_started_v1` | `testing_archived_v1` | same lifecycle |
+| `deploy_division` | `deployment_aggregate` | `deployment_status.hrl` | `deployment_started_v1` | `deployment_archived_v1` | same lifecycle |
+| `monitor_division` | `monitoring_aggregate` | `monitoring_status.hrl` | `monitoring_started_v1` | `monitoring_archived_v1` | same lifecycle |
+| `rescue_division` | `rescue_aggregate` | `rescue_status.hrl` | `rescue_started_v1` | `rescue_archived_v1` | same lifecycle |
+| `guide_venture` | `guide_aggregate` | `guide_status.hrl` | `guide_started_v1` | `guide_archived_v1` | passive orchestrator |
 
-## Template Variable Reference (per QRY app)
+## Template Variable Reference (all 9 QRY apps)
 
-| Variable | query_ventures | query_designs |
-|----------|---------------|--------------|
-| `{QryApp}` | `query_ventures` | `query_designs` |
-| `{Store}` | `query_ventures_store` | `query_designs_store` |
-| `{Table}` | `ventures` | `designs` |
+| App | Store | Main Table | Proxy Module | Query API | Child Tables |
+|-----|-------|-----------|--------------|-----------|-------------|
+| `query_ventures` | `query_ventures_store` | `ventures` | `test_store_proxy` | `get/1` | — |
+| `query_discoveries` | `query_discoveries_store` | `discoveries` | `discoveries_test_store_proxy` | `execute/1` | `discovered_divisions` |
+| `query_designs` | `query_designs_store` | `designs` | `designs_test_store_proxy` | `get/1` | `designed_aggregates`, `designed_events` |
+| `query_plans` | `query_plans_store` | `plans` | `plans_test_store_proxy` | `get/1` | `planned_desks`, `planned_dependencies` |
+| `query_generations` | `query_generations_store` | `generations` | `generations_test_store_proxy` | `get/1` | `generated_modules`, `generated_tests` |
+| `query_tests` | `query_tests_store` | `testings` | `testings_test_store_proxy` | `get/1` | `test_suites`, `test_results` |
+| `query_deployments` | `query_deployments_store` | `deployments` | `deployments_test_store_proxy` | `get/1` | `releases`, `rollout_stages` |
+| `query_monitoring` | `query_monitoring_store` | `monitorings` | `monitoring_test_store_proxy` | `get/1` | `health_checks`, `incidents` |
+| `query_rescues` | `query_rescues_store` | `rescues` | `rescues_test_store_proxy` | `get/1` | `diagnoses`, `fixes` |
+
+**Note:** `query_discoveries` uses `execute/1` while all other QRY apps use `get/1`.
 
 ---
 
 ## Naming Conventions for Test Files
 
+### CMD App Tests (L1+L2)
+
 | Layer | Pattern | Example |
 |-------|---------|---------|
-| L1 Dossier | `{aggregate}_tests.erl` | `setup_aggregate_tests.erl` |
-| L2 Commands | `{cmd_app}_command_tests.erl` | `setup_venture_command_tests.erl` |
-| L2 Events | `{subject}_event_tests.erl` | `venture_event_tests.erl` |
-| L2 Handlers | `{cmd_app}_handler_tests.erl` | `setup_venture_handler_tests.erl` |
-| L3 Integration | `{subject}_cqrs_integration_tests.erl` | `venture_cqrs_integration_tests.erl` |
-| L4 Side Effects | `{cmd_app}_side_effects_tests.erl` | `setup_venture_side_effects_tests.erl` |
-| L4 Projections | `{subject}_projection_tests.erl` | `venture_projection_tests.erl` |
-| Helper | `test_store_proxy.erl` | `test_store_proxy.erl` |
+| L1 Dossier | `{aggregate}_tests.erl` | `design_aggregate_tests.erl` |
+| L2 Handlers | `{cmd_app}_handler_tests.erl` | `design_division_handler_tests.erl` |
+| L2 Events | `{subject}_event_tests.erl` | `design_event_tests.erl` |
+| L2 Side Effects | `{cmd_app}_side_effects_tests.erl` | `design_division_side_effects_tests.erl` |
+
+### QRY App Tests (L3+L4)
+
+| Layer | Pattern | Example |
+|-------|---------|---------|
+| L3 Integration | `{subject}_cqrs_integration_tests.erl` | `design_cqrs_integration_tests.erl` |
+| L4 Projections | `{subject}_projection_tests.erl` | `design_projection_tests.erl` |
+| Helper | `{table}_test_store_proxy.erl` | `designs_test_store_proxy.erl` |
+
+### CRITICAL: Unique Proxy Module Names
+
+In rebar3 umbrella projects, **ALL test modules compile into the same namespace**. Each QRY app's test store proxy MUST have a unique module name:
+
+```
+WRONG:  test_store_proxy.erl         (collision between query_designs and query_plans!)
+RIGHT:  designs_test_store_proxy.erl  (unique per app)
+RIGHT:  plans_test_store_proxy.erl    (unique per app)
+```
+
+The proxy module registers as the actual store name (e.g., `query_designs_store`) so projections and queries work unchanged.
 
 ---
 
-## Bug Found During Testing
+## Bugs & Lessons from Full Rollout (265 tests)
 
-**Archive projection list/tuple mismatch:** `esqlite3:fetchall` can return rows as lists `[[val]]` or tuples `[{val}]`. The archive projection only matched tuples. All code reading from esqlite3 must handle both formats.
+### 1. esqlite3 list/tuple mismatch
 
-Pattern to avoid:
+`esqlite3:fetchall` can return rows as lists `[[val]]` or tuples `[{val}]`. Lifecycle projections pattern-match on `{ok, [{CurrentStatus}]}` and silently fail when they get lists.
+
+**Fix in test proxy:** Add `ensure_tuples/1` to normalize all fetchall results:
+
 ```erlang
-%% BAD: only handles tuple format
-case query(Sql, Params) of
-    {ok, [{Value}]} -> ...
+ensure_tuples(Rows) -> [ensure_tuple(R) || R <- Rows].
+ensure_tuple(T) when is_tuple(T) -> T;
+ensure_tuple(L) when is_list(L) -> list_to_tuple(L).
 ```
 
-Pattern to use:
-```erlang
-%% GOOD: handles both formats
-case query(Sql, Params) of
-    {ok, [{Value}]} -> ...;
-    {ok, [[Value]]} -> ...
-```
+### 2. esqlite3 API argument order in tests
 
-Or extract with a helper:
+Production stores use `esqlite3:q(Sql, Params, Db)` (Sql first). But in the test proxy, `esqlite3:exec(Sql, Db)` doesn't work — you must use `esqlite3:exec(Db, Sql)` (Db first). The test proxy uses `prepare/bind/fetchall` for parameterized queries instead of `q/3`.
+
+### 3. Module name collision in umbrella test directories
+
+Rebar3 compiles ALL test modules together in an umbrella. If two apps both have `test/test_store_proxy.erl`, only one survives. **Always prefix**: `designs_test_store_proxy`, `plans_test_store_proxy`, etc.
+
+### 4. `warnings_as_errors` blocks all test compilation
+
+A single unused function warning in ANY test file blocks ALL test compilation across the umbrella. Always clean up unused event fixture functions.
+
+### 5. EUnit app discovery vs module discovery
+
+`rebar3 eunit --app=query_designs` discovers ZERO tests because EUnit's `{application, X}` mode only matches `{app_module}_tests` modules. QRY test modules like `design_cqrs_integration_tests` don't correspond to any app module. **Must use `--module=`**.
+
+### Proven Test Store Proxy Pattern
+
+This is the canonical proxy pattern used across all 8 QRY app test suites:
+
 ```erlang
-to_list(T) when is_tuple(T) -> tuple_to_list(T);
-to_list(L) when is_list(L) -> L.
+-module({table}_test_store_proxy).
+-behaviour(gen_server).
+-export([start/1, stop/0]).
+-export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
+-record(state, {db :: reference(), path :: string()}).
+
+start(DbPath) -> gen_server:start({local, {store_module}}, ?MODULE, DbPath, []).
+stop() -> gen_server:stop({store_module}).
+
+init(DbPath) ->
+    {ok, Db} = esqlite3:open(DbPath),
+    ok = esqlite3:exec(Db, "PRAGMA journal_mode=WAL;"),
+    create_tables(Db),
+    {ok, #state{db = Db, path = DbPath}}.
+
+handle_call({execute, Sql, []}, _From, #state{db = Db} = S) ->
+    {reply, esqlite3:exec(Db, Sql), S};
+handle_call({execute, Sql, Params}, _From, #state{db = Db} = S) ->
+    case esqlite3:prepare(Db, Sql) of
+        {ok, St} -> ok = esqlite3:bind(St, Params), step(St), {reply, ok, S};
+        E -> {reply, E, S}
+    end;
+handle_call({query, Sql, []}, _From, #state{db = Db} = S) ->
+    case esqlite3:prepare(Db, Sql) of
+        {ok, St} -> {reply, {ok, ensure_tuples(esqlite3:fetchall(St))}, S};
+        E -> {reply, E, S}
+    end;
+handle_call({query, Sql, Params}, _From, #state{db = Db} = S) ->
+    case esqlite3:prepare(Db, Sql) of
+        {ok, St} -> ok = esqlite3:bind(St, Params),
+                     {reply, {ok, ensure_tuples(esqlite3:fetchall(St))}, S};
+        E -> {reply, E, S}
+    end;
+%% ...
+
+terminate(_, #state{db = Db, path = P}) -> esqlite3:close(Db), file:delete(P), ok.
+step(St) -> case esqlite3:step(St) of '$done' -> ok; {row,_} -> step(St); ok -> ok end.
+ensure_tuples(Rows) -> [ensure_tuple(R) || R <- Rows].
+ensure_tuple(T) when is_tuple(T) -> T;
+ensure_tuple(L) when is_list(L) -> list_to_tuple(L).
 ```
