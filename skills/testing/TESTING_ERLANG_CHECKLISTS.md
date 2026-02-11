@@ -84,6 +84,14 @@ Per projection:
 - [ ] `projection_undefined_fields_handled` — NULL for optional fields
 - [ ] `archive_preserves_existing_bits` — bitwise OR preserves previous flags
 
+### Layer 4c: ReckonDB Dispatch
+
+Per CMD app (except guide_venture):
+- [ ] `dispatch_persists_event` — event exists in ReckonDB after dispatch
+- [ ] `dispatch_returns_version_and_events` — return type is `{ok, int(), [map()]}`
+- [ ] `dispatch_second_command_appends_to_stream` — two commands = two events in stream
+- [ ] `read_back_event_data_matches` — event data in store matches dispatched command
+
 ---
 
 ## Template Variable Tables
@@ -169,6 +177,17 @@ rebar3 eunit --module=deployment_cqrs_integration_tests,deployment_projection_te
 rebar3 eunit --module=monitoring_cqrs_integration_tests,monitoring_projection_tests
 rebar3 eunit --module=rescue_cqrs_integration_tests,rescue_projection_tests
 
+# L4c: Dispatch tests (requires ReckonDB + evoq apps running)
+rebar3 eunit --module=setup_venture_dispatch_tests
+rebar3 eunit --module=discover_divisions_dispatch_tests
+rebar3 eunit --module=design_division_dispatch_tests
+rebar3 eunit --module=plan_division_dispatch_tests
+rebar3 eunit --module=generate_division_dispatch_tests
+rebar3 eunit --module=test_division_dispatch_tests
+rebar3 eunit --module=deploy_division_dispatch_tests
+rebar3 eunit --module=monitor_division_dispatch_tests
+rebar3 eunit --module=rescue_division_dispatch_tests
+
 # Dialyzer
 rebar3 dialyzer
 
@@ -189,8 +208,9 @@ All 10 CMD apps and 9 QRY apps have full test coverage:
 | Layer | Apps | Tests | Status |
 |-------|------|-------|--------|
 | L1+L2 (Dossier + Domain) | 10 CMD apps | 137 | Done |
-| L3+L4 (Integration + Projection) | 9 QRY apps | 128 | Done |
-| **Total** | **19 apps** | **265** | **All passing** |
+| L3+L4a+L4b (Integration + Side Effects) | 9 QRY apps | 128 | Done |
+| L4c (Dispatch) | 9 CMD apps | 36 | Done |
+| **Total** | **19 apps** | **301** | **All passing** |
 
 ### Files Created Per QRY App (Pattern)
 

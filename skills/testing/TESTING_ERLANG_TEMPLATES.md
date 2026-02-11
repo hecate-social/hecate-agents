@@ -12,7 +12,9 @@ Proven through `setup_venture` + `query_ventures` pilot (100 tests, 4 layers).
 | **L1 Dossier** | Aggregate state reconstruction | `apply_event/2` chains | EUnit | None |
 | **L2 Domain** | Commands, handlers, execute/2 state machine | Business rules | EUnit | None |
 | **L3 Integration** | CMD to PRJ flow | Projection + Query | EUnit + SQLite | SQLite (temp) |
-| **L4 Side Effects** | pg broadcast, projection rows, status labels | Observable effects | EUnit + pg + SQLite | pg scope, SQLite |
+| **L4a pg Emission** | pg broadcast delivery | Observable effects | EUnit + pg | pg scope |
+| **L4b Projection Rows** | Projection row verification | Column values, labels | EUnit + SQLite | SQLite (temp) |
+| **L4c Dispatch** | ReckonDB event persistence | `dispatch/1` to store | EUnit + ReckonDB | ReckonDB (temp store) |
 
 ---
 
@@ -325,6 +327,254 @@ to_list(T) when is_tuple(T) -> tuple_to_list(T);
 to_list(L) when is_list(L) -> L.
 ```
 
+### 4c. ReckonDB Dispatch Tests
+
+**File:** `apps/{CmdApp}/test/{CmdApp}_dispatch_tests.erl`
+
+**What:** Verifies that `dispatch/1` persists events to ReckonDB and that they can be read back with correct data. Requires ReckonDB + evoq infrastructure (temp store created/destroyed per suite).
+
+**Two variants exist:**
+
+1. **setup_venture** (unique): `venture_id` auto-generated, second command is `refine_vision_v1`
+2. **Lifecycle apps** (8 apps): Uses `unique_id/1` helper, second command is `archive_{X}_v1`
+
+### Template: setup_venture variant
+
+```erlang
+%%% @doc Layer 4c: ReckonDB Dispatch Tests — setup_venture.
+%%% Verifies that dispatch/1 persists events to ReckonDB and that
+%%% they can be read back with correct data.
+-module(setup_venture_dispatch_tests).
+
+-include_lib("eunit/include/eunit.hrl").
+-include_lib("reckon_db/include/reckon_db.hrl").
+
+dispatch_test_() ->
+    {setup, fun start_infra/0, fun stop_infra/1, [
+        fun dispatch_persists_event/0,
+        fun dispatch_returns_version_and_events/0,
+        fun dispatch_second_command_appends_to_stream/0,
+        fun read_back_event_data_matches/0
+    ]}.
+
+start_infra() ->
+    application:ensure_all_started(reckon_db),
+    application:ensure_all_started(evoq),
+    application:set_env(evoq, event_store_adapter, reckon_evoq_adapter),
+    TmpDir = "/tmp/test_dispatch_setup_" ++
+        integer_to_list(erlang:unique_integer([positive])),
+    StoreConfig = #store_config{
+        store_id = setup_venture_store,
+        data_dir = TmpDir,
+        mode = single,
+        options = #{}
+    },
+    {ok, _} = reckon_db_sup:start_store(StoreConfig),
+    #{tmp_dir => TmpDir}.
+
+stop_infra(#{tmp_dir := TmpDir}) ->
+    reckon_db_sup:stop_store(setup_venture_store),
+    os:cmd("rm -rf " ++ TmpDir),
+    ok.
+
+%% Dispatch persists exactly one event to ReckonDB
+dispatch_persists_event() ->
+    {ok, Cmd} = setup_venture_v1:new(#{name => <<"Dispatch Persist Test">>}),
+    VentureId = setup_venture_v1:get_venture_id(Cmd),
+    {ok, _Version, [_Event]} = maybe_setup_venture:dispatch(Cmd),
+    {ok, Events} = esdb_gater_api:get_events(
+        setup_venture_store, VentureId, 0, 100, forward),
+    ?assertEqual(1, length(Events)).
+
+%% Dispatch returns {ok, Version, [EventMaps]}
+dispatch_returns_version_and_events() ->
+    {ok, Cmd} = setup_venture_v1:new(#{name => <<"Return Type Test">>}),
+    {ok, Version, EventMaps} = maybe_setup_venture:dispatch(Cmd),
+    ?assert(is_integer(Version)),
+    ?assert(is_list(EventMaps)),
+    ?assertEqual(1, length(EventMaps)),
+    [E] = EventMaps,
+    ?assert(is_map(E)).
+
+%% Second dispatch to same aggregate produces two events in store
+dispatch_second_command_appends_to_stream() ->
+    VentureId = <<"vent-incr-",
+        (integer_to_binary(erlang:unique_integer([positive])))/binary>>,
+    {ok, SetupCmd} = setup_venture_v1:new(#{
+        venture_id => VentureId,
+        name => <<"Version Incr Test">>
+    }),
+    {ok, _, _} = maybe_setup_venture:dispatch(SetupCmd),
+    {ok, RefineCmd} = refine_vision_v1:new(#{
+        venture_id => VentureId,
+        brief => <<"Updated brief">>
+    }),
+    {ok, _, _} = maybe_refine_vision:dispatch(RefineCmd),
+    {ok, Events} = esdb_gater_api:get_events(
+        setup_venture_store, VentureId, 0, 100, forward),
+    ?assertEqual(2, length(Events)).
+
+%% Read-back event data matches the dispatched command
+read_back_event_data_matches() ->
+    {ok, Cmd} = setup_venture_v1:new(#{
+        name => <<"ReadBack Test">>,
+        brief => <<"Verify data">>,
+        initiated_by => <<"test@host">>
+    }),
+    VentureId = setup_venture_v1:get_venture_id(Cmd),
+    {ok, _, _} = maybe_setup_venture:dispatch(Cmd),
+    {ok, [Event | _]} = esdb_gater_api:get_events(
+        setup_venture_store, VentureId, 0, 100, forward),
+    Data = extract_data(Event),
+    Name = maps:get(<<"name">>, Data,
+        maps:get(name, Data, undefined)),
+    ?assertEqual(<<"ReadBack Test">>, Name).
+
+extract_data(Event) when is_record(Event, event) ->
+    Event#event.data;
+extract_data(#{data := D}) when is_map(D) ->
+    D;
+extract_data(#{<<"data">> := D}) when is_map(D) ->
+    D;
+extract_data(Event) when is_map(Event) ->
+    Event.
+```
+
+### Template: Lifecycle app variant (parameterized)
+
+Replace `{CmdApp}`, `{short_name}`, `{StoreId}`, `{InitCmdModule}`, `{InitHandler}`, `{ArchiveCmdModule}`, `{ArchiveHandler}`, `{IdField}`.
+
+```erlang
+%%% @doc Layer 4c: ReckonDB Dispatch Tests — {CmdApp}.
+%%% Verifies that dispatch/1 persists events to ReckonDB and that
+%%% they can be read back with correct data.
+-module({CmdApp}_dispatch_tests).
+
+-include_lib("eunit/include/eunit.hrl").
+-include_lib("reckon_db/include/reckon_db.hrl").
+
+dispatch_test_() ->
+    {setup, fun start_infra/0, fun stop_infra/1, [
+        fun dispatch_persists_event/0,
+        fun dispatch_returns_version_and_events/0,
+        fun dispatch_second_command_appends_to_stream/0,
+        fun read_back_event_data_matches/0
+    ]}.
+
+start_infra() ->
+    application:ensure_all_started(reckon_db),
+    application:ensure_all_started(evoq),
+    application:set_env(evoq, event_store_adapter, reckon_evoq_adapter),
+    TmpDir = "/tmp/test_dispatch_{short_name}_" ++
+        integer_to_list(erlang:unique_integer([positive])),
+    StoreConfig = #store_config{
+        store_id = {StoreId},
+        data_dir = TmpDir,
+        mode = single,
+        options = #{}
+    },
+    {ok, _} = reckon_db_sup:start_store(StoreConfig),
+    #{tmp_dir => TmpDir}.
+
+stop_infra(#{tmp_dir := TmpDir}) ->
+    reckon_db_sup:stop_store({StoreId}),
+    os:cmd("rm -rf " ++ TmpDir),
+    ok.
+
+dispatch_persists_event() ->
+    DivisionId = unique_id(<<"{prefix}-persist">>),
+    {ok, Cmd} = {InitCmdModule}:new(#{division_id => DivisionId}),
+    {ok, _, [_]} = {InitHandler}:dispatch(Cmd),
+    {ok, Events} = esdb_gater_api:get_events(
+        {StoreId}, DivisionId, 0, 100, forward),
+    ?assertEqual(1, length(Events)).
+
+dispatch_returns_version_and_events() ->
+    DivisionId = unique_id(<<"{prefix}-ret">>),
+    {ok, Cmd} = {InitCmdModule}:new(#{division_id => DivisionId}),
+    {ok, Version, EventMaps} = {InitHandler}:dispatch(Cmd),
+    ?assert(is_integer(Version)),
+    ?assert(is_list(EventMaps)),
+    ?assertEqual(1, length(EventMaps)),
+    [E] = EventMaps,
+    ?assert(is_map(E)).
+
+dispatch_second_command_appends_to_stream() ->
+    DivisionId = unique_id(<<"{prefix}-stream">>),
+    {ok, StartCmd} = {InitCmdModule}:new(#{division_id => DivisionId}),
+    {ok, _, _} = {InitHandler}:dispatch(StartCmd),
+    {ok, ArchiveCmd} = {ArchiveCmdModule}:new(#{division_id => DivisionId}),
+    {ok, _, _} = {ArchiveHandler}:dispatch(ArchiveCmd),
+    {ok, Events} = esdb_gater_api:get_events(
+        {StoreId}, DivisionId, 0, 100, forward),
+    ?assertEqual(2, length(Events)).
+
+read_back_event_data_matches() ->
+    DivisionId = unique_id(<<"{prefix}-read">>),
+    {ok, Cmd} = {InitCmdModule}:new(#{
+        division_id => DivisionId,
+        started_by => <<"test@host">>
+    }),
+    {ok, _, _} = {InitHandler}:dispatch(Cmd),
+    {ok, [Event | _]} = esdb_gater_api:get_events(
+        {StoreId}, DivisionId, 0, 100, forward),
+    Data = extract_data(Event),
+    Id = maps:get(<<"division_id">>, Data,
+        maps:get(division_id, Data, undefined)),
+    ?assertEqual(DivisionId, Id).
+
+unique_id(Prefix) ->
+    <<Prefix/binary, "-",
+      (integer_to_binary(erlang:unique_integer([positive])))/binary>>.
+
+extract_data(Event) when is_record(Event, event) ->
+    Event#event.data;
+extract_data(#{data := D}) when is_map(D) ->
+    D;
+extract_data(#{<<"data">> := D}) when is_map(D) ->
+    D;
+extract_data(Event) when is_map(Event) ->
+    Event.
+```
+
+### Special Case: rescue_division
+
+`rescue_division` requires `incident_id` in the init command:
+
+```erlang
+dispatch_persists_event() ->
+    DivisionId = unique_id(<<"res-persist">>),
+    {ok, Cmd} = start_rescue_v1:new(#{
+        division_id => DivisionId,
+        incident_id => <<"inc-1">>
+    }),
+    {ok, _, [_]} = maybe_start_rescue:dispatch(Cmd),
+    ...
+```
+
+### Key Patterns
+
+- **`extract_data/1`**: Handles three ReckonDB return formats: `#event{}` record (atom-key `data` field), atom-key map (`#{data := D}`), binary-key map (`#{<<"data">> := D}`), or flat map fallback.
+- **`unique_id/1`**: Used by lifecycle apps to prevent stream collisions between test runs. `setup_venture` doesn't need it because `venture_id` is auto-generated by `setup_venture_v1:new/1`.
+- **Temp store lifecycle**: Each test suite creates a fresh ReckonDB store in `/tmp/`, destroyed in `stop_infra/1`.
+- **`esdb_gater_api:get_events/5`**: `get_events(StoreId, StreamId, From, Count, Direction)` — reads back from the event store.
+
+### Dispatch Template Variable Reference (9 CMD apps)
+
+| App | Store ID | Init Cmd | Init Handler | Second Cmd | Second Handler | ID Field | Prefix | Extra Fields |
+|-----|----------|----------|--------------|------------|----------------|----------|--------|--------------|
+| `setup_venture` | `setup_venture_store` | `setup_venture_v1` | `maybe_setup_venture` | `refine_vision_v1` | `maybe_refine_vision` | `venture_id` (auto) | `vent` | `name` (required) |
+| `discover_divisions` | `discover_divisions_store` | `start_discovery_v1` | `maybe_start_discovery` | `archive_discovery_v1` | `maybe_archive_discovery` | `division_id` | `dis` | — |
+| `design_division` | `design_division_store` | `start_design_v1` | `maybe_start_design` | `archive_design_v1` | `maybe_archive_design` | `division_id` | `des` | — |
+| `plan_division` | `plan_division_store` | `start_plan_v1` | `maybe_start_plan` | `archive_plan_v1` | `maybe_archive_plan` | `division_id` | `pln` | — |
+| `generate_division` | `generate_division_store` | `start_generation_v1` | `maybe_start_generation` | `archive_generation_v1` | `maybe_archive_generation` | `division_id` | `gen` | — |
+| `test_division` | `test_division_store` | `start_testing_v1` | `maybe_start_testing` | `archive_testing_v1` | `maybe_archive_testing` | `division_id` | `tst` | — |
+| `deploy_division` | `deploy_division_store` | `start_deployment_v1` | `maybe_start_deployment` | `archive_deployment_v1` | `maybe_archive_deployment` | `division_id` | `dep` | — |
+| `monitor_division` | `monitor_division_store` | `start_monitoring_v1` | `maybe_start_monitoring` | `archive_monitoring_v1` | `maybe_archive_monitoring` | `division_id` | `mon` | — |
+| `rescue_division` | `rescue_division_store` | `start_rescue_v1` | `maybe_start_rescue` | `archive_rescue_v1` | `maybe_archive_rescue` | `division_id` | `res` | `incident_id` (required) |
+
+`guide_venture` is excluded — passive orchestrator with no dispatch.
+
 ---
 
 ## Running Tests
@@ -395,6 +645,7 @@ rebar3 eunit --module=venture_cqrs_integration_tests,venture_projection_tests,de
 | L2 Handlers | `{cmd_app}_handler_tests.erl` | `design_division_handler_tests.erl` |
 | L2 Events | `{subject}_event_tests.erl` | `design_event_tests.erl` |
 | L2 Side Effects | `{cmd_app}_side_effects_tests.erl` | `design_division_side_effects_tests.erl` |
+| L4c Dispatch | `{cmd_app}_dispatch_tests.erl` | `design_division_dispatch_tests.erl` |
 
 ### QRY App Tests (L3+L4)
 
