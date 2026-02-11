@@ -893,4 +893,42 @@ Reference: `skills/codegen/erlang/CODEGEN_ERLANG_TEMPLATES.md` → API Handler T
 
 ---
 
+## Demon 15: Consumer-Generated Command IDs for Framework Idempotency
+
+**Date exorcised:** 2026-02-11
+**Where it appeared:** All 76 dispatch modules across hecate-daemon CMD apps
+**Cost:** 9/9 L4b dispatch tests returning cached first-command results (silent data loss)
+
+### The Lie
+
+"Each dispatch module should generate its own `command_id` for idempotency."
+
+### What Happened
+
+All 76 dispatch modules had identical `generate_command_id(Id, Timestamp)` functions using `hash(AggregateId + Timestamp_ms)`. Two different commands to the same aggregate within 1ms produced identical command IDs, causing the idempotency cache to silently return the first command's cached result — a production-grade silent data loss bug. The codegen template propagated the bug to every module.
+
+### Why It's Wrong
+
+- **76 identical functions = wrong responsibility placement.** If every consumer must implement the same logic, it belongs in the framework.
+- **Conflates two concepts.** The design conflates command identification (tracing, unique per invocation) with command deduplication (idempotency, deterministic per intent).
+- **`hash(Id + Timestamp)` fails at BOTH:** Not unique within 1ms (commands collide), not deterministic across retries (timestamps differ).
+
+### The Truth
+
+- The **FRAMEWORK** (evoq) should auto-generate `command_id` if not provided (unique per invocation, for tracing)
+- True idempotency requires a separate `idempotency_key` field — caller-provided, deterministic, based on business intent
+- Dispatch modules should NOT contain `generate_command_id` at all
+- These are two separate fields on `#evoq_command{}`: `command_id` (framework-owned) and `idempotency_key` (caller-optional)
+
+### The Fix
+
+evoq v1.3.0+ auto-generates `command_id`. Dispatch modules drop `generate_command_id` entirely.
+
+### The Lesson
+
+> **If every consumer implements the same function, it belongs in the framework.**
+> **If one field serves two purposes (identification and deduplication), split it into two fields.**
+
+---
+
 *Add more demons as we exorcise them.* 🔥🗝️🔥
