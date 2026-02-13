@@ -196,6 +196,10 @@ Generate:
 - [ ] Update `query_capabilities_sup.erl` to include spoke supervisor
 - [ ] Update `rebar.config` src_dirs
 
+**Subscription delivery smoke test** (See Demon #24):
+- [ ] Write a CT test that subscribes, appends an event, and asserts the subscriber receives it
+- [ ] Test with `#event{}` record input, not just flat maps (See Demon #23)
+
 ### New Policy/PM
 
 Given: `trigger_event=llm_model_detected`, `command=announce_capability`
