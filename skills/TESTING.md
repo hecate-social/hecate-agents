@@ -22,13 +22,13 @@ Write tests that:
 
 ```bash
 # Run unit tests for specific apps
-rebar3 eunit --app=manage_torches,query_torches
+rebar3 eunit --app=setup_venture,query_ventures
 
 # Run specific test modules
-rebar3 eunit --module=torch_initiated_v1_to_pg_tests
+rebar3 eunit --module=venture_initiated_v1_to_pg_tests
 
 # Verbose output
-rebar3 eunit --app=query_torches -v
+rebar3 eunit --app=query_ventures -v
 ```
 
 ---
@@ -38,12 +38,12 @@ rebar3 eunit --app=query_torches -v
 Tests live alongside the code they test:
 
 ```
-apps/manage_torches/
+apps/setup_venture/
 ├── src/
-│   └── initiate_torch/
-│       └── torch_initiated_v1_to_pg.erl
+│   └── initiate_venture/
+│       └── venture_initiated_v1_to_pg.erl
 └── test/
-    └── torch_initiated_v1_to_pg_tests.erl   # {module}_tests.erl
+    └── venture_initiated_v1_to_pg_tests.erl   # {module}_tests.erl
 ```
 
 **Naming:** `{module}_tests.erl` - EUnit auto-discovers tests for a module.
@@ -99,7 +99,7 @@ ensure_pg() ->
 setup() ->
     ensure_pg(),
     StorePid = start_or_get(my_store, start_link, []),
-    SupPid = start_or_get(my_spoke_sup, start_link, []),
+    SupPid = start_or_get(my_desk_sup, start_link, []),
     timer:sleep(100),  % Let listener join pg
     {StorePid, SupPid}.
 

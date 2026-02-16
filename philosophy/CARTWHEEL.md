@@ -1,12 +1,15 @@
 # CARTWHEEL.md — The Canonical Architecture
 
-*The Cartwheel in practice. This is the blueprint.*
+*The Division Architecture in practice. This is the blueprint.*
+
+> **Note:** "Cartwheel" is the historical name for what is now called "Division Architecture".
+> `cartwheel` -> `division`, `spoke` -> `desk`.
 
 ---
 
 ## Overview
 
-**Cartwheel** has three sequences and four mesh components:
+**Division Architecture** has three sequences and four mesh components:
 
 | Sequence | Purpose |
 |----------|---------|
@@ -25,30 +28,30 @@
 
 ## CMD Domain Structure
 
-A CMD domain app is composed of **spokes** (vertical slices) + optional **shared infrastructure**.
+A CMD domain app is composed of **desks** (vertical slices) + optional **shared infrastructure**.
 
 ```
 apps/manage_capabilities/
 ├── src/
 │   ├── manage_capabilities_app.erl
-│   ├── manage_capabilities_sup.erl       # Starts spokes + shared infra ONLY
+│   ├── manage_capabilities_sup.erl       # Starts desks + shared infra ONLY
 │   │
 │   ├── (shared infrastructure - optional)
 │   │   ├── manage_capabilities_store.erl # ReckonDB instance
 │   │   └── manage_capabilities_exchange.erl # Internal pub/sub
 │   │
-│   ├── announce_capability/              # SPOKE (vertical slice)
-│   │   ├── announce_capability_spoke_sup.erl
+│   ├── announce_capability/              # DESK (vertical slice)
+│   │   ├── announce_capability_desk_sup.erl
 │   │   ├── announce_capability_v1.erl
 │   │   ├── capability_announced_v1.erl
 │   │   ├── maybe_announce_capability.erl
 │   │   ├── announce_capability_responder_v1.erl
 │   │   └── capability_announced_v1_to_mesh.erl
 │   │
-│   ├── update_capability/                # SPOKE
+│   ├── update_capability/                # DESK
 │   │   └── ...
 │   │
-│   └── retract_capability/               # SPOKE
+│   └── retract_capability/               # DESK
 │       └── ...
 │
 └── rebar.config                          # Include src_dirs for spokes
@@ -56,18 +59,19 @@ apps/manage_capabilities/
 
 ---
 
-## CMD Spoke Contents
+## CMD Desk Contents
 
-Every CMD spoke contains:
+Every CMD desk contains:
 
 | File | Type | Purpose |
 |------|------|---------|
-| `*_spoke_sup.erl` | Supervisor | Supervises all workers in this spoke |
+| `*_desk_sup.erl` | Supervisor | Supervises all workers in this desk |
 | `*_v1.erl` | Record | Command struct (`new/N`, `to_map/1`, `from_map/1`) |
 | `*_v1.erl` | Record | Event struct (what happened) |
 | `maybe_*.erl` | Handler | Validates command, dispatches via evoq |
 | `*_responder_v1.erl` | gen_server | HOPE → Command translator (mesh inbound) |
-| `*_to_mesh.erl` | gen_server | Event → FACT emitter (mesh outbound) |
+| `*_to_pg.erl` | gen_server | Subscribes via evoq, broadcasts to pg (internal) |
+| `*_to_mesh.erl` | gen_server | Subscribes via evoq, publishes to mesh (external) |
 
 **Optional:**
 | File | Type | Purpose |
@@ -76,7 +80,7 @@ Every CMD spoke contains:
 
 ---
 
-## CMD Spoke Flow
+## CMD Desk Flow
 
 ### Inbound (Mesh → Domain)
 
@@ -94,15 +98,17 @@ Event (capability_announced_v1)
 Store (ReckonDB)
 ```
 
-### Outbound (Domain → Mesh)
+### Outbound (Domain → Mesh / pg / TUI)
 
 ```
-Event (capability_announced_v1)
-    ↓
+ReckonDB (event stored)
+    ↓ evoq subscription (by event_type)
 Emitter (capability_announced_v1_to_mesh)
-    ↓ subscribes to store, transforms
-FACT (published to mesh topic)
+    ↓ receives {events, [Event]}, transforms
+FACT (published to mesh topic / pg group / SSE)
 ```
+
+**Emitters subscribe to the event store via evoq at startup.** They are NOT called manually by API handlers. See [EVENT_SUBSCRIPTION_FLOW.md](EVENT_SUBSCRIPTION_FLOW.md).
 
 ### Cross-Domain (via Process Manager)
 
@@ -122,7 +128,7 @@ Normal CMD flow in Domain B
 
 **Domain supervisor ONLY starts:**
 1. Shared infrastructure (store, exchange)
-2. Spoke supervisors
+2. Desk supervisors
 
 **Domain supervisor NEVER directly supervises workers.**
 
@@ -135,15 +141,15 @@ init([]) ->
           start => {manage_capabilities_store, start_link, []},
           type => worker},
         
-        %% Spokes (supervisors, not workers!)
-        #{id => announce_capability_spoke_sup,
-          start => {announce_capability_spoke_sup, start_link, []},
+        %% Desks (supervisors, not workers!)
+        #{id => announce_capability_desk_sup,
+          start => {announce_capability_desk_sup, start_link, []},
           type => supervisor},
-        #{id => update_capability_spoke_sup,
-          start => {update_capability_spoke_sup, start_link, []},
+        #{id => update_capability_desk_sup,
+          start => {update_capability_desk_sup, start_link, []},
           type => supervisor},
-        #{id => retract_capability_spoke_sup,
-          start => {retract_capability_spoke_sup, start_link, []},
+        #{id => retract_capability_desk_sup,
+          start => {retract_capability_desk_sup, start_link, []},
           type => supervisor}
     ],
     {ok, {#{strategy => one_for_one, intensity => 5, period => 10}, Children}}.
@@ -151,19 +157,24 @@ init([]) ->
 
 ---
 
-## Spoke Supervisor Pattern
+## Desk Supervisor Pattern
 
-**Spoke supervisor starts all workers for that spoke.**
+**Desk supervisor starts all workers for that desk. Emitters start first — they subscribe via evoq and react autonomously.**
 
 ```erlang
-%% announce_capability_spoke_sup.erl
+%% announce_capability_desk_sup.erl
 init([]) ->
     Children = [
-        #{id => announce_capability_responder_v1,
-          start => {announce_capability_responder_v1, start_link, []},
+        %% Emitters first — they subscribe to ReckonDB via evoq
+        #{id => capability_announced_v1_to_pg,
+          start => {capability_announced_v1_to_pg, start_link, []},
           type => worker},
         #{id => capability_announced_v1_to_mesh,
           start => {capability_announced_v1_to_mesh, start_link, []},
+          type => worker},
+        %% Responder — receives HOPEs from mesh
+        #{id => announce_capability_responder_v1,
+          start => {announce_capability_responder_v1, start_link, []},
           type => worker}
     ],
     {ok, {#{strategy => one_for_one, intensity => 5, period => 10}, Children}}.
@@ -175,13 +186,14 @@ init([]) ->
 
 | Component | Pattern | Example |
 |-----------|---------|---------|
-| Spoke directory | `{verb}_{noun}/` | `announce_capability/` |
-| Spoke supervisor | `{verb}_{noun}_spoke_sup.erl` | `announce_capability_spoke_sup.erl` |
+| Desk directory | `{verb}_{noun}/` | `announce_capability/` |
+| Desk supervisor | `{verb}_{noun}_desk_sup.erl` | `announce_capability_desk_sup.erl` |
 | Command | `{verb}_{noun}_v1.erl` | `announce_capability_v1.erl` |
 | Event | `{noun}_{past_verb}_v1.erl` | `capability_announced_v1.erl` |
 | Handler | `maybe_{verb}_{noun}.erl` | `maybe_announce_capability.erl` |
 | Responder | `{verb}_{noun}_responder_v1.erl` | `announce_capability_responder_v1.erl` |
-| Emitter | `{event}_to_mesh.erl` | `capability_announced_v1_to_mesh.erl` |
+| Emitter (pg) | `{event}_to_pg.erl` | `capability_announced_v1_to_pg.erl` |
+| Emitter (mesh) | `{event}_to_mesh.erl` | `capability_announced_v1_to_mesh.erl` |
 | Policy/PM | `on_{event}_maybe_{verb}_{noun}.erl` | `on_llm_model_detected_maybe_announce_capability.erl` |
 | HOPE struct | `{verb}_{noun}_hope_v1.erl` | `announce_capability_hope_v1.erl` |
 
@@ -198,11 +210,11 @@ apps/query_capabilities/
 │   ├── query_capabilities_sup.erl
 │   ├── query_capabilities_store.erl      # SQLite read model
 │   │
-│   ├── capability_announced_v1_to_capabilities/  # PRJ spoke
+│   ├── capability_announced_v1_to_capabilities/  # PRJ desk
 │   │   ├── capability_announced_v1_to_capabilities_sup.erl
 │   │   └── capability_announced_v1_to_capabilities.erl
 │   │
-│   └── capability_retracted_v1_to_capabilities/  # PRJ spoke
+│   └── capability_retracted_v1_to_capabilities/  # PRJ desk
 │       └── ...
 ```
 
@@ -230,21 +242,21 @@ This architecture is **strict enough for deterministic code generation**.
 
 Given:
 - Domain name: `manage_capabilities`
-- Spoke name: `announce_capability`
+- Desk name: `announce_capability`
 - Event name: `capability_announced`
 
 A generator can produce:
-- [ ] `announce_capability_spoke_sup.erl`
+- [ ] `announce_capability_desk_sup.erl`
 - [ ] `announce_capability_v1.erl`
 - [ ] `capability_announced_v1.erl`
 - [ ] `maybe_announce_capability.erl`
 - [ ] `announce_capability_responder_v1.erl`
 - [ ] `capability_announced_v1_to_mesh.erl`
-- [ ] Update `manage_capabilities_sup.erl` to include spoke
+- [ ] Update `manage_capabilities_sup.erl` to include desk
 - [ ] Update `rebar.config` src_dirs
 
-**No AI needed.** Templates + naming conventions = complete spoke.
+**No AI needed.** Templates + naming conventions = complete desk.
 
 ---
 
-*The wheel turns. The spokes hold.* 🔥🗝️🔥
+*The division stands. The desks deliver.* 🔥🗝️🔥

@@ -1,6 +1,6 @@
 # CODEGEN_ERLANG_CHECKLISTS.md — Generation Checklists
 
-_Step-by-step checklists for generating Cartwheel architecture code._
+_Step-by-step checklists for generating Division Architecture (Cartwheel) code._
 
 **Target:** Erlang/OTP with `reckon_evoq`
 
@@ -18,7 +18,7 @@ Templates use these placeholders:
 | Variable          | Example                | Description                    |
 | ----------------- | ---------------------- | ------------------------------ |
 | `{domain}`        | `manage_capabilities`  | Domain app name                |
-| `{command}`       | `announce_capability`  | Command/spoke name (verb_noun) |
+| `{command}`       | `announce_capability`  | Command/desk name (verb_noun)  |
 | `{event}`         | `capability_announced` | Event name (noun_past_verb)    |
 | `{read_store}`    | `capabilities`         | Read model read_store name     |
 | `{query}`         | `find_capability`      | Query name                     |
@@ -37,8 +37,8 @@ apps/{domain}/
 │   ├── {domain}_sup.erl
 │   ├── {domain}_store.erl              # ReckonDB instance
 │   │
-│   └── {command}/                      # SPOKE directory
-│       ├── {command}_spoke_sup.erl
+│   └── {command}/                      # DESK directory
+│       ├── {command}_desk_sup.erl
 │       ├── {command}_v1.erl
 │       ├── {event}_v1.erl
 │       ├── maybe_{command}.erl
@@ -58,7 +58,7 @@ apps/query_{domain_noun}/
 │   ├── query_{domain_noun}_sup.erl
 │   ├── query_{domain_noun}_store.erl   # SQLite instance
 │   │
-│   └── {event}_to_{read_store}/             # PRJ SPOKE directory
+│   └── {event}_to_{read_store}/             # PRJ DESK directory
 │       ├── {event}_to_{read_store}_sup.erl
 │       └── {event}_to_{read_store}.erl
 │
@@ -72,20 +72,20 @@ apps/query_{domain_noun}/
 ```
 apps/query_{domain_noun}/
 └── src/
-    ├── get_{aggregate}_by_id/           # QRY SPOKE: single lookup
+    ├── get_{aggregate}_by_id/           # QRY DESK: single lookup
     │   ├── get_{aggregate}_by_id.erl
     │   └── get_{aggregate}_by_id_api.erl
     │
-    └── get_{aggregates}_page/           # QRY SPOKE: paged list
+    └── get_{aggregates}_page/           # QRY DESK: paged list
         ├── get_{aggregates}_page.erl
         └── get_{aggregates}_page_api.erl
 ```
 
 ---
 
-## Walking Skeleton: Mandatory Spokes
+## Walking Skeleton: Mandatory Desks
 
-**Every new aggregate MUST implement TWO spokes from the start:**
+**Every new aggregate MUST implement TWO desks from the start:**
 
 1. `initiate_{aggregate}` — Birth event, starts the lifecycle
 2. `archive_{aggregate}` — End event, marks as archived (not deleted!)
@@ -110,7 +110,7 @@ Every aggregate MUST have a status integer field with AT LEAST these flags:
 Additional flags are domain-specific:
 
 ```erlang
-%% Example: Torch-specific flags
+%% Example: Venture-specific flags
 -define(STATUS_INITIATED, 1).
 -define(STATUS_ACTIVE,    2).
 -define(STATUS_PAUSED,    4).
@@ -123,13 +123,13 @@ Additional flags are domain-specific:
 When creating a new aggregate `{noun}`:
 
 **CMD Domain (`manage_{noun}s`):**
-- [ ] `initiate_{noun}/` spoke — emits `{noun}_initiated_v1`
-- [ ] `archive_{noun}/` spoke — emits `{noun}_archived_v1`
+- [ ] `initiate_{noun}/` desk — emits `{noun}_initiated_v1`
+- [ ] `archive_{noun}/` desk — emits `{noun}_archived_v1`
 - [ ] `{noun}_aggregate.erl` — with `STATUS_INITIATED` and `STATUS_ARCHIVED` flags
 
 **PRJ Domain (`query_{noun}s`):**
-- [ ] `{noun}_initiated_v1_to_{noun}s/` spoke — inserts row
-- [ ] `{noun}_archived_v1_to_{noun}s/` spoke — sets `status |= ARCHIVED`
+- [ ] `{noun}_initiated_v1_to_{noun}s/` desk — inserts row
+- [ ] `{noun}_archived_v1_to_{noun}s/` desk — sets `status |= ARCHIVED`
 
 **Query Behavior:**
 - Default `list_all/0` MUST filter out archived records: `WHERE status & ?ARCHIVED = 0`
@@ -147,16 +147,16 @@ Generate:
 
 - [ ] `src/capability_aggregate.erl` — with `-behaviour(evoq_aggregate).`
 - [ ] `test/capability_aggregate_tests.erl` — argument order + guard tests
-- [ ] `initiate_capability/` spoke (see New CMD Spoke)
-- [ ] `archive_capability/` spoke (see New CMD Spoke)
+- [ ] `initiate_capability/` desk (see New CMD Desk)
+- [ ] `archive_capability/` desk (see New CMD Desk)
 
-### New CMD Spoke
+### New CMD Desk
 
 Given: `domain=manage_capabilities`, `command=announce_capability`, `event=capability_announced`
 
 Generate:
 
-- [ ] `src/announce_capability/announce_capability_spoke_sup.erl`
+- [ ] `src/announce_capability/announce_capability_desk_sup.erl`
 - [ ] `src/announce_capability/announce_capability_v1.erl`
 - [ ] `src/announce_capability/capability_announced_v1.erl`
 - [ ] `src/announce_capability/maybe_announce_capability.erl`
@@ -165,11 +165,11 @@ Generate:
 - [ ] `src/announce_capability/capability_announced_to_mesh.erl`
 - [ ] `src/announce_capability/capability_announced_to_pg.erl` — internal emitter
 - [ ] `test/capability_announced_to_pg_tests.erl` — emitter test
-- [ ] Update `manage_capabilities_sup.erl` to include spoke supervisor
+- [ ] Update `manage_capabilities_sup.erl` to include desk supervisor
 - [ ] Update `rebar.config` src_dirs
 - [ ] Add route to `hecate_api_routes.erl`
 
-### New QRY Spoke
+### New QRY Desk
 
 Given: `noun=capability`, `query_app=query_capabilities`
 
@@ -185,7 +185,7 @@ Given: `noun=capability`, `query_app=query_capabilities`
 - [ ] Update `rebar.config` src_dirs
 - [ ] Add route to `hecate_api_routes.erl`: `GET /api/capabilities/:mri`
 
-### New PRJ Spoke
+### New PRJ Desk
 
 Given: `event=capability_announced`, `read_store=capabilities`
 
@@ -193,7 +193,7 @@ Generate:
 
 - [ ] `src/capability_announced_to_capabilities/capability_announced_to_capabilities_sup.erl`
 - [ ] `src/capability_announced_to_capabilities/capability_announced_to_capabilities.erl`
-- [ ] Update `query_capabilities_sup.erl` to include spoke supervisor
+- [ ] Update `query_capabilities_sup.erl` to include desk supervisor
 - [ ] Update `rebar.config` src_dirs
 
 **Subscription delivery smoke test** (See Demon #24):
@@ -207,7 +207,7 @@ Given: `trigger_event=llm_model_detected`, `command=announce_capability`
 Generate:
 
 - [ ] `src/announce_capability/on_llm_model_detected_maybe_announce_capability.erl`
-- [ ] Update `announce_capability_spoke_sup.erl` to include PM worker
+- [ ] Update `announce_capability_desk_sup.erl` to include policy worker
 
 ---
 

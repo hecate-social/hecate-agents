@@ -17,11 +17,11 @@ Using Macula mesh (`*_to_mesh.erl` emitters) for communication between umbrella 
 
 **Example (WRONG):**
 ```
-manage_torches (CMD app)
-    → torch_initiated_v1_to_mesh.erl
+setup_venture (CMD app)
+    → venture_initiated_v1_to_mesh.erl
     → Macula mesh (QUIC, DHT, NAT traversal)
-    → on_torch_initiated_from_mesh.erl
-    → query_torches (PRJ+QRY app)
+    → on_venture_initiated_from_mesh.erl
+    → query_ventures (PRJ+QRY app)
 ```
 
 This uses WAN-grade infrastructure for intra-process communication.
@@ -45,11 +45,11 @@ This uses WAN-grade infrastructure for intra-process communication.
 ### The Correct Pattern
 
 ```
-manage_torches (CMD app)
-    → torch_initiated_v1_to_pg.erl    # Internal via pg
+setup_venture (CMD app)
+    → venture_initiated_v1_to_pg.erl    # Internal via pg
     → Direct Erlang message passing
-    → on_torch_initiated_v1_from_pg_project_to_sqlite_torches.erl
-    → query_torches (PRJ+QRY app)
+    → on_venture_initiated_v1_from_pg_project_to_sqlite_ventures.erl
+    → query_ventures (PRJ+QRY app)
 ```
 
 ### Two Integration Layers
@@ -73,7 +73,7 @@ See [INTEGRATION_TRANSPORTS.md](../philosophy/INTEGRATION_TRANSPORTS.md) for ful
 ## 🔥 Wrong Aggregate Callback Argument Order
 
 **Date:** 2026-02-09
-**Origin:** hecate-daemon cartwheel auto-initiation bug
+**Origin:** hecate-daemon division auto-initiation bug
 
 ### The Antipattern
 
@@ -166,7 +166,7 @@ Performing side effects (file I/O, state changes) in the TUI based on a command'
 **Example (WRONG):**
 ```go
 // TUI sends command to daemon
-err := client.RefineVision(torchID, params)
+err := client.RefineVision(ventureID, params)
 if err == nil {
     // WRONG: treating 200 OK as a fact
     writeVisionToDisk()
@@ -183,10 +183,10 @@ The 200 OK means "I received your hope." Not "the vision was refined." Between a
 
 ```go
 // TUI subscribes to event stream
-events := client.EventStream(ctx, torchID)
+events := client.EventStream(ctx, ventureID)
 
 // TUI sends hope (fire and forget the response)
-client.RefineVision(torchID, params)  // 202 Accepted
+client.RefineVision(ventureID, params)  // 202 Accepted
 
 // TUI reacts to fact
 for event := range events {
@@ -212,7 +212,7 @@ See [HOPE_FACT_SIDE_EFFECTS.md](HOPE_FACT_SIDE_EFFECTS.md) for the full architec
 ## 🔥 Read-Time Status Enrichment
 
 **Date:** 2026-02-10
-**Origin:** hecate-daemon torch/cartwheel status handling
+**Origin:** hecate-daemon venture/division status handling
 
 ### The Antipattern
 
@@ -222,19 +222,19 @@ Computing `status_label` at query time instead of storing it in the read model a
 ```erlang
 %% BAD: Query module enriches at read time
 list(Opts) ->
-    {ok, Rows} = store:query("SELECT * FROM torches"),
+    {ok, Rows} = store:query("SELECT * FROM ventures"),
     [enrich_status(row_to_map(R)) || R <- Rows].
 
 enrich_status(#{status := Status} = Row) ->
-    Label = evoq_bit_flags:to_string(Status, torch_aggregate:flag_map()),
+    Label = evoq_bit_flags:to_string(Status, venture_aggregate:flag_map()),
     Row#{status_label => Label}.
 ```
 
 **Related violations:**
-- Magic numbers: `Status = 3` instead of `evoq_bit_flags:set_all(0, [?TORCH_INITIATED, ?TORCH_DNA_ACTIVE])`
+- Magic numbers: `Status = 3` instead of `evoq_bit_flags:set_all(0, [?VENTURE_INITIATED, ?VENTURE_DNA_ACTIVE])`
 - Duplicated flags: `-define(ARCHIVED, 32)` redefined in projections instead of using shared `.hrl`
-- Query modules importing aggregate internals (`torch_aggregate:flag_map()`)
-- Binary key mismatch: Projections match `#{torch_id := ...}` but events arrive with `<<"torch_id">>` keys
+- Query modules importing aggregate internals (`venture_aggregate:flag_map()`)
+- Binary key mismatch: Projections match `#{venture_id := ...}` but events arrive with `<<"venture_id">>` keys
 
 ### The Rule
 
@@ -244,36 +244,36 @@ enrich_status(#{status := Status} = Row) ->
 
 **1. Extract flag macros to `.hrl` header in CMD app:**
 ```erlang
-%% apps/manage_torches/include/torch_status.hrl
--define(TORCH_INITIATED,   1).
--define(TORCH_DNA_ACTIVE,  2).
--define(TORCH_ARCHIVED,   32).
+%% apps/setup_venture/include/venture_status.hrl
+-define(VENTURE_INITIATED,   1).
+-define(VENTURE_DNA_ACTIVE,  2).
+-define(VENTURE_ARCHIVED,   32).
 
--define(TORCH_FLAG_MAP, #{
-    0                  => <<"New">>,
-    ?TORCH_INITIATED   => <<"Initiated">>,
-    ?TORCH_DNA_ACTIVE  => <<"Discovering">>,
-    ?TORCH_ARCHIVED    => <<"Archived">>
+-define(VENTURE_FLAG_MAP, #{
+    0                    => <<"New">>,
+    ?VENTURE_INITIATED   => <<"Initiated">>,
+    ?VENTURE_DNA_ACTIVE  => <<"Discovering">>,
+    ?VENTURE_ARCHIVED    => <<"Archived">>
 }).
 ```
 
 **2. Projection computes and stores `status_label` at write time:**
 ```erlang
--include_lib("manage_torches/include/torch_status.hrl").
+-include_lib("setup_venture/include/venture_status.hrl").
 
 project(Event) ->
-    TorchId = get(torch_id, Event),
-    Status = evoq_bit_flags:set_all(0, [?TORCH_INITIATED, ?TORCH_DNA_ACTIVE]),
-    Label = evoq_bit_flags:to_string(Status, ?TORCH_FLAG_MAP),
+    VentureId = get(venture_id, Event),
+    Status = evoq_bit_flags:set_all(0, [?VENTURE_INITIATED, ?VENTURE_DNA_ACTIVE]),
+    Label = evoq_bit_flags:to_string(Status, ?VENTURE_FLAG_MAP),
     store:execute(
-        "INSERT INTO torches (torch_id, status, status_label) VALUES (?1, ?2, ?3)",
-        [TorchId, Status, Label]).
+        "INSERT INTO ventures (venture_id, status, status_label) VALUES (?1, ?2, ?3)",
+        [VentureId, Status, Label]).
 ```
 
 **3. Query module reads `status_label` directly — no enrichment:**
 ```erlang
 list(Opts) ->
-    {ok, Rows} = store:query("SELECT torch_id, status, status_label FROM torches"),
+    {ok, Rows} = store:query("SELECT venture_id, status, status_label FROM ventures"),
     [row_to_map(R) || R <- Rows].
 %% NO enrich_status function at all
 ```
@@ -873,6 +873,7 @@ When generating code that uses ReckonDB subscriptions:
 - [reckon-db CHANGELOG](https://github.com/reckon-db-org/reckon-db/blob/main/CHANGELOG.md) — bugs documented in v1.2.4, v1.2.5, v1.2.6
 - Demon #22 (Manual Event Emission) — the application-level version of this infrastructure-level problem
 - Demon #23 (Raw Records in Projections) — another "silent failure" in the event delivery chain
+- [SESSION_LEVEL_CONSISTENCY.md](../philosophy/SESSION_LEVEL_CONSISTENCY.md) — the mitigation pattern: return aggregate state from commands so callers don't depend on projection timing
 
 ---
 

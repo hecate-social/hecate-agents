@@ -18,7 +18,7 @@ This directory contains well-documented examples of correct patterns used in the
 
 | Example | Pattern | Key Concepts |
 |---------|---------|--------------|
-| [VERTICAL_API_HANDLERS.md](VERTICAL_API_HANDLERS.md) | API in spokes | Handlers in spokes, shared utilities, dependency management |
+| [VERTICAL_API_HANDLERS.md](VERTICAL_API_HANDLERS.md) | API in desks | Handlers in desks, shared utilities, dependency management |
 | [MESH_INTEGRATION.md](MESH_INTEGRATION.md) | Emitter/Listener | FACTS vs EVENTS, cross-agent communication, command layer |
 | [PROJECTIONS.md](PROJECTIONS.md) | Read models | Event → read model, naming, SQLite patterns |
 | [BIT_FLAGS_STATUS.md](BIT_FLAGS_STATUS.md) | Aggregate status | Integer bit flags, evoq_bit_flags API, efficient queries |

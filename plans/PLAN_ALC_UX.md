@@ -9,7 +9,7 @@
 
 ## Overview
 
-Design a modal TUI experience for managing Torches (business endeavors) and Cartwheels (bounded contexts) through the Agent Lifecycle phases: Discovery & Analysis (DnA), Architecture & Planning (AnP), Testing & Implementation (TnI), and Deployment & Operations (DnO).
+Design a modal TUI experience for managing Ventures (business endeavors) and Divisions (bounded contexts) through the Agent Lifecycle phases: Discovery & Analysis (DnA), Architecture & Planning (AnP), Testing & Implementation (TnI), and Deployment & Operations (DnO).
 
 ---
 
@@ -21,26 +21,26 @@ Three distinct modes with progressive context:
 ┌──────────────────────────────────────────────────────────────────┐
 │                         CHAT MODE                                 │
 │  Default, lightweight, no project context                         │
-│  Entry: TUI startup (no torch detected)                          │
-│  Exit: /torch, /torches                                          │
+│  Entry: TUI startup (no venture detected)                        │
+│  Exit: /venture, /ventures                                       │
 └──────────────────────────────────────────────────────────────────┘
                               │
-                    /torch or /torches
+                    /venture or /ventures
                               ▼
 ┌──────────────────────────────────────────────────────────────────┐
-│                        TORCH MODE                                 │
-│  Project-level context, torch selected but no active cartwheel   │
-│  Entry: Select torch, or auto-detect from CWD                    │
-│  Exit: /chat, Esc (to Chat) or /cartwheel (to Cartwheel)        │
+│                       VENTURE MODE                                │
+│  Project-level context, venture selected but no active division  │
+│  Entry: Select venture, or auto-detect from CWD                  │
+│  Exit: /chat, Esc (to Chat) or /division (to Division)           │
 └──────────────────────────────────────────────────────────────────┘
                               │
-                    /cartwheel or select
+                    /division or select
                               ▼
 ┌──────────────────────────────────────────────────────────────────┐
-│                      CARTWHEEL MODE                               │
+│                      DIVISION MODE                                │
 │  Active work unit, phase-specific behavior                        │
-│  Entry: Select or create cartwheel                               │
-│  Exit: /back (to Torch), /chat (to Chat)                         │
+│  Entry: Select or create division                                │
+│  Exit: /back (to Venture), /chat (to Chat)                       │
 │                                                                   │
 │  Phases: DnA ──► AnP ──► TnI ──► DnO                             │
 └──────────────────────────────────────────────────────────────────┘
@@ -48,18 +48,18 @@ Three distinct modes with progressive context:
 
 ### 1.1 Context Detection on Startup
 
-When TUI starts, detect torch from:
+When TUI starts, detect venture from:
 
-1. **Git remote URL** (preferred) - matches against known torches
-2. **`.hecate/torch.json`** in CWD or parent directories (fallback)
+1. **Git remote URL** (preferred) - matches against known ventures
+2. **`.hecate/venture.json`** in CWD or parent directories (fallback)
 3. **No match** - start in Chat mode
 
 ```
 $ cd ~/work/auth-system
 $ hecate-tui
 
-# Detects torch from git remote → auto-enters Torch mode
-# "Resuming torch: auth-system"
+# Detects venture from git remote → auto-enters Venture mode
+# "Resuming venture: auth-system"
 ```
 
 ---
@@ -79,20 +79,20 @@ $ hecate-tui
 └────────────────────────────────────────────────────────────────┘
 ```
 
-### 2.2 Torch Mode (Header Appears)
+### 2.2 Venture Mode (Header Appears)
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
 │ 🔥 auth-system                                                 │
 ├────────────────────────────────────────────────────────────────┤
-│ Hecate: This torch has 2 cartwheels. Which one?                │
+│ Hecate: This venture has 2 divisions. Which one?               │
 │                                                                │
 ├────────────────────────────────────────────────────────────────┤
 │ 🤖 claude-3.5-sonnet │ ● healthy │ [i] Insert                  │
 └────────────────────────────────────────────────────────────────┘
 ```
 
-### 2.3 Cartwheel Mode (Full Breadcrumb)
+### 2.3 Division Mode (Full Breadcrumb)
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
@@ -105,7 +105,7 @@ $ hecate-tui
 └────────────────────────────────────────────────────────────────┘
 ```
 
-Note: Model indicator moves to header in Cartwheel mode (phase-specific models).
+Note: Model indicator moves to header in Division mode (phase-specific models).
 
 ---
 
@@ -115,40 +115,40 @@ Note: Model indicator moves to header in Cartwheel mode (phase-specific models).
 |------|---------|--------|
 | **Any** | `/help` | Show available commands for current mode |
 | **Any** | `/chat` | Return to Chat mode |
-| **Chat** | `/torch` | Show torch picker / create new |
-| **Chat** | `/torches` | List all torches |
-| **Torch** | `/torch` | Show current torch status |
-| **Torch** | `/cartwheel` | Show cartwheel picker / create new |
-| **Torch** | `/cartwheels` | List cartwheels in current torch |
-| **Torch** | `/settings` | Torch settings |
-| **Cartwheel** | `/cartwheel` | Show current cartwheel status |
-| **Cartwheel** | `/phase` | Show current phase / transition options |
-| **Cartwheel** | `/back` | Return to Torch mode |
-| **Cartwheel** | `/requirements` | View/edit requirements (DnA artifact) |
-| **Cartwheel** | `/decisions` | View/edit architectural decisions (AnP artifact) |
-| **Cartwheel** | `/artifacts` | List all phase artifacts |
+| **Chat** | `/venture` | Show venture picker / create new |
+| **Chat** | `/ventures` | List all ventures |
+| **Venture** | `/venture` | Show current venture status |
+| **Venture** | `/division` | Show division picker / create new |
+| **Venture** | `/divisions` | List divisions in current venture |
+| **Venture** | `/settings` | Venture settings |
+| **Division** | `/division` | Show current division status |
+| **Division** | `/phase` | Show current phase / transition options |
+| **Division** | `/back` | Return to Venture mode |
+| **Division** | `/requirements` | View/edit requirements (DnA artifact) |
+| **Division** | `/decisions` | View/edit architectural decisions (AnP artifact) |
+| **Division** | `/artifacts` | List all phase artifacts |
 
 ### 3.1 Navigation Flow Example
 
 ```
 [Chat mode]
-> /torches
-  1. auth-system (3 cartwheels, AnP)
-  2. billing-api (1 cartwheel, TnI)
+> /ventures
+  1. auth-system (3 divisions, AnP)
+  2. billing-api (1 division, TnI)
 
 > 1
-[Enters Torch mode: auth-system]
+[Enters Venture mode: auth-system]
 
-> /cartwheels
+> /divisions
   1. user-registration (AnP) ← active
   2. rbac-permissions (DnA)
   3. session-management (not started)
 
 > 2
-[Enters Cartwheel mode: rbac-permissions, DnA phase]
+[Enters Division mode: rbac-permissions, DnA phase]
 
 > /back
-[Returns to Torch mode: auth-system]
+[Returns to Venture mode: auth-system]
 
 > /chat
 [Returns to Chat mode]
@@ -165,7 +165,7 @@ Note: Model indicator moves to header in Cartwheel mode (phase-specific models).
 │                    INCEPTION SPRINT                              │
 │           (Rigid, Gated, Full DnA→AnP→TnI→DnO cycle)            │
 │                                                                  │
-│   Trigger: New torch creation                                    │
+│   Trigger: New venture creation                                  │
 │   Goal: Establish foundation + Walking Skeleton                  │
 │   Output: One working vertical slice, all infra in place         │
 └─────────────────────────────────────────────────────────────────┘
@@ -173,10 +173,10 @@ Note: Model indicator moves to header in Cartwheel mode (phase-specific models).
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                   ITERATION SPRINTS                              │
-│          (Flexible, Iterative, Per-Cartwheel cycles)            │
+│          (Flexible, Iterative, Per-Division cycles)             │
 │                                                                  │
 │   Trigger: Post-inception work                                   │
-│   Goal: Build out remaining cartwheels from Context Map         │
+│   Goal: Build out remaining divisions from Context Map          │
 │   Output: Incremental features, continuous delivery              │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -227,9 +227,9 @@ You: /board
 
 | Step | Activity | Output |
 |------|----------|--------|
-| 2a | Select first Cartwheel from Context Map | User picks bounded context |
-| 2b | Scaffold CMD service | `initiate_{aggregate}` spoke |
-| 2c | Scaffold QRY+PRJ service | `query_{aggregate}_by_id` spoke |
+| 2a | Select first Division from Context Map | User picks bounded context |
+| 2b | Scaffold CMD service | `initiate_{aggregate}` desk |
+| 2c | Scaffold QRY+PRJ service | `query_{aggregate}_by_id` desk |
 | 2d | Scaffold TUI (Go + Bubble Tea) | Separate repo |
 | 2e | (Optional) Scaffold Web UI (Phoenix LiveView) | Separate repo |
 | 2f | Create Kanban boards | DnA/AnP/TnI/DnO boards |
@@ -239,8 +239,8 @@ You: /board
 | Step | Activity | Output |
 |------|----------|--------|
 | 3a | Create Git repos | All repos initialized |
-| 3b | Implement + test CMD spoke | Passing unit + integration tests |
-| 3c | Implement + test QRY+PRJ spoke | Passing projection tests |
+| 3b | Implement + test CMD desk | Passing unit + integration tests |
+| 3c | Implement + test QRY+PRJ desk | Passing projection tests |
 | 3d | Implement + test TUI | Working commands |
 | 3e | (Optional) Implement + test Web UI | Working LiveView |
 
@@ -257,7 +257,7 @@ You: /board
 After INCEPTION completes:
 
 - **Skip phases**: Small features can go straight to TnI
-- **Parallel cartwheels**: Work on multiple cartwheels simultaneously
+- **Parallel divisions**: Work on multiple divisions simultaneously
 - **Soft suggestions**: Hecate suggests phase transitions, no hard gates
 
 ```
@@ -328,7 +328,7 @@ find = "f"
 ### 5.5 Tool Launch UX
 
 ```
-Hecate: I've created the initial spoke structure:
+Hecate: I've created the initial desk structure:
 
   apps/manage_users/src/register_user/
   ├── register_user_v1.erl
@@ -412,7 +412,7 @@ auto_summarize = false     # auto-summarize or ask first
 
 ```
 github.com/your-org/
-├── auth-system/                    # META-REPO (the Torch)
+├── auth-system/                    # META-REPO (the Venture)
 │   ├── VISION.md
 │   ├── CONTEXT_MAP.md
 │   ├── context_map.yaml
@@ -420,7 +420,7 @@ github.com/your-org/
 │   ├── inception/
 │   │   └── EVENT_STORMING.md
 │   └── .hecate/
-│       └── torch.json
+│       └── venture.json
 │
 ├── auth-daemon/                    # CMD + QRY (Erlang umbrella)
 │   └── apps/
@@ -453,7 +453,7 @@ components:
 ### 7.3 context_map.yaml
 
 ```yaml
-torch: auth-system
+venture: auth-system
 bounded_contexts:
   - name: user-registration
     type: cmd
@@ -473,20 +473,20 @@ bounded_contexts:
 ## 8. Implementation Phases
 
 ### Phase 1: Modal Infrastructure ✅
-- [x] Mode state machine (Chat → Torch → Cartwheel) - `internal/alc/context.go`, `internal/alc/state.go`
+- [x] Mode state machine (Chat → Venture → Division) - `internal/alc/context.go`, `internal/alc/state.go`
 - [x] Header bar component (appears/disappears based on mode) - `internal/app/app.go:renderContextHeader()`
-- [x] Navigation commands (`/torch`, `/torches`, `/cartwheel`, `/cartwheels`, `/back`, `/chat`) - `internal/commands/torch.go`
-- [x] Context detection on startup (git remote, `.hecate/torch.json`) - `internal/alc/detect.go`
+- [x] Navigation commands (`/venture`, `/ventures`, `/division`, `/divisions`, `/back`, `/chat`) - `internal/commands/venture.go`
+- [x] Context detection on startup (git remote, `.hecate/venture.json`) - `internal/alc/detect.go`
 
-### Phase 2: Torch Management
-- [ ] Torch CRUD via daemon API
-- [ ] Torch picker UI
-- [ ] Torch status display
+### Phase 2: Venture Management
+- [ ] Venture CRUD via daemon API
+- [ ] Venture picker UI
+- [ ] Venture status display
 - [ ] Meta-repo initialization
 
-### Phase 3: Cartwheel & Phase Management
-- [ ] Cartwheel CRUD via daemon API
-- [ ] Cartwheel picker UI
+### Phase 3: Division & Phase Management
+- [ ] Division CRUD via daemon API
+- [ ] Division picker UI
 - [ ] Phase display in header
 - [ ] Phase transition commands and suggestions
 
@@ -512,7 +512,7 @@ bounded_contexts:
 ## 9. Open Questions
 
 1. **Kanban board implementation** - External tool (GitHub Projects, Trello) or built-in?
-2. **Multi-user collaboration** - How do multiple team members work on same torch?
+2. **Multi-user collaboration** - How do multiple team members work on same venture?
 3. **Offline support** - What happens when daemon is unreachable?
 4. **Phase artifact validation** - How strict should gating be in INCEPTION?
 

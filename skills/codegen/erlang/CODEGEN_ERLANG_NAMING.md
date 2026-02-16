@@ -1,6 +1,6 @@
 # CODEGEN_ERLANG_NAMING.md — Erlang Code Naming Conventions
 
-_Strict naming rules for all components in the Cartwheel architecture._
+_Strict naming rules for all components in the Venture/Division/Desk architecture._
 
 **Target:** Erlang/OTP with `reckon_evoq`
 
@@ -17,8 +17,8 @@ _Strict naming rules for all components in the Cartwheel architecture._
 | -------------- | ---------------------------- | ------------------------------------------- |
 | Domain app     | `{verb}_{noun}`              | `manage_capabilities`                       |
 | Query app      | `query_{noun}`               | `query_capabilities`                        |
-| Spoke dir      | `{command}/`                 | `announce_capability/`                      |
-| Spoke sup      | `{command}_spoke_sup`        | `announce_capability_spoke_sup`             |
+| Desk dir       | `{command}/`                 | `announce_capability/`                      |
+| Desk sup       | `{command}_desk_sup`         | `announce_capability_desk_sup`              |
 | Command        | `{command}_v1`               | `announce_capability_v1`                    |
 | Event          | `{noun}_{past_verb}_v1`      | `capability_announced_v1`                   |
 | Handler        | `maybe_{command}`            | `maybe_announce_capability`                 |
@@ -41,35 +41,35 @@ _Strict naming rules for all components in the Cartwheel architecture._
 
 ### Rule 1: No Raw `get_{aggregate}` — Use `get_{aggregate}_by_id`
 
-A module named `get_torch` is ambiguous. Get it how? By name? By status?
+A module named `get_venture` is ambiguous. Get it how? By name? By status?
 
 **The name MUST specify the lookup strategy.**
 
 | Module Name | What It Screams |
 |-------------|----------------|
-| `get_torch_by_id` | "I fetch one torch by its primary key" |
-| `get_torch_by_name` | "I fetch one torch by its unique name" |
-| `get_active_torch` | "I fetch the currently active torch" |
+| `get_venture_by_id` | "I fetch one venture by its primary key" |
+| `get_venture_by_name` | "I fetch one venture by its unique name" |
+| `get_active_venture` | "I fetch the currently active venture" |
 
 ### Rule 2: No Raw `list_{aggregates}` — Use `get_{aggregates}_page`
 
-A module named `list_torches` sounds like it returns ALL torches. That's a scaling time bomb.
+A module named `list_ventures` sounds like it returns ALL ventures. That's a scaling time bomb.
 
 **Every list query MUST be paged by default.**
 
 | Name | Screams | Danger |
 |------|---------|--------|
-| `list_torches` | "Give me everything" | Unbounded. Will crash at scale. |
-| `get_all_torches` | "Give me literally all of them" | Even worse. Explicit unbounded intent. |
-| `get_torches_page` | "Give me one page" | Bounded. Safe. Correct. |
+| `list_ventures` | "Give me everything" | Unbounded. Will crash at scale. |
+| `get_all_ventures` | "Give me literally all of them" | Even worse. Explicit unbounded intent. |
+| `get_ventures_page` | "Give me one page" | Bounded. Safe. Correct. |
 
 ### Rule 3: Filtered Queries Include the Filter in the Name
 
 | Module Name | What It Screams |
 |-------------|----------------|
-| `get_cartwheels_by_torch` | "I return cartwheels belonging to a specific torch" |
-| `get_findings_by_cartwheel` | "I return findings for a specific cartwheel" |
-| `get_torches_by_status` | "I return torches matching a status filter" |
+| `get_divisions_by_venture` | "I return divisions belonging to a specific venture" |
+| `get_findings_by_division` | "I return findings for a specific division" |
+| `get_ventures_by_status` | "I return ventures matching a status filter" |
 
 ### Complete QRY Naming Convention
 
@@ -87,11 +87,11 @@ A module named `list_torches` sounds like it returns ALL torches. That's a scali
 
 | Module | Route | HTTP |
 |--------|-------|------|
-| `get_torch_by_id_api` | `/api/torches/:torch_id` | GET |
-| `get_active_torch_api` | `/api/torch` | GET |
-| `get_torches_page_api` | `/api/torches` | GET |
-| `get_cartwheel_by_id_api` | `/api/cartwheels/:cartwheel_id` | GET |
-| `get_cartwheels_page_api` | `/api/cartwheels` | GET |
+| `get_venture_by_id_api` | `/api/ventures/:venture_id` | GET |
+| `get_active_venture_api` | `/api/venture` | GET |
+| `get_ventures_page_api` | `/api/ventures` | GET |
+| `get_division_by_id_api` | `/api/divisions/:division_id` | GET |
+| `get_divisions_page_api` | `/api/divisions` | GET |
 
 ---
 
@@ -99,21 +99,21 @@ A module named `list_torches` sounds like it returns ALL torches. That's a scali
 
 | Anti-Pattern | Correct | Why |
 |--------------|---------|-----|
-| `get_torch` | `get_torch_by_id` | "get how?" is ambiguous |
-| `list_torches` | `get_torches_page` | Unbounded result set |
-| `get_all_torches` | `get_torches_page` | "all" is a scaling time bomb |
-| `find_torches` | `get_torches_page` or `search_torches` | "find" is vague |
-| `query_torches` | Specific module per query | Provider module, not a spoke |
+| `get_venture` | `get_venture_by_id` | "get how?" is ambiguous |
+| `list_ventures` | `get_ventures_page` | Unbounded result set |
+| `get_all_ventures` | `get_ventures_page` | "all" is a scaling time bomb |
+| `find_ventures` | `get_ventures_page` or `search_ventures` | "find" is vague |
+| `query_ventures` | Specific module per query | Provider module, not a desk |
 
 ---
 
 ## Migration: Renaming Existing Modules
 
-When renaming a query module (e.g., `get_torch` -> `get_torch_by_id`):
+When renaming a query module (e.g., `get_venture` -> `get_venture_by_id`):
 
 ### Checklist
 
-1. **Rename directory**: `src/get_torch/` -> `src/get_torch_by_id/`
+1. **Rename directory**: `src/get_venture/` -> `src/get_venture_by_id/`
 2. **Create new module files** with updated `-module()` declarations
 3. **Delete old files** from the renamed directory
 4. **Update `rebar.config`**: `src_dirs` entry
@@ -135,7 +135,7 @@ These suffixes reveal implementation, not intent:
 ## Allowed Suffixes (With Meaning)
 
 - `*_v1` (Version)
-- `*_spoke_sup` (Spoke supervisor)
+- `*_desk_sup` (Desk supervisor)
 - `*_responder_v1` (HOPE receiver)
 - `*_to_mesh` (Emitter to mesh)
 - `*_to_pg` (Emitter to pg)

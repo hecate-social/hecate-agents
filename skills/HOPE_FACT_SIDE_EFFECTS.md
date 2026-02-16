@@ -99,7 +99,7 @@ Each fact the TUI reacts to has a dedicated listener. The listener is a self-con
 // on_vision_refined_v1_write_vision_to_disk.go
 
 type VisionRefinedListener struct {
-    torchRoot string
+    ventureRoot string
 }
 
 func (l *VisionRefinedListener) FactType() string {
@@ -107,11 +107,11 @@ func (l *VisionRefinedListener) FactType() string {
 }
 
 func (l *VisionRefinedListener) OnFact(fact Event) tea.Cmd {
-    manifest := scaffold.TorchManifest{
+    manifest := scaffold.VentureManifest{
         Name:  fact.Data["name"],
         Brief: fact.Data["brief"],
     }
-    scaffold.ScaffoldVision(l.torchRoot, manifest)
+    scaffold.ScaffoldVision(l.ventureRoot, manifest)
     return nil  // or return a tea.Msg to update UI
 }
 ```
@@ -133,8 +133,8 @@ Examples:
 | Daemon Emitter | TUI Listener | Side Effect |
 |----------------|--------------|-------------|
 | `vision_refined_v1_to_tui.erl` | `on_vision_refined_v1_write_vision_to_disk.go` | Scaffold/update VISION.md |
-| `vision_submitted_v1_to_tui.erl` | `on_vision_submitted_v1_update_status.go` | Update torch status in UI |
-| `torch_archived_v1_to_tui.erl` | `on_torch_archived_v1_clear_context.go` | Clear ALC context, update statusbar |
+| `vision_submitted_v1_to_tui.erl` | `on_vision_submitted_v1_update_status.go` | Update venture status in UI |
+| `venture_archived_v1_to_tui.erl` | `on_venture_archived_v1_clear_context.go` | Clear ALC context, update statusbar |
 
 ---
 

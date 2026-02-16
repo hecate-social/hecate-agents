@@ -66,7 +66,7 @@ Aggregates are not data structures — they are dossiers (folders) that accumula
 
 See: `philosophy/DDD.md`
 
-### The Cartwheel Architecture
+### The Division Architecture
 
 Domains are organized into three departments:
 - **CMD** — Processing (receives commands, produces events)
@@ -102,7 +102,7 @@ We learn from our mistakes. See: `skills/ANTIPATTERNS.md`
 Common demons:
 - Technical names that don't scream intent
 - Parallel domain infrastructure (duplication)
-- Incomplete spokes (missing supervisors, responders)
+- Incomplete desks (missing supervisors, responders)
 - Horizontal organization (by technical concern)
 
 ---

@@ -1,22 +1,22 @@
 # NAMING_CONVENTIONS.md — Consolidated Quick Reference
 
-_Single-page reference for all naming conventions in the Cartwheel architecture._
+_Single-page reference for all naming conventions in the Venture/Division/Desk architecture._
 _An LLM doing TnI codegen reads ONLY this file + the relevant template._
 
 ---
 
-## Module Naming Rules (All Spoke Types)
+## Module Naming Rules (All Desk Types)
 
 | Component | Pattern | Example |
 |-----------|---------|---------|
-| **Command Service** (app) | `{verb}_{aggregate_plural}` | `manage_orders` |
+| **Command Service** (app) | `{verb}_{aggregate_plural}` | `process_orders` |
 | **Query Service** (app) | `query_{aggregate_plural}` | `query_orders` |
-| **Slice** (directory) | `{verb_present}_{subject}/` | `initiate_order/` |
+| **Desk** (directory) | `{verb_present}_{subject}/` | `initiate_order/` |
 | **Command** | `{verb_present}_{subject}_v1` | `initiate_order_v1` |
 | **Event** | `{subject}_{verb_past}_v1` | `order_initiated_v1` |
 | **Handler** | `maybe_{verb_present}_{subject}` | `maybe_initiate_order` |
 | **CMD API** | `{command}_api` | `initiate_order_api` |
-| **Spoke Supervisor** | `{command}_spoke_sup` | `initiate_order_spoke_sup` |
+| **Desk Supervisor** | `{command}_desk_sup` | `initiate_order_desk_sup` |
 | **Responder** | `{command}_responder_v1` | `initiate_order_responder_v1` |
 | **Emitter (mesh)** | `{event}_to_mesh` | `order_initiated_to_mesh` |
 | **Emitter (pg)** | `{event}_to_pg` | `order_initiated_to_pg` |
@@ -41,11 +41,11 @@ Given a dossier/app name, all other names are **deterministic**:
 
 | Input | Convention | Output |
 |-------|-----------|--------|
-| `manage_orders` | strip prefix | aggregate noun: `order` |
-| `manage_orders` | strip prefix, keep plural | aggregate plural: `orders` |
-| `manage_orders` | pair with query | query app: `query_orders` |
+| `process_orders` | strip prefix | aggregate noun: `order` |
+| `process_orders` | strip prefix, keep plural | aggregate plural: `orders` |
+| `process_orders` | pair with query | query app: `query_orders` |
 
-### From Command Spoke Name
+### From Command Desk Name
 
 | Input | Convention | Output |
 |-------|-----------|--------|
@@ -53,12 +53,12 @@ Given a dossier/app name, all other names are **deterministic**:
 | `initiate_order` | past tense + `_v1` | event module: `order_initiated_v1` |
 | `initiate_order` | `maybe_` prefix | handler: `maybe_initiate_order` |
 | `initiate_order` | `_api` suffix | API handler: `initiate_order_api` |
-| `initiate_order` | `_spoke_sup` suffix | supervisor: `initiate_order_spoke_sup` |
+| `initiate_order` | `_desk_sup` suffix | supervisor: `initiate_order_desk_sup` |
 | `initiate_order` | `_responder_v1` suffix | responder: `initiate_order_responder_v1` |
 | `initiate_order` | event `_to_mesh` | emitter: `order_initiated_to_mesh` |
 | `initiate_order` | event `_to_pg` | pg emitter: `order_initiated_to_pg` |
 
-### From Query Spoke Name
+### From Query Desk Name
 
 | Input | Convention | Output |
 |-------|-----------|--------|
@@ -69,8 +69,8 @@ Given a dossier/app name, all other names are **deterministic**:
 
 ## Route Pattern Rules
 
-| Spoke Type | Route Pattern | Example |
-|------------|--------------|---------|
+| Desk Type | Route Pattern | Example |
+|-----------|--------------|---------|
 | CMD (create) | `POST /api/{plural}/{verb}` | `POST /api/orders/initiate` |
 | CMD (on existing) | `POST /api/{plural}/:id/{verb}` | `POST /api/orders/:id/archive` |
 | QRY (paged list) | `GET /api/{plural}` | `GET /api/orders` |
@@ -102,15 +102,15 @@ Given a dossier/app name, all other names are **deterministic**:
 
 | Aggregate | Stream Pattern | Example |
 |-----------|---------------|---------|
-| Torch | `torch-{torch_id}` | `torch-abc123` |
-| Cartwheel | `cartwheel-{cartwheel_id}` | `cartwheel-def456` |
+| Venture | `venture-{venture_id}` | `venture-abc123` |
+| Division | `division-{division_id}` | `division-def456` |
 | Generic | `{aggregate_noun}-{id}` | `order-ghi789` |
 
 ---
 
 ## rebar.config src_dirs Convention
 
-Every spoke directory MUST be listed in `src_dirs`:
+Every desk directory MUST be listed in `src_dirs`:
 
 ```erlang
 {src_dirs, [
@@ -134,7 +134,7 @@ Every spoke directory MUST be listed in `src_dirs`:
 | `STATUS_ARCHIVED` | varies | Soft-deleted, hidden from queries |
 | Domain flags | powers of 2 | Domain-specific states |
 
-Macro naming: `?{AGGREGATE_UPPER}_{FLAG}` (e.g., `?TORCH_INITIATED`, `?ORDER_ARCHIVED`)
+Macro naming: `?{AGGREGATE_UPPER}_{FLAG}` (e.g., `?VENTURE_INITIATED`, `?ORDER_ARCHIVED`)
 
 ---
 
@@ -153,24 +153,24 @@ Macro naming: `?{AGGREGATE_UPPER}_{FLAG}` (e.g., `?TORCH_INITIATED`, `?ORDER_ARC
 | `*_service` | Horizontal layer | Vertical slice |
 | `*_handler` | Technical noise | `maybe_{command}` |
 | `*_manager` | God module | Domain-specific module |
-| `*_helper` / `*_util` | Junk drawer | Put in the slice |
+| `*_helper` / `*_util` | Junk drawer | Put in the desk |
 
 ---
 
 ## Quick Derivation Example
 
-Given: dossier `manage_orders`, spoke `initiate_order` (command type)
+Given: dossier `process_orders`, desk `initiate_order` (command type)
 
 ```
-App name:        manage_orders
+App name:        process_orders
 Aggregate:       order
 Query app:       query_orders
-Spoke dir:       src/initiate_order/
+Desk dir:        src/initiate_order/
 Command module:  initiate_order_v1
 Event module:    order_initiated_v1
 Handler:         maybe_initiate_order
 API handler:     initiate_order_api
-Supervisor:      initiate_order_spoke_sup
+Supervisor:      initiate_order_desk_sup
 Responder:       initiate_order_responder_v1
 Mesh emitter:    order_initiated_to_mesh
 pg emitter:      order_initiated_to_pg

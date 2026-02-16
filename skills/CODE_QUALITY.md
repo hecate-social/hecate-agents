@@ -53,9 +53,9 @@ handle(FactData) ->
     Result.
 
 do_initiate(Params) ->
-    with_command(initiate_cartwheel_v1:new(Params)).
+    with_command(initiate_division_v1:new(Params)).
 
-with_command({ok, Cmd}) -> dispatch(maybe_initiate_cartwheel:dispatch(Cmd));
+with_command({ok, Cmd}) -> dispatch(maybe_initiate_division:dispatch(Cmd));
 with_command({error, _} = E) -> E.
 
 dispatch({ok, _, _}) -> ok;

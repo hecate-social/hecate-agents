@@ -1,4 +1,6 @@
-# Cartwheel Architecture: Projection Sequence (PRJ)
+# Division Architecture: Projection Sequence (PRJ)
+
+> *Note: "Cartwheel" is the historical name for what is now called "Division Architecture".*
 
 > How events become read models — the materialization side of CQRS.
 

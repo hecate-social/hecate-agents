@@ -1,5 +1,5 @@
 %%% Domain supervisor: {{domain}}
-%%% Supervises all spoke supervisors for this domain.
+%%% Supervises all desk supervisors for this domain.
 
 %% --- {{domain}}_app.erl ---
 
@@ -26,9 +26,9 @@ start_link() ->
 
 init([]) ->
     Children = [
-        %% ADD SPOKE SUPERVISORS HERE
-        %% #{id => {{spoke}}_spoke_sup,
-        %%   start => {{{spoke}}_spoke_sup, start_link, []},
+        %% ADD DESK SUPERVISORS HERE
+        %% #{id => {{desk}}_desk_sup,
+        %%   start => {{{desk}}_desk_sup, start_link, []},
         %%   type => supervisor}
     ],
     {ok, {#{strategy => one_for_one, intensity => 5, period => 10}, Children}}.

@@ -1,4 +1,6 @@
-# Cartwheel Architecture: Write Sequence (CMD)
+# Division Architecture: Write Sequence (CMD)
+
+> *Note: "Cartwheel" is the historical name for what is now called "Division Architecture".*
 
 > How commands enter the system and become events — the write side of CQRS.
 

@@ -57,7 +57,7 @@ The structure itself is documentation.
 
 ### 1. Directories = Verb Phrases
 
-Slice/spoke directories are named as **verb + noun**:
+Slice/desk directories are named as **verb + noun**:
 
 ```
 ✅ GOOD
@@ -86,7 +86,7 @@ Files within a slice follow consistent patterns:
 | `maybe_{command}.erl` | Handler | `maybe_announce_capability.erl` |
 | `{command}_responder_v1.erl` | HOPE receiver | `announce_capability_responder_v1.erl` |
 | `{event}_to_mesh.erl` | Emitter | `capability_announced_to_mesh.erl` |
-| `{command}_spoke_sup.erl` | Supervisor | `announce_capability_spoke_sup.erl` |
+| `{command}_desk_sup.erl` | Supervisor | `announce_capability_desk_sup.erl` |
 
 ### 3. Events = Past Tense
 
@@ -127,7 +127,7 @@ If you need a suffix, use one that describes the **role in the architecture**:
 ```
 ✅ ALLOWED SUFFIXES (with meaning)
 *_v1              # Version
-*_spoke_sup       # Spoke supervisor
+*_desk_sup        # Desk supervisor
 *_responder_v1    # HOPE receiver
 *_to_mesh         # Emitter to mesh
 *_to_{table}      # Projection to table
@@ -298,7 +298,7 @@ It should NOT scream:
 ## See Also
 
 - [VERTICAL_SLICING.md](VERTICAL_SLICING.md) — Features live together
-- [CARTWHEEL.md](CARTWHEEL.md) — The full architecture
+- [CARTWHEEL.md](CARTWHEEL.md) — The Division Architecture
 - [../skills/ANTIPATTERNS.md](../skills/ANTIPATTERNS.md) — Naming demons to avoid
 
 ---

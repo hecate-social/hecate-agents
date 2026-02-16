@@ -1,6 +1,6 @@
 # CODEGEN_ERLANG_TEMPLATES.md — Erlang Code Templates
 
-_Complete module templates for generating Cartwheel architecture code. Fill variables, generate code._
+_Complete module templates for generating Division Architecture (Cartwheel) code. Fill variables, generate code._
 
 **Target:** Erlang/OTP with `reckon_evoq`
 
@@ -45,18 +45,18 @@ init([]) ->
         %   start => {{domain}_store, start_link, []},
         %   type => worker},
 
-        %% Spokes (ADD SPOKE SUPERVISORS HERE)
-        #{id => {command}_spoke_sup,
-          start => {{command}_spoke_sup, start_link, []},
+        %% Desks (ADD DESK SUPERVISORS HERE)
+        #{id => {command}_desk_sup,
+          start => {{command}_desk_sup, start_link, []},
           type => supervisor}
     ],
     {ok, {#{strategy => one_for_one, intensity => 5, period => 10}, Children}}.
 ```
 
-### {command}\_spoke_sup.erl
+### {command}\_desk_sup.erl
 
 ```erlang
--module({command}_spoke_sup).
+-module({command}_desk_sup).
 -behaviour(supervisor).
 
 -export([start_link/0, init/1]).
@@ -323,7 +323,10 @@ hope_to_command(Hope) ->
     {command}_v1:from_map(Hope).
 ```
 
-### {event}\_to_mesh.erl (Emitter - PRJ filer to mesh)
+### {event}\_to_mesh.erl (Emitter - subscribes via evoq, publishes to mesh)
+
+**Subscribes to ReckonDB via evoq. NOT called manually from API handlers.**
+See [EVENT_SUBSCRIPTION_FLOW.md](../philosophy/EVENT_SUBSCRIPTION_FLOW.md).
 
 ```erlang
 -module({event}_to_mesh).
@@ -334,6 +337,8 @@ hope_to_command(Hope) ->
 
 -include_lib("kernel/include/logger.hrl").
 
+-define(EVENT_TYPE, <<"{event}">>).
+-define(SUB_NAME, <<"{event}_to_mesh">>).
 -define(TOPIC, <<"hecate.{domain_noun}.{event}">>).
 
 %%====================================================================
@@ -348,10 +353,14 @@ start_link() ->
 %%====================================================================
 
 init([]) ->
-    %% Subscribe to domain events from store
-    ok = reckon_evoq:subscribe({domain}_store, self(), #{
-        event_types => [<<"{event}_v1">>]
-    }),
+    %% Subscribe to event store via evoq
+    {ok, _SubId} = reckon_evoq_adapter:subscribe(
+        dev_studio_store,
+        event_type,
+        ?EVENT_TYPE,
+        ?SUB_NAME,
+        #{subscriber_pid => self()}
+    ),
     ?LOG_INFO("[~s] Emitter started, publishing to ~s", [?MODULE, ?TOPIC]),
     {ok, #{}}.
 
@@ -361,13 +370,14 @@ handle_call(_Request, _From, State) ->
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
-handle_info({evoq_event, _StreamId, EventType, EventData, _Position}, State)
-  when EventType =:= <<"{event}_v1">> ->
-    %% Transform EVENT to FACT (may have different structure)
-    Fact = event_to_fact(EventData),
-    %% Publish to mesh
-    ok = hecate_mesh:publish(?TOPIC, Fact),
-    ?LOG_DEBUG("[~s] Published FACT to ~s", [?MODULE, ?TOPIC]),
+handle_info({events, Events}, State) ->
+    lists:foreach(fun(EventData) ->
+        %% Transform EVENT to FACT (may have different structure)
+        Fact = event_to_fact(EventData),
+        %% Publish to mesh
+        ok = hecate_mesh:publish(?TOPIC, Fact),
+        ?LOG_DEBUG("[~s] Published FACT to ~s", [?MODULE, ?TOPIC])
+    end, Events),
     {noreply, State};
 
 handle_info(_Info, State) ->
@@ -487,7 +497,7 @@ init([]) ->
           start => {query_{domain_noun}_store, start_link, []},
           type => worker},
 
-        %% PRJ Spokes (ADD PROJECTION SUPERVISORS HERE)
+        %% PRJ Desks (ADD PROJECTION SUPERVISORS HERE)
         #{id => {event}_to_{read_store}_sup,
           start => {{event}_to_{read_store}_sup, start_link, []},
           type => supervisor}
@@ -837,12 +847,12 @@ get_value(Key, Map, Default) when is_atom(Key) ->
     end.
 ```
 
-### Aggregate Guard Pattern (Mid-Lifecycle Spokes)
+### Aggregate Guard Pattern (Mid-Lifecycle Desks)
 
-Spokes that operate between initiation and archive follow a guard chain pattern:
+Desks that operate between initiation and archive follow a guard chain pattern:
 
 ```erlang
-%% Iterative update spoke (repeatable, no status change)
+%% Iterative update desk (repeatable, no status change)
 execute(State, #{command_type := <<"refine_{noun}">>} = Payload) ->
     execute_refine(Payload, State);
 
@@ -856,7 +866,7 @@ execute_refine(Payload, _State) ->
     {ok, Cmd} = refine_{noun}_v1:from_map(Payload),
     convert_events(maybe_refine_{noun}:handle(Cmd), fun {noun}_refined_v1:to_map/1).
 
-%% State transition spoke (one-shot, changes bit flags)
+%% State transition desk (one-shot, changes bit flags)
 execute(State, #{command_type := <<"submit_{noun}">>} = Payload) ->
     execute_submit(Payload, State);
 
@@ -911,22 +921,45 @@ apply_submitted(#{noun}_state{status = Status} = State) ->
 ### {event}\_to\_pg.erl
 
 **For intra-daemon integration** (projections, process managers within the same BEAM VM).
-Unlike mesh emitters, pg emitters are **stateless** — no gen_server needed.
+pg emitters are **gen_servers** that subscribe to ReckonDB via evoq at startup.
+
+**They are NOT called manually from API handlers.** See [EVENT_SUBSCRIPTION_FLOW.md](../philosophy/EVENT_SUBSCRIPTION_FLOW.md).
 
 ```erlang
 -module({event}_to_pg).
+-behaviour(gen_server).
 
--export([emit/1]).
+-export([start_link/0]).
+-export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
 
--define(GROUP, {event}).
--define(SCOPE, pg).
+-define(EVENT_TYPE, <<"{event}">>).
+-define(PG_GROUP, {event}).
+-define(SUB_NAME, <<"{event}_to_pg">>).
 
--spec emit(map()) -> ok.
-emit(Event) ->
-    Message = {{event}, Event},
-    Members = pg:get_members(?SCOPE, ?GROUP),
-    lists:foreach(fun(Pid) -> Pid ! Message end, Members),
-    ok.
+start_link() ->
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+
+init([]) ->
+    {ok, _SubId} = reckon_evoq_adapter:subscribe(
+        dev_studio_store,
+        event_type,
+        ?EVENT_TYPE,
+        ?SUB_NAME,
+        #{subscriber_pid => self()}
+    ),
+    {ok, #{}}.
+
+handle_info({events, Events}, State) ->
+    lists:foreach(fun(Event) ->
+        pg:send(pg, ?PG_GROUP, {?PG_GROUP, Event})
+    end, Events),
+    {noreply, State};
+handle_info(_Info, State) ->
+    {noreply, State}.
+
+handle_call(_Req, _From, State) -> {reply, ok, State}.
+handle_cast(_Msg, State) -> {noreply, State}.
+terminate(_Reason, _State) -> ok.
 ```
 
 ---
@@ -940,7 +973,7 @@ emit(Event) ->
     {reckon_evoq, {git, "https://github.com/reckon-db-org/reckon_evoq.git", {branch, "main"}}}
 ]}.
 
-%% Include spoke directories
+%% Include desk directories
 {src_dirs, [
     "src",
     "src/{command1}",
@@ -1065,16 +1098,20 @@ ensure_pg() ->
 
 ## API Handler Templates
 
-API handlers are Cowboy `init/2` handlers that live **inside spoke directories**, not in `hecate_api`.
+API handlers are Cowboy `init/2` handlers that live **inside desk directories**, not in `hecate_api`.
 All handlers use `hecate_api_utils` from the `shared` app.
 
 ### CMD API Handler Template — {command}\_api.erl
 
-For command spokes (POST endpoints that dispatch commands via `maybe_*`).
+For command desks (POST endpoints that dispatch commands via `maybe_*`).
+Each handler exports `routes/0` — the central aggregator discovers them automatically.
 
 ```erlang
 -module({command}_api).
--export([init/2]).
+-export([init/2, routes/0]).
+
+routes() ->
+    [{"/api/{domain}/{action}", ?MODULE, []}].
 
 init(Req0, State) ->
     case cowboy_req:method(Req0) of
@@ -1118,10 +1155,14 @@ dispatch_result({error, Reason}, Req) ->
 ### QRY Paged API Handler Template — get\_{nouns}\_page\_api.erl
 
 For paged list queries (GET endpoints with optional filters).
+Each handler exports `routes/0` — the central aggregator discovers them automatically.
 
 ```erlang
 -module(get_{nouns}_page_api).
--export([init/2]).
+-export([init/2, routes/0]).
+
+routes() ->
+    [{"/api/{domain}", ?MODULE, []}].
 
 init(Req0, State) ->
     case cowboy_req:method(Req0) of
@@ -1159,10 +1200,14 @@ safe_int(V, Key, Acc) ->
 ### QRY By-ID API Handler Template — get\_{noun}\_by\_id\_api.erl
 
 For single-record lookups (GET endpoints with URL binding).
+Each handler exports `routes/0` — the central aggregator discovers them automatically.
 
 ```erlang
 -module(get_{noun}_by_id_api).
--export([init/2]).
+-export([init/2, routes/0]).
+
+routes() ->
+    [{"/api/{domain}/:{noun}_id", ?MODULE, []}].
 
 init(Req0, State) ->
     case cowboy_req:method(Req0) of
@@ -1182,25 +1227,22 @@ handle_get(Req0, _State) ->
     end.
 ```
 
-### Route Entry Template
+### Route Ownership (Auto-Discovery)
 
-Routes go in `hecate_api_routes.erl`. All routes MUST use the `/api/` prefix.
+**Each handler exports `routes/0`.** There are no centralized route files.
+The aggregator (`hecate_api_routes.erl`) discovers handlers automatically via OTP module introspection.
 
-```erlang
-%% Command routes (POST)
-{"/api/{domain}/{action}", {command}_api, []}
-{"/api/{domain}/:{id}/{action}", {command}_api, []}
+**Adding a new endpoint requires touching exactly ONE file** — the handler itself.
 
-%% Query routes (GET)
-{"/api/{domain}", get_{nouns}_page_api, []}
-{"/api/{domain}/:{id}", get_{noun}_by_id_api, []}
-```
+All routes MUST use the `/api/` prefix.
 
 **Route conventions:**
 - `POST /api/{domain}/{verb}` — commands (e.g., `/api/social/follow`)
 - `GET /api/{domain}` — paged list (e.g., `/api/capabilities`)
 - `GET /api/{domain}/:id` — single lookup (e.g., `/api/capabilities/:mri`)
-- `POST /api/{domain}/:id/{verb}` — commands on existing aggregates (e.g., `/api/cartwheels/:id/transition`)
+- `POST /api/{domain}/:id/{verb}` — commands on existing aggregates (e.g., `/api/divisions/:id/transition`)
+
+See [ANTIPATTERNS_STRUCTURE.md](../../ANTIPATTERNS_STRUCTURE.md) Demon #25 for why centralized route files are wrong.
 
 ---
 

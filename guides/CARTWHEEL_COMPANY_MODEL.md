@@ -1,4 +1,6 @@
-# Cartwheel Architecture: The Company Model
+# Division Architecture: The Company Model
+
+> *Note: "Cartwheel" is the historical name for what is now called "Division Architecture".*
 
 > A mental model for understanding domain services as small specialized companies.
 
@@ -304,7 +306,7 @@ QRY Backoffice [Specialist]
 | QRY Department | `query_capabilities.erl` + store |
 | Frontdesk (HOPE) | `*_responder_v1.erl` |
 | Frontdesk (FACT) | `*_listener.erl` |
-| Backoffice Desk | `*_spoke_sup` + handler |
+| Backoffice Desk | `*_desk_sup` + handler |
 | Command Inbox | `maybe_*.erl` handle/1 |
 | PM Inbox | `on_*_maybe_*.erl` |
 | Tube Mail | Event published to store |

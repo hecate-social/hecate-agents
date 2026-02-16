@@ -1,12 +1,12 @@
 # DDD.md — The Dossier Principle
 
-*Process-centric domain modeling for Cartwheel architecture.*
+*Process-centric domain modeling for Division architecture.*
 
 ---
 
 ## The Two Mental Models
 
-Most Event-Sourced systems approach aggregates from a **data-centric** perspective. Cartwheel approaches aggregates from a **process-centric** perspective.
+Most Event-Sourced systems approach aggregates from a **data-centric** perspective. Division Architecture approaches aggregates from a **process-centric** perspective.
 
 ### Data-Centric (Traditional)
 
@@ -40,7 +40,7 @@ The aggregate is a **thing**. Events happen **to** it.
 
 ```
 Aggregate = the dossier itself (ordered event slips)
-Spokes = desks the dossier passes through
+Desks = stations the dossier passes through
 Question: "What has HAPPENED to this dossier?"
 ```
 
@@ -60,12 +60,12 @@ The dossier **is** its history. There is no separate "state object."
 
 Imagine a physical folder (dossier) moving through an office:
 
-1. **Dossier arrives** at a desk (spoke)
+1. **Dossier arrives** at a desk
 2. **Clerk reviews** the slips inside (events so far)
 3. **Clerk may add** a new slip (new event)
 4. **Dossier moves on** to the next desk
 
-Each desk (spoke) has a specific responsibility:
+Each desk has a specific responsibility:
 - The `announce_capability` desk handles new announcements
 - The `update_capability` desk handles modifications
 - The `revoke_capability` desk handles revocations
@@ -88,9 +88,9 @@ subscription-{subscriber}-{publisher}
 
 All slips (events) for a dossier share this stream ID.
 
-### 2. Spokes Are Verbs, Not Nouns
+### 2. Desks Are Verbs, Not Nouns
 
-Spokes represent **process steps** (desks), not entities:
+Desks represent **process steps**, not entities:
 
 | ❌ Data-Centric (Noun) | ✅ Process-Centric (Verb) |
 |------------------------|---------------------------|
@@ -98,7 +98,7 @@ Spokes represent **process steps** (desks), not entities:
 | `reputation/` | `track_rpc_call/` |
 | `subscription/` | `subscribe_to_agent/` |
 
-Each spoke is a desk where a specific action can occur.
+Each desk is a station where a specific action can occur.
 
 ### 3. "Rebuilding State" = Reading the Dossier
 
@@ -167,7 +167,7 @@ What are the "things" that accumulate history?
 - Subscriptions (created, cancelled)
 - Identities (created, paired, updated)
 
-### 2. What desks (spokes) process each dossier?
+### 2. What desks process each dossier?
 
 What actions can happen to each dossier type?
 
@@ -183,7 +183,7 @@ Capability Dossier passes through:
 
 Each desk adds specific slip types:
 
-| Desk (Spoke) | Slip (Event) |
+| Desk | Slip (Event) |
 |--------------|--------------|
 | `announce_capability` | `capability_announced_v1` |
 | `update_capability` | `capability_updated_v1` |
@@ -207,7 +207,7 @@ How will we find dossiers without opening each one?
 
 Stream ID: `reputation-{agent_id}`
 
-### Desks (Spokes):
+### Desks:
 
 ```
 reputation dossier passes through:
@@ -261,7 +261,7 @@ When creating a new domain:
 
 - [ ] **Identify the dossier** — What accumulates history?
 - [ ] **Define the stream ID pattern** — How is each dossier uniquely identified?
-- [ ] **List the desks (spokes)** — What actions/process steps exist?
+- [ ] **List the desks** — What actions/process steps exist?
 - [ ] **Define the slips (events)** — What gets added at each desk?
 - [ ] **Design the index cards (projections)** — How will we query?
 - [ ] **Map the process flow** — Which desks can the dossier visit, in what order?
@@ -273,13 +273,13 @@ When creating a new domain:
 The dossier model:
 
 1. **Aligns with business reality** — Processes ARE dossiers moving through departments
-2. **Makes spokes obvious** — Each desk is a spoke
+2. **Makes desks obvious** — Each desk is a process step
 3. **Clarifies validation** — "Can this slip be added to this dossier?"
 4. **Simplifies projections** — "Index cards for the filing cabinet"
 5. **Enables code generation** — The pattern is mechanical, not creative
 
 ---
 
-*The dossier is the aggregate. The slips are the events. The desks are the spokes.*
+*The dossier is the aggregate. The slips are the events. The desks are the capabilities.*
 
 *Pass the dossier. Add the slip. Move on.* 🗝️

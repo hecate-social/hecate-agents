@@ -15,11 +15,11 @@ hecate-agents/
 │
 ├── philosophy/                       # Mental models (WHY)
 │   ├── DDD.md                        # The Dossier Principle
-│   ├── CARTWHEEL.md                  # Cartwheel Architecture overview
+│   ├── CARTWHEEL.md                  # Division Architecture (Cartwheel) overview
 │   ├── VERTICAL_SLICING.md           # Features live together
 │   ├── SCREAMING_ARCHITECTURE.md     # Names that reveal intent
 │   ├── INTEGRATION_TRANSPORTS.md     # pg vs mesh
-│   ├── HECATE_VENTURE_LIFECYCLE.md    # Process-centric architecture (venture/company model)
+│   ├── HECATE_VENTURE_LIFECYCLE.md    # Process-centric architecture (venture/division model)
 │   ├── PROCESS_MANAGERS.md           # Cross-domain coordination
 │   ├── PARENT_CHILD_AGGREGATES.md    # Parent identifies, child initiates (superseded by Venture Lifecycle)
 │   ├── HECATE_ALC.md                 # Application Lifecycle
@@ -55,14 +55,14 @@ hecate-agents/
 │   └── VERTICAL_API_HANDLERS.md
 │
 ├── templates/                        # Parameterized templates for codegen
-│   ├── CHANGELOG.md.tmpl             # Torch scaffolding
-│   ├── README.md.tmpl                # Torch scaffolding
-│   ├── VISION.md.tmpl                # Torch scaffolding
-│   ├── erlang/                       # Erlang spoke templates
-│   │   ├── cmd_spoke.erl.tmpl        # Command spoke (cmd + event + handler)
+│   ├── CHANGELOG.md.tmpl             # Venture scaffolding
+│   ├── README.md.tmpl                # Venture scaffolding
+│   ├── VISION.md.tmpl                # Venture scaffolding
+│   ├── erlang/                       # Erlang desk templates
+│   │   ├── cmd_spoke.erl.tmpl        # Command desk (cmd + event + handler)
 │   │   ├── cmd_api.erl.tmpl          # Command API handler
-│   │   ├── qry_page_spoke.erl.tmpl   # Paged query
-│   │   ├── qry_byid_spoke.erl.tmpl   # By-ID query
+│   │   ├── qry_page_spoke.erl.tmpl   # Paged query desk
+│   │   ├── qry_byid_spoke.erl.tmpl   # By-ID query desk
 │   │   ├── qry_page_api.erl.tmpl     # Paged query API handler
 │   │   ├── qry_byid_api.erl.tmpl     # By-ID query API handler
 │   │   ├── projection.erl.tmpl       # Projection worker

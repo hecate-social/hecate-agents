@@ -1,6 +1,6 @@
 # BIT_FLAGS_STATUS_PROJECTION.md — Status Handling in Projections
 
-_How to properly handle aggregate status bit flags in the Cartwheel architecture._
+_How to properly handle aggregate status bit flags in Division Architecture._
 
 **Target:** Erlang/OTP with `evoq` + `evoq_bit_flags`
 
@@ -61,7 +61,7 @@ flag_map() -> ?{AGG}_FLAG_MAP.
 
 ## Step 3: Binary Key Helper in Projections
 
-Events from evoq/ReckonDB arrive with binary keys (`<<"torch_id">>` not `torch_id`).
+Events from evoq/ReckonDB arrive with binary keys (`<<"venture_id">>` not `venture_id`).
 Each projection includes this inline helper:
 
 ```erlang
@@ -127,7 +127,7 @@ project(Event) ->
     %% 2. Read back new status, recompute label
     case query_{table}_store:query(
         "SELECT status FROM {table} WHERE {aggregate}_id = ?1", [Id]) of
-        {ok, [{NewStatus}]} ->
+        {ok, [[NewStatus]]} ->
             Label = evoq_bit_flags:to_string(NewStatus, ?{AGG}_FLAG_MAP),
             query_{table}_store:execute(
                 "UPDATE {table} SET status_label = ?1 WHERE {aggregate}_id = ?2",
@@ -204,15 +204,15 @@ CREATE TABLE IF NOT EXISTS {table} (
 | Anti-Pattern | Correct |
 |--------------|---------|
 | `enrich_status(Row)` in query module | `status_label` column in SQLite |
-| `Status = 3` (magic number) | `evoq_bit_flags:set_all(0, [?TORCH_INITIATED, ?TORCH_DNA_ACTIVE])` |
-| `-define(ARCHIVED, 32)` in projection | `-include_lib("manage_torches/include/torch_status.hrl")` |
-| `#{torch_id := Id} = Event` | `Id = get(torch_id, Event)` (handles binary keys) |
+| `Status = 3` (magic number) | `evoq_bit_flags:set_all(0, [?VNT_INITIATED, ?VNT_DNA_ACTIVE])` |
+| `-define(ARCHIVED, 32)` in projection | `-include_lib("guide_venture_lifecycle/include/venture_status.hrl")` |
+| `#{venture_id := Id} = Event` | `Id = get(venture_id, Event)` (handles binary keys) |
 | `normalize_keys(Event)` | `get/2` helper (no full map conversion) |
-| `torch_aggregate:flag_map()` in query | `?TORCH_FLAG_MAP` macro via `.hrl` include |
-| `?TORCH_INITIATED bor ?TORCH_DNA_ACTIVE` | `evoq_bit_flags:set_all(0, [...])` |
+| `venture_aggregate:flag_map()` in query | `?VNT_FLAG_MAP` macro via `.hrl` include |
+| `?VNT_INITIATED bor ?VNT_DNA_ACTIVE` | `evoq_bit_flags:set_all(0, [...])` |
 | `Status band ?FLAG =:= 0` (outside guards) | `evoq_bit_flags:has_not(Status, ?FLAG)` |
-| `get_torch` (ambiguous lookup) | `get_torch_by_id` (screaming intent) |
-| `list_torches` (unbounded) | `get_torches_page` (paged, bounded) |
+| `get_venture` (ambiguous lookup) | `get_venture_by_id` (screaming intent) |
+| `list_ventures` (unbounded) | `get_ventures_page` (paged, bounded) |
 
 **Note on guards:** Erlang guards only allow BIFs. `band` in guards is fine
 because `evoq_bit_flags:has/2` cannot be used in guard expressions. Outside
@@ -224,17 +224,17 @@ guards, always use the `evoq_bit_flags` API.
 
 ### Example 1: Wrong (Read-Time Enrichment)
 
-**Input:** "Project torch_initiated_v1 to SQLite torches table"
+**Input:** "Project venture_initiated_v1 to SQLite ventures table"
 
 **Wrong Output:**
 ```erlang
-project(#{torch_id := TorchId} = Event) ->
-    store:execute("INSERT INTO torches (torch_id, status) VALUES (?1, ?2)",
-        [TorchId, 1]).
+project(#{venture_id := VentureId} = Event) ->
+    store:execute("INSERT INTO ventures (venture_id, status) VALUES (?1, ?2)",
+        [VentureId, 1]).
 
-%% In list_torches.erl:
+%% In list_ventures.erl:
 enrich_status(#{status := S} = Row) ->
-    Row#{status_label => evoq_bit_flags:to_string(S, torch_aggregate:flag_map())}.
+    Row#{status_label => evoq_bit_flags:to_string(S, venture_aggregate:flag_map())}.
 ```
 
 **Why wrong:**
@@ -245,19 +245,19 @@ enrich_status(#{status := S} = Row) ->
 
 ### Example 2: Correct (Write-Time Label Storage)
 
-**Input:** "Project torch_initiated_v1 to SQLite torches table"
+**Input:** "Project venture_initiated_v1 to SQLite ventures table"
 
 **Correct Output:**
 ```erlang
--include_lib("manage_torches/include/torch_status.hrl").
+-include_lib("guide_venture_lifecycle/include/venture_status.hrl").
 
 project(Event) ->
-    TorchId = get(torch_id, Event),
-    Status = evoq_bit_flags:set_all(0, [?TORCH_INITIATED, ?TORCH_DNA_ACTIVE]),
-    Label = evoq_bit_flags:to_string(Status, ?TORCH_FLAG_MAP),
-    query_torches_store:execute(
-        "INSERT OR REPLACE INTO torches (torch_id, status, status_label) VALUES (?1, ?2, ?3)",
-        [TorchId, Status, Label]).
+    VentureId = get(venture_id, Event),
+    Status = evoq_bit_flags:set_all(0, [?VNT_INITIATED, ?VNT_DNA_ACTIVE]),
+    Label = evoq_bit_flags:to_string(Status, ?VNT_FLAG_MAP),
+    query_venture_lifecycle_store:execute(
+        "INSERT OR REPLACE INTO ventures (venture_id, status, status_label) VALUES (?1, ?2, ?3)",
+        [VentureId, Status, Label]).
 
 get(Key, Map) when is_atom(Key) ->
     case maps:find(Key, Map) of
@@ -268,35 +268,35 @@ get(Key, Map) when is_atom(Key) ->
 
 ### Example 3: Wrong (Magic Number Phase Transition)
 
-**Input:** "Project discovery_completed_v1 to update cartwheel status"
+**Input:** "Project discovery_completed_v1 to update division status"
 
 **Wrong Output:**
 ```erlang
-project(#{cartwheel_id := Id}) ->
-    store:execute("UPDATE cartwheels SET status = status | 4 WHERE cartwheel_id = ?1", [Id]).
+project(#{division_id := Id}) ->
+    store:execute("UPDATE divisions SET status = status | 4 WHERE division_id = ?1", [Id]).
 ```
 
 **Why wrong:** Magic number `4`, atom key match, no status_label update.
 
 ### Example 4: Correct (Phase Transition with Label)
 
-**Input:** "Project discovery_completed_v1 to update cartwheel status"
+**Input:** "Project discovery_completed_v1 to update division status"
 
 **Correct Output:**
 ```erlang
--include_lib("manage_cartwheels/include/cartwheel_status.hrl").
+-include_lib("guide_division_alc/include/division_alc_status.hrl").
 
 project(Event) ->
-    Id = get(cartwheel_id, Event),
-    ok = query_cartwheels_store:execute(
-        "UPDATE cartwheels SET status = status | ?1 WHERE cartwheel_id = ?2",
-        [?CW_DISCOVERY_COMPLETE, Id]),
-    case query_cartwheels_store:query(
-        "SELECT status FROM cartwheels WHERE cartwheel_id = ?1", [Id]) of
-        {ok, [{NewStatus}]} ->
-            Label = evoq_bit_flags:to_string(NewStatus, ?CW_FLAG_MAP),
-            query_cartwheels_store:execute(
-                "UPDATE cartwheels SET status_label = ?1 WHERE cartwheel_id = ?2",
+    Id = get(division_id, Event),
+    ok = query_division_alc_store:execute(
+        "UPDATE divisions SET status = status | ?1 WHERE division_id = ?2",
+        [?DIV_DISCOVERY_COMPLETE, Id]),
+    case query_division_alc_store:query(
+        "SELECT status FROM divisions WHERE division_id = ?1", [Id]) of
+        {ok, [[NewStatus]]} ->
+            Label = evoq_bit_flags:to_string(NewStatus, ?DIV_FLAG_MAP),
+            query_division_alc_store:execute(
+                "UPDATE divisions SET status_label = ?1 WHERE division_id = ?2",
                 [Label, Id]);
         _ -> ok
     end.

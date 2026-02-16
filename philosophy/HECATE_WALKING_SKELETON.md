@@ -27,7 +27,7 @@ A Walking Skeleton is:
 ```
 ❌ BIG BANG INTEGRATION
 
-Week 1-4: Build all spokes locally
+Week 1-4: Build all desks locally
 Week 5:   "Now let's add CI/CD"
 Week 6:   "Why doesn't it deploy?"
 Week 7:   "GitOps is broken"
@@ -47,9 +47,9 @@ Week 10:  Still debugging infrastructure
 ```
 ✅ WALKING SKELETON
 
-Day 1:  Scaffold + CI/CD + GitOps + initialize_* spoke
+Day 1:  Scaffold + CI/CD + GitOps + initialize_* desk
 Day 2:  Deploy to PROD (empty but operational)
-Day 3+: Add spokes one by one, each deploys immediately
+Day 3+: Add desks one by one, each deploys immediately
 ```
 
 **Benefits:**
@@ -73,8 +73,8 @@ apps/{domain}/
 │   ├── {domain}_sup.erl
 │   ├── {domain}_store.erl
 │   │
-│   └── initialize_{dossier}/    ← Skeleton spoke
-│       ├── initialize_{dossier}_spoke_sup.erl
+│   └── initialize_{dossier}/    ← Skeleton desk
+│       ├── initialize_{dossier}_desk_sup.erl
 │       ├── initialize_{dossier}_v1.erl
 │       ├── {dossier}_initialized_v1.erl
 │       ├── maybe_initialize_{dossier}.erl
@@ -155,9 +155,9 @@ gitops-{project}/
 
 ---
 
-### 4. The Skeleton Spoke
+### 4. The Skeleton Desk
 
-**`initialize_{dossier}_v1`** — The simplest possible spoke.
+**`initialize_{dossier}_v1`** — The simplest possible desk.
 
 **Purpose:** Create a dossier with minimal data.
 
@@ -206,7 +206,7 @@ execute(#{mri := MRI}) ->
     query_capabilities_store:get(capabilities, MRI).
 ```
 
-**Why this spoke?**
+**Why this desk?**
 - No business logic (just creates empty dossier)
 - Tests full CMD → PRJ → QRY flow
 - Safe to deploy to production
@@ -221,7 +221,7 @@ execute(#{mri := MRI}) ->
 - [ ] Create codebase scaffold
 - [ ] Set up CI/CD pipeline
 - [ ] Configure GitOps repos
-- [ ] Implement `initialize_{dossier}_v1` spoke
+- [ ] Implement `initialize_{dossier}_v1` desk
 - [ ] Implement projection to read model
 - [ ] Implement simple query
 
@@ -273,7 +273,7 @@ curl https://{env}.example.com/api/{dossier}/test-001
 Once the skeleton walks, each feature follows the same path:
 
 ```
-1. Implement spoke locally
+1. Implement desk locally
 2. Write tests
 3. Verify (compile, dialyzer, eunit)
 4. Push to trigger CI
@@ -317,7 +317,7 @@ The Walking Skeleton is not optional. It is the **first task** of every project.
 
 - [HECATE_TnI](HECATE_TESTING_N_IMPLEMENTATION.md) — Testing & Implementation phase
 - [HECATE_ALC](HECATE_ALC.md) — The full lifecycle
-- [CODEGEN_ERLANG_TEMPLATES.md](../skills/codegen/erlang/CODEGEN_ERLANG_TEMPLATES.md) — Templates for spokes
+- [CODEGEN_ERLANG_TEMPLATES.md](../skills/codegen/erlang/CODEGEN_ERLANG_TEMPLATES.md) — Templates for desks
 - [CODEGEN_ERLANG_CHECKLISTS.md](../skills/codegen/erlang/CODEGEN_ERLANG_CHECKLISTS.md) — Generation checklists
 
 ---

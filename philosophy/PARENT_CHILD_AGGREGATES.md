@@ -1,14 +1,17 @@
 # Example: Parent-Child Aggregate Pattern
 
-*Canonical example: Torch → Cartwheel relationship*
+*Canonical example: Venture → Division relationship*
+
+> **Note:** This document has been updated to use current terminology (2026-02-10).
+> `torch` -> `venture`, `cartwheel` -> `division`, `spoke` -> `desk`.
 
 ---
 
 ## The Pattern
 
-When a parent aggregate (Torch) needs to create child aggregates (Cartwheels):
+When a parent aggregate (Venture) needs to create child aggregates (Divisions):
 
-1. **Parent IDENTIFIES** children (declares "I need X")
+1. **Parent DISCOVERS** children (declares "I need X")
 2. **Child INITIATES** itself (starts its own lifecycle)
 
 This separates:
@@ -20,13 +23,13 @@ This separates:
 ## Domain Model
 
 ```
-Torch (Business Endeavor)
-├── Has 0..N Cartwheels (Bounded Contexts)
-├── IDENTIFIES what cartwheels it needs
-└── Does NOT control cartwheel lifecycle
+Venture (Business Endeavor)
+├── Has 0..N Divisions (Bounded Contexts)
+├── DISCOVERS what divisions it needs
+└── Does NOT control division lifecycle
 
-Cartwheel (Bounded Context)
-├── Belongs to one Torch
+Division (Bounded Context)
+├── Belongs to one Venture
 ├── INITIATES its own lifecycle
 └── Manages its own phases (DnA, AnP, TnI, DnO)
 ```
@@ -36,20 +39,20 @@ Cartwheel (Bounded Context)
 ## Correct Flow
 
 ```
-User: "Create a torch with a cartwheel for user auth"
+User: "Create a venture with a division for user auth"
 
-1. POST /api/torch/initiate
-   → torch_initiated_v1 stored in Torch's stream
-   → torch_initiated_v1 emitted to mesh (optional)
+1. POST /api/venture/initiate
+   → venture_initiated_v1 stored in Venture's stream
+   → venture_initiated_v1 emitted to mesh (optional)
 
-2. POST /api/torches/:id/cartwheels/identify
-   → cartwheel_identified_v1 stored in Torch's stream
-   → cartwheel_identified_v1 emitted to mesh
+2. POST /api/ventures/:id/divisions/discover
+   → division_discovered_v1 stored in Venture's stream
+   → division_discovered_v1 emitted to mesh
 
-3. Cartwheel service listener receives fact
+3. Division service listener receives fact
    → Policy decides to initiate
-   → initiate_cartwheel_v1 command dispatched
-   → cartwheel_initiated_v1 stored in Cartwheel's stream
+   → initiate_division_v1 command dispatched
+   → division_initiated_v1 stored in Division's stream
 ```
 
 ---
@@ -57,49 +60,49 @@ User: "Create a torch with a cartwheel for user auth"
 ## Wrong Flow (Antipattern)
 
 ```
-❌ torch_initiated_v1 → automatically create cartwheel
+❌ venture_initiated_v1 → automatically create division
 ```
 
 **Why wrong:**
 - Assumes 1:1 relationship
-- No explicit decision about what cartwheels needed
+- No explicit decision about what divisions needed
 - Child creation happens without parent consent
-- Can't have torches with 0, 2, or 10 cartwheels
+- Can't have ventures with 0, 2, or 10 divisions
 
 ---
 
 ## Code Structure
 
-### manage_torches (Parent Domain)
+### discover_divisions (Parent Domain)
 
 ```
-apps/manage_torches/src/
-├── initiate_torch/
-│   ├── initiate_torch_v1.erl            # Command
-│   ├── torch_initiated_v1.erl           # Event
-│   ├── maybe_initiate_torch.erl         # Handler
-│   └── torch_initiated_v1_to_mesh.erl   # Emitter (optional)
+apps/discover_divisions/src/
+├── initiate_venture/
+│   ├── initiate_venture_v1.erl            # Command
+│   ├── venture_initiated_v1.erl           # Event
+│   ├── maybe_initiate_venture.erl         # Handler
+│   └── venture_initiated_v1_to_mesh.erl   # Emitter (optional)
 │
-└── identify_cartwheel/                   # Parent identifies children
-    ├── identify_cartwheel_v1.erl        # Command
-    ├── cartwheel_identified_v1.erl      # Event (in Torch stream!)
-    ├── maybe_identify_cartwheel.erl     # Handler
-    └── cartwheel_identified_v1_to_mesh.erl  # Emitter → mesh
+└── discover_division/                      # Parent discovers children
+    ├── discover_division_v1.erl           # Command
+    ├── division_discovered_v1.erl         # Event (in Venture stream!)
+    ├── maybe_discover_division.erl        # Handler
+    └── division_discovered_v1_to_mesh.erl # Emitter → mesh
 ```
 
-### manage_cartwheels (Child Domain)
+### design_division (Child Domain)
 
 ```
-apps/manage_cartwheels/src/
-└── initiate_cartwheel/
-    ├── initiate_cartwheel_v1.erl        # Command
-    ├── cartwheel_initiated_v1.erl       # Event (in Cartwheel stream!)
-    ├── maybe_initiate_cartwheel.erl     # Handler
+apps/design_division/src/
+└── initiate_division/
+    ├── initiate_division_v1.erl           # Command
+    ├── division_initiated_v1.erl          # Event (in Division stream!)
+    ├── maybe_initiate_division.erl        # Handler
     │
-    │ # Listener + Policy live IN this spoke (vertical slice)
-    ├── initiate_cartwheel_spoke_sup.erl
-    ├── subscribe_to_cartwheel_identified.erl           # Listener
-    └── on_cartwheel_identified_maybe_initiate_cartwheel.erl  # Policy
+    │ # Listener + Policy live IN this desk (vertical slice)
+    ├── initiate_division_desk_sup.erl
+    ├── subscribe_to_division_discovered.erl            # Listener
+    └── on_division_discovered_maybe_initiate_division.erl  # Policy
 ```
 
 ---
@@ -108,11 +111,11 @@ apps/manage_cartwheels/src/
 
 | Event | Stored In | Reason |
 |-------|-----------|--------|
-| `torch_initiated_v1` | Torch stream | Birth of torch |
-| `cartwheel_identified_v1` | Torch stream | Parent's decision |
-| `cartwheel_initiated_v1` | Cartwheel stream | Birth of cartwheel |
+| `venture_initiated_v1` | Venture stream | Birth of venture |
+| `division_discovered_v1` | Venture stream | Parent's decision |
+| `division_initiated_v1` | Division stream | Birth of division |
 
-**Key insight:** `cartwheel_identified_v1` belongs to the torch because it's the parent's decision about what children exist.
+**Key insight:** `division_discovered_v1` belongs to the venture because it's the parent's decision about what children exist.
 
 ---
 
@@ -120,7 +123,7 @@ apps/manage_cartwheels/src/
 
 | Action | Owner | Verb | Meaning |
 |--------|-------|------|---------|
-| **Identify** | Parent | "I need X" | Parent declares what children exist |
+| **Discover** | Parent | "I need X" | Parent declares what children exist |
 | **Initiate** | Child | "I exist" | Child starts its lifecycle |
 
 ---
@@ -128,39 +131,39 @@ apps/manage_cartwheels/src/
 ## API Endpoints
 
 ```http
-# Torch endpoints
-POST /api/torch/initiate           # Create a torch
-GET  /api/torches                  # List all torches
-GET  /api/torches/:torch_id        # Get specific torch
+# Venture endpoints
+POST /api/venture/initiate           # Create a venture
+GET  /api/ventures                   # List all ventures
+GET  /api/ventures/:venture_id       # Get specific venture
 
-# Cartwheel identification (on Torch!)
-POST /api/torches/:torch_id/cartwheels/identify
+# Division discovery (on Venture!)
+POST /api/ventures/:venture_id/divisions/discover
 
-# Cartwheel lifecycle (separate domain)
-GET  /api/cartwheels               # List all cartwheels
-GET  /api/cartwheels/:id           # Get specific cartwheel
+# Division lifecycle (separate domain)
+GET  /api/divisions                  # List all divisions
+GET  /api/divisions/:id              # Get specific division
 ```
 
 ---
 
 ## Listener Placement Rule
 
-The listener (`subscribe_to_cartwheel_identified`) lives **inside** the `initiate_cartwheel/` spoke, NOT as a separate spoke.
+The listener (`subscribe_to_division_discovered`) lives **inside** the `initiate_division/` desk, NOT as a separate desk.
 
-**Why?** Its sole purpose is to trigger cartwheel initiation. Vertical slicing means the spoke owns everything it needs.
+**Why?** Its sole purpose is to trigger division initiation. Vertical slicing means the desk owns everything it needs.
 
 ```
 ❌ WRONG:
-manage_cartwheels/src/
-├── subscribe_to_cartwheel_identified/   # Separate spoke
-└── initiate_cartwheel/                  # Another spoke
+design_division/src/
+├── subscribe_to_division_discovered/    # Separate desk
+└── initiate_division/                   # Another desk
 
 ✅ CORRECT:
-manage_cartwheels/src/
-└── initiate_cartwheel/
+design_division/src/
+└── initiate_division/
     ├── ...command, event, handler...
-    ├── subscribe_to_cartwheel_identified.erl   # IN the spoke
-    └── on_cartwheel_identified_maybe_initiate_cartwheel.erl
+    ├── subscribe_to_division_discovered.erl    # IN the desk
+    └── on_division_discovered_maybe_initiate_division.erl
 ```
 
 ---
@@ -171,91 +174,91 @@ manage_cartwheels/src/
 on_{source_event}_{action}_{target}
 ```
 
-Example: `on_cartwheel_identified_maybe_initiate_cartwheel`
+Example: `on_division_discovered_maybe_initiate_division`
 
-- **Source:** `cartwheel_identified` (from manage_torches)
+- **Source:** `division_discovered` (from discover_divisions)
 - **Action:** `maybe_initiate` (policy decision)
-- **Target:** `cartwheel` (in manage_cartwheels)
+- **Target:** `division` (in design_division)
 
 ---
 
 ## Complete Erlang Example
 
-### identify_cartwheel_v1.erl (Command)
+### discover_division_v1.erl (Command)
 
 ```erlang
--module(identify_cartwheel_v1).
+-module(discover_division_v1).
 -export([new/1, validate/1, to_map/1, from_map/1]).
 
--record(identify_cartwheel_v1, {
-    torch_id      :: binary(),
-    context_name  :: binary(),
-    description   :: binary() | undefined,
-    identified_by :: binary() | undefined
+-record(discover_division_v1, {
+    venture_id     :: binary(),
+    context_name   :: binary(),
+    description    :: binary() | undefined,
+    discovered_by  :: binary() | undefined
 }).
 
-new(#{torch_id := TorchId, context_name := ContextName} = Params) ->
-    {ok, #identify_cartwheel_v1{
-        torch_id = TorchId,
+new(#{venture_id := VentureId, context_name := ContextName} = Params) ->
+    {ok, #discover_division_v1{
+        venture_id = VentureId,
         context_name = ContextName,
         description = maps:get(description, Params, undefined),
-        identified_by = maps:get(identified_by, Params, undefined)
+        discovered_by = maps:get(discovered_by, Params, undefined)
     }};
 new(_) ->
     {error, missing_required_fields}.
 ```
 
-### cartwheel_identified_v1.erl (Event)
+### division_discovered_v1.erl (Event)
 
 ```erlang
--module(cartwheel_identified_v1).
+-module(division_discovered_v1).
 -export([new/1, to_map/1, from_map/1]).
 
--record(cartwheel_identified_v1, {
-    torch_id      :: binary(),
-    cartwheel_id  :: binary(),
-    context_name  :: binary(),
-    description   :: binary() | undefined,
-    identified_by :: binary() | undefined,
-    identified_at :: non_neg_integer()
+-record(division_discovered_v1, {
+    venture_id     :: binary(),
+    division_id    :: binary(),
+    context_name   :: binary(),
+    description    :: binary() | undefined,
+    discovered_by  :: binary() | undefined,
+    discovered_at  :: non_neg_integer()
 }).
 
-new(#{torch_id := TorchId, context_name := ContextName} = Params) ->
-    CartwheelId = maps:get(cartwheel_id, Params, generate_id()),
-    {ok, #cartwheel_identified_v1{
-        torch_id = TorchId,
-        cartwheel_id = CartwheelId,
+new(#{venture_id := VentureId, context_name := ContextName} = Params) ->
+    DivisionId = maps:get(division_id, Params, generate_id()),
+    {ok, #division_discovered_v1{
+        venture_id = VentureId,
+        division_id = DivisionId,
         context_name = ContextName,
         description = maps:get(description, Params, undefined),
-        identified_by = maps:get(identified_by, Params, undefined),
-        identified_at = erlang:system_time(millisecond)
+        discovered_by = maps:get(discovered_by, Params, undefined),
+        discovered_at = erlang:system_time(millisecond)
     }}.
 ```
 
 ### Policy (Clean Code)
 
 ```erlang
--module(on_cartwheel_identified_maybe_initiate_cartwheel).
+-module(on_division_discovered_maybe_initiate_division).
 -export([handle/1]).
 
 handle(FactData) ->
     Params = extract_params(FactData),
     Result = do_initiate(Params),
-    log_result(maps:get(cartwheel_id, Params), Result),
+    log_result(maps:get(division_id, Params), Result),
     Result.
 
 extract_params(FactData) ->
     #{
-        cartwheel_id => get_field(cartwheel_id, FactData),
-        torch_id => get_field(torch_id, FactData),
+        division_id => get_field(division_id, FactData),
+        venture_id => get_field(venture_id, FactData),
         context_name => get_field(context_name, FactData),
         description => get_field(description, FactData)
     }.
 
 do_initiate(Params) ->
-    with_command(initiate_cartwheel_v1:new(Params)).
+    with_command(initiate_division_v1:new(Params)).
 
-with_command({ok, Cmd}) -> dispatch(maybe_initiate_cartwheel:dispatch(Cmd));
+with_command({ok, Cmd}) -> dispatch(maybe_initiate_division:dispatch(Cmd));
 with_command({error, _} = E) -> E.
 
 dispatch({ok, _, _}) -> ok;
@@ -266,9 +269,9 @@ dispatch({error, _} = E) -> E.
 
 ## Key Takeaways
 
-1. **Parent identifies, child initiates** - Clear separation of concerns
-2. **Events belong to aggregate that makes decision** - `cartwheel_identified` in torch stream
-3. **Listeners live in spoke they trigger** - Vertical slicing
+1. **Parent discovers, child initiates** - Clear separation of concerns
+2. **Events belong to aggregate that makes decision** - `division_discovered` in venture stream
+3. **Listeners live in desk they trigger** - Vertical slicing
 4. **No auto-creation** - Explicit decisions about what exists
 5. **Policy contains "maybe"** - Conditional logic is explicit
 

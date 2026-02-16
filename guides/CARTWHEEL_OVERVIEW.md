@@ -1,22 +1,24 @@
-# Cartwheel Architecture: Overview
+# Division Architecture: Overview
+
+> *Note: "Cartwheel" is the historical name for what is now called "Division Architecture".*
 
 > *"Majestic Modularity"* — A conceptual framework for organizing event-sourced systems using vertical slices.
 
-![Cartwheel Architecture](../assets/cartwheel-architecture.svg)
+![Division Architecture](../assets/cartwheel-architecture.svg)
 
-## What is Cartwheel?
+## What is Division Architecture?
 
-The Cartwheel Architecture is a visual and conceptual model for organizing complex, event-sourced systems. It provides a powerful mental model for understanding how different parts of a system relate to each other.
+The Division Architecture is a visual and conceptual model for organizing complex, event-sourced systems. It provides a powerful mental model for understanding how different parts of a system relate to each other.
 
 Think of it as a wheel:
 
 | Component | What it Represents | In Hecate |
 |-----------|-------------------|-----------|
 | **Hub** | Aggregate State (the core domain) | Domain aggregates (`*_aggregate.erl`) |
-| **Spokes** | Vertical Slices (business capabilities) | Command slices (`announce_capability/`, `track_rpc_call/`, etc.) |
+| **Desks** | Vertical Slices (business capabilities) | Command slices (`announce_capability/`, `track_rpc_call/`, etc.) |
 | **Outer Ring** | Integration Infrastructure | Storage, Messaging, Telemetry, Caching |
 
-## Why Cartwheel?
+## Why Division Architecture?
 
 Traditional layered architectures organize code by **technical concern**:
 
@@ -30,10 +32,10 @@ Traditional layered architectures organize code by **technical concern**:
 
 This means understanding "how do we announce a capability?" requires reading files across 4+ directories.
 
-Cartwheel organizes code by **business capability**:
+Division Architecture organizes code by **business capability**:
 
 ```
-✅ GOOD: Vertical Slices (Spokes)
+✅ GOOD: Vertical Slices (Desks)
 ├── announce_capability/
 │   ├── announce_capability_v1.erl    # Command
 │   ├── capability_announced_v1.erl   # Event
@@ -49,7 +51,7 @@ Now understanding "how do we announce a capability?" means reading **one directo
 
 ## The Three Sequences
 
-Cartwheel defines three fundamental data flows. Each has its own detailed guide:
+Division Architecture defines three fundamental data flows. Each has its own detailed guide:
 
 | Sequence | Purpose | Guide |
 |----------|---------|-------|
@@ -61,12 +63,12 @@ Cartwheel defines three fundamental data flows. Each has its own detailed guide:
 
 ## Core Principles
 
-### 1. Spokes = Vertical Slices
+### 1. Desks = Vertical Slices
 
-Each spoke represents a complete business capability:
+Each desk represents a complete business capability:
 
 - **Self-contained**: Contains all code needed for that capability
-- **Named by command**: The spoke is named after the command it handles (`announce_capability/`)
+- **Named by command**: The desk is named after the command it handles (`announce_capability/`)
 - **"Screams" intent**: You know what it does just by looking at the directory name
 - **Unit of deployment**: Can be deployed and scaled independently
 
@@ -80,7 +82,7 @@ The hub is where domain state lives:
 
 ### 3. The Ring = Integration Infrastructure
 
-The outer ring provides services that all spokes connect to:
+The outer ring provides services that all desks connect to:
 
 - **Storage**: Event store (ReckonDB), Read models (SQLite)
 - **Messaging**: Mesh pub/sub for inter-agent communication
@@ -107,7 +109,7 @@ Events and Facts are **NOT the same thing**:
 
 ## Integration Components
 
-The Cartwheel defines four integration components for mesh communication:
+The Division Architecture defines four integration components for mesh communication:
 
 | Component | Direction | Purpose |
 |-----------|-----------|---------|
@@ -175,10 +177,10 @@ The key question: Does this external data need to affect your aggregate state? I
 
 ## Mapping to Hecate
 
-| Cartwheel Concept | Hecate Implementation |
+| Division Concept | Hecate Implementation |
 |-------------------|----------------------|
 | Hub (Aggregate) | `*_aggregate.erl` modules |
-| Spokes (Slices) | `apps/manage_*/src/{command}/` directories |
+| Desks (Slices) | `apps/manage_*/src/{command}/` directories |
 | Event Log | ReckonDB (embedded) |
 | Read Models | SQLite databases |
 | Emitter | `*_to_mesh.erl` modules |
@@ -194,7 +196,7 @@ The key question: Does this external data need to affect your aggregate state? I
 | Mesh subscriber → projection directly | Bypasses command/aggregate flow | Use Listener → COMMAND → Aggregate |
 | Horizontal directories | Makes features hard to find | Use vertical slices |
 | "Services" layer | Creates artificial separation | Put logic in handlers |
-| Central event dispatcher | God-module, violates slicing | Each spoke handles its own events |
+| Central event dispatcher | God-module, violates slicing | Each desk handles its own events |
 
 ## Next Steps
 
@@ -211,4 +213,4 @@ Dive deeper into each sequence:
 
 ---
 
-*The Cartwheel Architecture helps us build systems that are easy to understand, maintain, and scale. By organizing code around business capabilities instead of technical layers, we create systems where the code structure itself documents the domain.*
+*The Division Architecture (Cartwheel) helps us build systems that are easy to understand, maintain, and scale. By organizing code around business capabilities instead of technical layers, we create systems where the code structure itself documents the domain.*

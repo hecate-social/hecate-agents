@@ -10,10 +10,10 @@
 |---|------|-----------------|------|
 | 1 | Technical Names Don't Scream | Slice names describe HOW not WHAT | 2026-02-04 |
 | 2 | Parallel Domain Infrastructure | Duplicate infrastructure across domains | 2026-02-04 |
-| 3 | Incomplete Spokes / Flat Workers | Missing spoke supervisors and components | 2026-02-04 |
+| 3 | Incomplete Desks / Flat Workers | Missing desk supervisors and components | 2026-02-04 |
 | 4 | Missing or Wrong "Birth" Event | Must use `{agg}_initiated_v1` | 2026-02-08 |
 | 5 | Auto-Creating Child Aggregates | Parent IDENTIFIES, child INITIATES | 2026-02-08 |
-| 6 | Listeners as Separate Spokes | Listener for spoke X belongs IN spoke X | 2026-02-08 |
+| 6 | Listeners as Separate Desks | Listener for desk X belongs IN desk X | 2026-02-08 |
 | 7 | Using Mesh for Internal Integration | Use pg internally, mesh for WAN only | 2026-02-08 |
 | 8 | Centralized Listener Supervisors | No central supervisor for all listeners | 2026-02-08 |
 | 9 | Direct Creation Endpoints for Child Aggregates | Children created through parents only | 2026-02-09 |
@@ -32,6 +32,7 @@
 | 22 | Manual Event Emission from API Handlers | Emitters subscribe via evoq, not called from handlers | 2026-02-13 |
 | 23 | Raw #event{} Records in Projections | Projections receive records, call maps:find on tuples | 2026-02-13 |
 | 24 | Silent Subscription Pipeline Failures | POST succeeds, GET returns [] — three bugs, zero errors | 2026-02-13 |
+| 25 | Centralized Route Registration Files | One file per app listing all routes — horizontal grouping | 2026-02-16 |
 
 ---
 
@@ -55,7 +56,7 @@ Demons #1, #13, #16, #17. Naming violations where module, event, or command name
 
 ### [ANTIPATTERNS_STRUCTURE.md](ANTIPATTERNS_STRUCTURE.md) — Code Organization Violations
 
-Demons #3, #6, #8, #14, #18. Structural mistakes where code is organized by technical concern instead of business capability.
+Demons #3, #6, #8, #14, #18, #25. Structural mistakes where code is organized by technical concern instead of business capability.
 
 ### [ANTIPATTERNS_DOMAIN.md](ANTIPATTERNS_DOMAIN.md) — Domain Modeling Mistakes
 

@@ -2,6 +2,9 @@
 
 *Canonical example: Cross-domain coordination without tight coupling*
 
+> **Note:** This document has been updated to use current terminology (2026-02-10).
+> `torch` -> `venture`, `cartwheel` -> `division`, `spoke` -> `desk`.
+
 ---
 
 ## The Pattern
@@ -37,20 +40,20 @@ This creates **tight coupling**. Domain A must know:
 ## Wrong Way (Direct Cross-Domain Calls)
 
 ```erlang
-%% In manage_torches/src/identify_cartwheel/maybe_identify_cartwheel.erl
+%% In discover_divisions/src/discover_division/maybe_discover_division.erl
 %% ❌ WRONG: Handler directly calls another domain
 
 handle(Cmd) ->
     %% Handle our domain event
-    Event = cartwheel_identified_v1:new(Cmd),
+    Event = division_discovered_v1:new(Cmd),
     ok = store_event(Event),
 
     %% ❌ WRONG: Direct call to another domain!
-    CartwheelCmd = initiate_cartwheel_v1:new(#{
-        cartwheel_id => Event#cartwheel_identified_v1.cartwheel_id,
-        torch_id => Event#cartwheel_identified_v1.torch_id
+    DivisionCmd = initiate_division_v1:new(#{
+        division_id => Event#division_discovered_v1.division_id,
+        venture_id => Event#division_discovered_v1.venture_id
     }),
-    maybe_initiate_cartwheel:handle(CartwheelCmd),  %% ❌ TIGHT COUPLING
+    maybe_initiate_division:handle(DivisionCmd),  %% ❌ TIGHT COUPLING
 
     {ok, [Event]}.
 ```
@@ -63,26 +66,26 @@ handle(Cmd) ->
 | Can't test A without B | Slower, more complex tests |
 | Circular dependencies possible | Compilation errors, confusion |
 | Hidden integration points | Hard to understand data flow |
-| No policy decisions | Always creates cartwheel, no conditions |
+| No policy decisions | Always creates division, no conditions |
 
 ---
 
 ## Correct Way (Process Manager)
 
 ```
-Domain A (manage_torches)
-    ↓ stores cartwheel_identified_v1 event
+Domain A (discover_divisions)
+    ↓ stores division_discovered_v1 event
     ↓ emitter publishes fact to mesh (optional)
 
-Process Manager (on_cartwheel_identified_maybe_initiate_cartwheel)
-    ↓ subscribes to cartwheel_identified facts
+Process Manager (on_division_discovered_maybe_initiate_division)
+    ↓ subscribes to division_discovered facts
     ↓ policy: decides IF and HOW to initiate
-    ↓ creates initiate_cartwheel_v1 command
+    ↓ creates initiate_division_v1 command
     ↓ dispatches to target aggregate
 
-Domain B (manage_cartwheels)
+Domain B (design_division)
     ↓ receives command
-    ↓ stores cartwheel_initiated_v1 event
+    ↓ stores division_initiated_v1 event
 ```
 
 **Benefits:**
@@ -106,15 +109,15 @@ on_{source_event}_{action}_{target}
 | Component | Meaning | Example |
 |-----------|---------|---------|
 | `on_` | Triggered by | Prefix |
-| `{source_event}` | What happened | `cartwheel_identified` |
+| `{source_event}` | What happened | `division_discovered` |
 | `{action}` | What we do | `maybe_initiate` |
-| `{target}` | What we affect | `cartwheel` |
+| `{target}` | What we affect | `division` |
 
 **Examples:**
 
 | Name | Source | Action | Target |
 |------|--------|--------|--------|
-| `on_cartwheel_identified_maybe_initiate_cartwheel` | cartwheel_identified | maybe_initiate | cartwheel |
+| `on_division_discovered_maybe_initiate_division` | division_discovered | maybe_initiate | division |
 | `on_user_registered_send_welcome_email` | user_registered | send | welcome_email |
 | `on_order_placed_reserve_inventory` | order_placed | reserve | inventory |
 | `on_payment_received_fulfill_order` | payment_received | fulfill | order |
@@ -129,16 +132,16 @@ on_{source_event}_{action}_{target}
 **Process managers live in the TARGET domain** (the domain receiving the command).
 
 ```
-manage_cartwheels/src/            # TARGET domain
-└── initiate_cartwheel/           # Spoke for this operation
-    ├── initiate_cartwheel_v1.erl
-    ├── cartwheel_initiated_v1.erl
-    ├── maybe_initiate_cartwheel.erl
+design_division/src/              # TARGET domain
+└── initiate_division/            # Desk for this operation
+    ├── initiate_division_v1.erl
+    ├── division_initiated_v1.erl
+    ├── maybe_initiate_division.erl
     │
-    │ # Process manager lives HERE (in target spoke)
-    ├── initiate_cartwheel_spoke_sup.erl
-    ├── subscribe_to_cartwheel_identified.erl        # Listener
-    └── on_cartwheel_identified_maybe_initiate_cartwheel.erl  # PM
+    │ # Process manager lives HERE (in target desk)
+    ├── initiate_division_desk_sup.erl
+    ├── subscribe_to_division_discovered.erl          # Listener
+    └── on_division_discovered_maybe_initiate_division.erl  # PM
 ```
 
 **Why target domain?**
@@ -153,21 +156,21 @@ manage_cartwheels/src/            # TARGET domain
 ### 1. The Listener (Subscribes to Source Events)
 
 ```erlang
-%%% @doc Listener: Subscribe to cartwheel_identified facts from mesh
+%%% @doc Listener: Subscribe to division_discovered facts from mesh
 %%%
-%%% Subscribes to mesh topic `hecate.torch.cartwheel_identified`.
-%%% When a torch identifies a cartwheel, this listener receives the fact
+%%% Subscribes to mesh topic `hecate.venture.division_discovered`.
+%%% When a venture discovers a division, this listener receives the fact
 %%% and forwards it to the policy for processing.
 %%%
 %%% Flow: Mesh FACT -> Listener -> Policy -> Command -> Aggregate
 %%% @end
--module(subscribe_to_cartwheel_identified).
+-module(subscribe_to_division_discovered).
 -behaviour(gen_server).
 
 -export([start_link/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
 
--define(TOPIC, <<"hecate.torch.cartwheel_identified">>).
+-define(TOPIC, <<"hecate.venture.division_discovered">>).
 
 -record(state, {
     subscription :: reference() | undefined
@@ -194,7 +197,7 @@ handle_info(subscribe, State) ->
 
 %% Receive fact from mesh and forward to process manager
 handle_info({mesh_fact, ?TOPIC, FactData}, State) ->
-    on_cartwheel_identified_maybe_initiate_cartwheel:handle(FactData),
+    on_division_discovered_maybe_initiate_division:handle(FactData),
     {noreply, State};
 
 handle_info(_Info, State) ->
@@ -224,68 +227,68 @@ unsubscribe(SubRef) -> hecate_mesh_client:unsubscribe(SubRef).
 ### 2. The Process Manager (Makes Decisions, Dispatches Commands)
 
 ```erlang
-%%% @doc Policy/Process Manager: React to cartwheel_identified facts
+%%% @doc Policy/Process Manager: React to division_discovered facts
 %%%
-%%% When a torch identifies a cartwheel (bounded context), this policy
-%%% decides whether and how to initiate that cartwheel.
+%%% When a venture discovers a division (bounded context), this policy
+%%% decides whether and how to initiate that division.
 %%%
 %%% Naming convention: on_{source_event}_{action}_{target}
-%%% - Source: cartwheel_identified (from manage_torches)
+%%% - Source: division_discovered (from discover_divisions)
 %%% - Action: maybe_initiate (policy decision)
-%%% - Target: cartwheel (in manage_cartwheels)
+%%% - Target: division (in design_division)
 %%%
-%%% Current policy: Always initiate a cartwheel with the same name.
+%%% Current policy: Always initiate a division with the same name.
 %%% Future policies may:
-%%% - Skip initiation based on cartwheel type
+%%% - Skip initiation based on division type
 %%% - Create with different configurations
 %%% - Wait for additional conditions
 %%%
 %%% @end
--module(on_cartwheel_identified_maybe_initiate_cartwheel).
+-module(on_division_discovered_maybe_initiate_division).
 
 -export([handle/1]).
 
-%% @doc Handle a cartwheel_identified fact and potentially initiate the cartwheel
+%% @doc Handle a division_discovered fact and potentially initiate the division
 -spec handle(map()) -> ok | {error, term()}.
 handle(FactData) ->
-    TorchId = get_field(torch_id, FactData),
-    CartwheelId = get_field(cartwheel_id, FactData),
+    VentureId = get_field(venture_id, FactData),
+    DivisionId = get_field(division_id, FactData),
     ContextName = get_field(context_name, FactData),
     Description = get_field(description, FactData),
 
-    logger:debug("[policy] Processing cartwheel ~s (~s) from torch ~s",
-                [CartwheelId, ContextName, TorchId]),
+    logger:debug("[policy] Processing division ~s (~s) from venture ~s",
+                [DivisionId, ContextName, VentureId]),
 
     %% Policy: Always initiate (future: conditional)
     do_initiate(#{
-        cartwheel_id => CartwheelId,
-        torch_id => TorchId,
+        division_id => DivisionId,
+        venture_id => VentureId,
         context_name => ContextName,
         description => Description
     }).
 
-%% @doc Create and dispatch the initiate_cartwheel command
+%% @doc Create and dispatch the initiate_division command
 -spec do_initiate(map()) -> ok | {error, term()}.
 do_initiate(Params) ->
     Result = create_and_dispatch(Params),
-    log_result(maps:get(cartwheel_id, Params), Result),
+    log_result(maps:get(division_id, Params), Result),
     Result.
 
 create_and_dispatch(Params) ->
-    with_command(initiate_cartwheel_v1:new(Params)).
+    with_command(initiate_division_v1:new(Params)).
 
 with_command({ok, Cmd}) ->
-    dispatch(maybe_initiate_cartwheel:dispatch(Cmd));
+    dispatch(maybe_initiate_division:dispatch(Cmd));
 with_command({error, _} = Error) ->
     Error.
 
 dispatch({ok, _Version, _Events}) -> ok;
 dispatch({error, _} = Error) -> Error.
 
-log_result(CartwheelId, ok) ->
-    logger:info("[policy] Cartwheel ~s initiated", [CartwheelId]);
-log_result(CartwheelId, {error, Reason}) ->
-    logger:error("[policy] Failed to initiate cartwheel ~s: ~p", [CartwheelId, Reason]).
+log_result(DivisionId, ok) ->
+    logger:info("[policy] Division ~s initiated", [DivisionId]);
+log_result(DivisionId, {error, Reason}) ->
+    logger:error("[policy] Failed to initiate division ~s: ~p", [DivisionId, Reason]).
 
 %% @private Get field from map supporting both atom and binary keys
 get_field(Key, Map) when is_atom(Key) ->
@@ -293,19 +296,19 @@ get_field(Key, Map) when is_atom(Key) ->
     maps:get(Key, Map, maps:get(BinKey, Map, undefined)).
 ```
 
-### 3. The Spoke Supervisor (Owns Listener + PM)
+### 3. The Desk Supervisor (Owns Listener + PM)
 
 ```erlang
-%%% @doc Spoke supervisor for initiate_cartwheel
+%%% @doc Desk supervisor for initiate_division
 %%%
 %%% Supervises:
-%%% - subscribe_to_cartwheel_identified (listener)
+%%% - subscribe_to_division_discovered (listener)
 %%% - Workers as needed
 %%%
 %%% The process manager module doesn't need supervision as it's
 %%% stateless - called synchronously by the listener.
 %%% @end
--module(initiate_cartwheel_spoke_sup).
+-module(initiate_division_desk_sup).
 -behaviour(supervisor).
 
 -export([start_link/0]).
@@ -317,8 +320,8 @@ start_link() ->
 init([]) ->
     Children = [
         #{
-            id => subscribe_to_cartwheel_identified,
-            start => {subscribe_to_cartwheel_identified, start_link, []},
+            id => subscribe_to_division_discovered,
+            start => {subscribe_to_division_discovered, start_link, []},
             restart => permanent,
             type => worker
         }
@@ -331,7 +334,7 @@ init([]) ->
 ## Process Manager with Conditional Logic
 
 ```erlang
-%% Example: Only initiate for certain cartwheel types
+%% Example: Only initiate for certain division types
 
 handle(FactData) ->
     ContextName = get_field(context_name, FactData),
@@ -358,18 +361,18 @@ should_auto_initiate(_) -> false.  %% Manual initiation required
 | PM in source domain | Source knows too much about target | PM in target domain |
 | PM without "maybe" in name | Hides conditional nature | Include "maybe" if conditional |
 | Direct event passing | Bypasses command validation | Create proper command |
-| Global event bus subscription | Hidden dependencies | Explicit listener in spoke |
+| Global event bus subscription | Hidden dependencies | Explicit listener in desk |
 
 ---
 
 ## Supervision Hierarchy
 
 ```
-manage_cartwheels_sup (domain supervisor)
-├── initiate_cartwheel_spoke_sup
-│   └── subscribe_to_cartwheel_identified (listener worker)
-│       └── calls on_cartwheel_identified_maybe_initiate_cartwheel:handle/1
-├── another_spoke_sup
+design_division_sup (domain supervisor)
+├── initiate_division_desk_sup
+│   └── subscribe_to_division_discovered (listener worker)
+│       └── calls on_division_discovered_maybe_initiate_division:handle/1
+├── another_desk_sup
 │   └── ...
 └── ...
 ```
@@ -382,34 +385,34 @@ manage_cartwheels_sup (domain supervisor)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                     DOMAIN A (manage_torches)                   │
+│                   DOMAIN A (discover_divisions)                  │
 │                                                                 │
-│  Command: identify_cartwheel_v1                                 │
+│  Command: discover_division_v1                                  │
 │      ↓                                                          │
-│  Handler: maybe_identify_cartwheel                              │
+│  Handler: maybe_discover_division                               │
 │      ↓                                                          │
-│  Event: cartwheel_identified_v1 → stored in Torch stream        │
+│  Event: division_discovered_v1 → stored in Venture stream       │
 │      ↓                                                          │
-│  Emitter: cartwheel_identified_v1_to_mesh → publishes FACT      │
+│  Emitter: division_discovered_v1_to_mesh → publishes FACT       │
 └─────────────────────────────────────────────────────────────────┘
                                 ↓
                     ════════════════════════════
                          MESH (loose coupling)
-                         Topic: hecate.torch.cartwheel_identified
+                         Topic: hecate.venture.division_discovered
                     ════════════════════════════
                                 ↓
 ┌─────────────────────────────────────────────────────────────────┐
-│                   DOMAIN B (manage_cartwheels)                  │
+│                   DOMAIN B (design_division)                    │
 │                                                                 │
-│  Listener: subscribe_to_cartwheel_identified                    │
+│  Listener: subscribe_to_division_discovered                     │
 │      ↓ receives FACT                                            │
-│  Process Manager: on_cartwheel_identified_maybe_initiate        │
+│  Process Manager: on_division_discovered_maybe_initiate         │
 │      ↓ policy decision + creates command                        │
-│  Command: initiate_cartwheel_v1                                 │
+│  Command: initiate_division_v1                                  │
 │      ↓                                                          │
-│  Handler: maybe_initiate_cartwheel                              │
+│  Handler: maybe_initiate_division                               │
 │      ↓                                                          │
-│  Event: cartwheel_initiated_v1 → stored in Cartwheel stream     │
+│  Event: division_initiated_v1 → stored in Division stream       │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -421,7 +424,7 @@ manage_cartwheels_sup (domain supervisor)
 2. **PM lives in TARGET domain** - It knows how to construct target commands
 3. **Naming convention reveals purpose** - `on_{event}_{action}_{target}`
 4. **"Maybe" indicates policy** - The PM can choose not to act
-5. **Listener + PM in same spoke** - Vertical slicing applies
+5. **Listener + PM in same desk** - Vertical slicing applies
 6. **PM is stateless** - Called by listener, no process needed
 7. **Loose coupling enables testing** - Each domain testable in isolation
 
@@ -450,4 +453,4 @@ This example teaches:
 - Flow from source event to target command
 
 *Date: 2026-02-08*
-*Origin: Hecate Torch → Cartwheel integration*
+*Origin: Hecate Venture → Division integration*

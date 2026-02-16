@@ -47,7 +47,7 @@ Organize by **business capability**:
 ✅ VERTICAL (Business Slices)
 src/
 ├── announce_capability/
-│   ├── announce_capability_spoke_sup.erl
+│   ├── announce_capability_desk_sup.erl
 │   ├── announce_capability_v1.erl
 │   ├── capability_announced_v1.erl
 │   ├── maybe_announce_capability.erl
@@ -141,19 +141,19 @@ If it's business-specific, it's not shared — it belongs in a feature.
 
 ---
 
-## The Spoke as Unit
+## The Desk as Unit
 
-In Cartwheel, the vertical slice is called a **spoke**.
+In Division Architecture, the vertical slice is called a **desk**.
 
-Each spoke:
+Each desk:
 - Has its own supervisor
 - Contains all its workers
 - Owns its piece of the domain
 - Can be deployed independently
 
 ```
-announce_capability/           ← SPOKE
-├── announce_capability_spoke_sup.erl    ← Supervisor
+announce_capability/           ← DESK
+├── announce_capability_desk_sup.erl     ← Supervisor
 ├── announce_capability_v1.erl           ← Command
 ├── capability_announced_v1.erl          ← Event
 ├── maybe_announce_capability.erl        ← Handler
@@ -161,7 +161,7 @@ announce_capability/           ← SPOKE
 └── capability_announced_to_mesh.erl     ← Emitter
 ```
 
-The spoke is the **unit of change**.
+The desk is the **unit of change**.
 
 ---
 
@@ -177,7 +177,7 @@ ls src/
 
 ### 2. Isolation
 
-Changes to `announce_capability` don't touch `revoke_capability`. Each spoke is independent.
+Changes to `announce_capability` don't touch `revoke_capability`. Each desk is independent.
 
 ### 3. Testability
 
@@ -229,7 +229,7 @@ Fight the creep. Every time you want to add to a horizontal directory, ask: "Whi
 ## See Also
 
 - [SCREAMING_ARCHITECTURE.md](SCREAMING_ARCHITECTURE.md) — Names that reveal intent
-- [CARTWHEEL.md](CARTWHEEL.md) — The full architecture
+- [CARTWHEEL.md](CARTWHEEL.md) — The Division Architecture
 - [DDD.md](DDD.md) — The Dossier Principle
 
 ---

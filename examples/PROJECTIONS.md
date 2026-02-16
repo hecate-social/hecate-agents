@@ -117,12 +117,12 @@ execute(OrderId) ->
 %% @doc Project finding_recorded_v1 event.
 %% Pre-computes all derived data and updates denormalized counters.
 -spec project(map()) -> ok | {error, term()}.
-project(#{finding_id := FId, cartwheel_id := PId, category := Cat, title := Title} = E) ->
+project(#{finding_id := FId, division_id := PId, category := Cat, title := Title} = E) ->
     %% Insert the finding itself
     InsertSql = "INSERT OR REPLACE INTO findings "
-                "(finding_id, cartwheel_id, category, title, content, priority, recorded_at) "
+                "(finding_id, division_id, category, title, content, priority, recorded_at) "
                 "VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-    ok = query_cartwheels_store:execute(InsertSql, [
+    ok = query_divisions_store:execute(InsertSql, [
         FId,
         PId,
         Cat,
@@ -133,9 +133,9 @@ project(#{finding_id := FId, cartwheel_id := PId, category := Cat, title := Titl
     ]),
 
     %% Update denormalized counter on parent (no join needed at query time)
-    CountSql = "UPDATE cartwheels SET finding_count = finding_count + 1 "
-               "WHERE cartwheel_id = ?1",
-    query_cartwheels_store:execute(CountSql, [PId]).
+    CountSql = "UPDATE divisions SET finding_count = finding_count + 1 "
+               "WHERE division_id = ?1",
+    query_divisions_store:execute(CountSql, [PId]).
 ```
 
 ### Store denormalized for fast reads
@@ -298,29 +298,29 @@ project_event(_UnknownType, _EventData) ->
 ### Projection Module Template
 
 ```erlang
-%%% @doc Projection: cartwheel_initiated_v1 -> cartwheels table
--module(cartwheel_initiated_v1_to_cartwheels).
+%%% @doc Projection: division_initiated_v1 -> divisions table
+-module(division_initiated_v1_to_divisions).
 
 -export([project/1]).
 
-%% @doc Project cartwheel_initiated_v1 event to cartwheels table.
+%% @doc Project division_initiated_v1 event to divisions table.
 %% All calculations done here, read model is denormalized.
 -spec project(map()) -> ok | {error, term()}.
 project(#{
-    cartwheel_id := CartwheelId,
-    torch_id := TorchId,
+    division_id := DivisionId,
+    venture_id := VentureId,
     context_name := ContextName,
     initiated_at := InitiatedAt
 } = Event) ->
     %% Store denormalized - everything needed for queries in one row
-    Sql = "INSERT OR REPLACE INTO cartwheels "
-          "(cartwheel_id, torch_id, context_name, description, "
+    Sql = "INSERT OR REPLACE INTO divisions "
+          "(division_id, venture_id, context_name, description, "
           " current_phase, status, initiated_at) "
           "VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
 
-    query_cartwheels_store:execute(Sql, [
-        CartwheelId,
-        TorchId,
+    query_divisions_store:execute(Sql, [
+        DivisionId,
+        VentureId,
         ContextName,
         maps:get(description, Event, undefined),
         <<"discovery_n_analysis">>,  %% Initial phase
@@ -339,10 +339,10 @@ project(_InvalidEvent) ->
 ### 1. Denormalize for reads
 
 ```sql
--- Read model for cartwheels dashboard
-CREATE TABLE cartwheels (
-    cartwheel_id TEXT PRIMARY KEY,
-    torch_id TEXT,
+-- Read model for divisions dashboard
+CREATE TABLE divisions (
+    division_id TEXT PRIMARY KEY,
+    venture_id TEXT,
     context_name TEXT NOT NULL,
     description TEXT,
     current_phase TEXT DEFAULT 'discovery_n_analysis',
@@ -352,7 +352,7 @@ CREATE TABLE cartwheels (
     finding_count INTEGER DEFAULT 0,
     term_count INTEGER DEFAULT 0,
     dossier_count INTEGER DEFAULT 0,
-    spoke_count INTEGER DEFAULT 0,
+    desk_count INTEGER DEFAULT 0,
 
     -- Denormalized progress flags
     plan_approved INTEGER DEFAULT 0,
@@ -366,8 +366,8 @@ CREATE TABLE cartwheels (
 );
 
 -- Query is now a simple SELECT, no joins
-SELECT * FROM cartwheels
-WHERE torch_id = ? AND current_phase = 'testing_n_implementation';
+SELECT * FROM divisions
+WHERE venture_id = ? AND current_phase = 'testing_n_implementation';
 ```
 
 ### 2. One projection per event type
@@ -387,7 +387,7 @@ project(Event) ->
     ok = insert_finding(Event),
 
     %% 2. Update denormalized counter on parent
-    ok = increment_finding_count(maps:get(cartwheel_id, Event)).
+    ok = increment_finding_count(maps:get(division_id, Event)).
 ```
 
 ### 4. Handle event versioning
@@ -416,26 +416,26 @@ project_v2(#{finding_id := Id, title := Title, priority := Priority} = E) ->
 ## Directory Structure
 
 ```
-apps/query_cartwheels/src/
-├── query_cartwheels_app.erl
-├── query_cartwheels_sup.erl
-├── query_cartwheels_store.erl           # SQLite connection
-├── query_cartwheels_subscriber.erl      # Event subscription
+apps/query_divisions/src/
+├── query_divisions_app.erl
+├── query_divisions_sup.erl
+├── query_divisions_store.erl            # SQLite connection
+├── query_divisions_subscriber.erl       # Event subscription
 │
 │ # Projections (flat in src/, naming reveals intent)
-├── cartwheel_initiated_v1_to_cartwheels.erl
-├── phase_transitioned_v1_to_cartwheels.erl
+├── division_initiated_v1_to_divisions.erl
+├── phase_transitioned_v1_to_divisions.erl
 ├── finding_recorded_v1_to_findings.erl
 ├── term_defined_v1_to_terms.erl
-├── spoke_inventoried_v1_to_spoke_inventory.erl
+├── desk_inventoried_v1_to_desk_inventory.erl
 │
 │ # Query handlers (in slice directories)
-├── get_cartwheel/
-│   └── get_cartwheel.erl
-├── list_cartwheels/
-│   └── list_cartwheels.erl
-└── list_findings/
-    └── list_findings.erl
+├── get_division_by_id/
+│   └── get_division_by_id.erl
+├── get_divisions_page/
+│   └── get_divisions_page.erl
+└── get_findings_page/
+    └── get_findings_page.erl
 ```
 
 ---

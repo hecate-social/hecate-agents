@@ -1,4 +1,6 @@
-# Cartwheel Architecture: Query Sequence (QRY)
+# Division Architecture: Query Sequence (QRY)
+
+> *Note: "Cartwheel" is the historical name for what is now called "Division Architecture".*
 
 > How data is retrieved — the read side of CQRS.
 
@@ -397,9 +399,9 @@ end.
 
 | Rule | Anti-Pattern | Correct |
 |------|-------------|---------|
-| Specify lookup strategy | `get_torch` | `get_torch_by_id` |
-| Always page list queries | `list_torches` | `get_torches_page` |
-| Never return unbounded | `get_all_cartwheels` | `get_cartwheels_page` |
+| Specify lookup strategy | `get_venture` | `get_venture_by_id` |
+| Always page list queries | `list_ventures` | `get_ventures_page` |
+| Never return unbounded | `get_all_divisions` | `get_divisions_page` |
 
 ```
 apps/query_capabilities/
@@ -413,7 +415,7 @@ apps/query_capabilities/
     ├── get_capabilities_page/                   # Paged list (bounded)
     │   ├── get_capabilities_page.erl
     │   └── get_capabilities_page_api.erl
-    ├── capability_announced_v1_to_capabilities/  # Projection spoke
+    ├── capability_announced_v1_to_capabilities/  # Projection desk
     │   └── ...
     └── query_capabilities_cache.erl             # Optional ETS cache
 ```

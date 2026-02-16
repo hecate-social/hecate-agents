@@ -10,7 +10,7 @@
 
 Before writing code, design:
 - What dossiers exist?
-- What spokes process them?
+- What desks process them?
 - What's the system structure?
 - What's the implementation order?
 
@@ -21,7 +21,7 @@ Before writing code, design:
 ## Mindset
 
 ```
-"I design in dossiers and spokes.
+"I design in dossiers and desks.
  I think vertically, not horizontally.
  I plan for the Walking Skeleton first.
  I document decisions for future me."
@@ -62,7 +62,7 @@ Dossier: capability-{mri}
 ```
 {domain}/
 ├── CMD Department
-│   ├── {command}_spoke/
+│   ├── {command}_desk/
 │   └── ...
 ├── PRJ Department
 │   ├── {event}_to_{table}/
@@ -73,7 +73,7 @@ Dossier: capability-{mri}
 ```
 
 **Apply Vertical Slicing** (see [VERTICAL_SLICING.md](VERTICAL_SLICING.md))
-- Each spoke is self-contained
+- Each desk is self-contained
 - No horizontal layers (services/, utils/)
 - Features live together
 
@@ -83,19 +83,19 @@ Dossier: capability-{mri}
 
 ---
 
-### 3. Spoke Inventory
+### 3. Desk Inventory
 
-**List all spokes needed:**
+**List all desks needed:**
 
-| Spoke | Type | Priority | Dependencies |
-|-------|------|----------|--------------|
+| Desk | Type | Priority | Dependencies |
+|------|------|----------|--------------|
 | `initialize_capability` | CMD | P0 (skeleton) | None |
 | `announce_capability` | CMD | P1 | initialize |
 | `capability_announced_to_capabilities` | PRJ | P1 | announce |
 | `find_capability` | QRY | P1 | PRJ |
 | ... | ... | ... | ... |
 
-**Identify the Walking Skeleton spoke** — the simplest end-to-end slice.
+**Identify the Walking Skeleton desk** — the simplest end-to-end slice.
 
 ---
 
@@ -161,16 +161,16 @@ GET /api/{resource}?filter=value
    - Scaffold codebase
    - CI/CD pipeline
    - GitOps setup
-   - `initialize_*` spoke end-to-end
+   - `initialize_*` desk end-to-end
    - Deploy to all environments
 
 2. **Iteration 1: Core Feature**
-   - Primary business spoke(s)
+   - Primary business desk(s)
    - Essential projections
    - Basic queries
 
 3. **Iteration N: Additional Features**
-   - Secondary spokes
+   - Secondary desks
    - Advanced queries
    - Integrations
 
@@ -186,7 +186,7 @@ GET /api/{resource}?filter=value
 |------|---------------------|
 | Performance | Design indexes, plan for caching |
 | Scalability | Stateless handlers, partitioned streams |
-| Complexity | Smaller spokes, clear boundaries |
+| Complexity | Smaller desks, clear boundaries |
 | Integration | Define interfaces early, mock dependencies |
 
 ---
@@ -196,8 +196,8 @@ GET /api/{resource}?filter=value
 ### Required
 
 - [ ] **Domain Model** — Dossiers, events, commands mapped
-- [ ] **Architecture Diagram** — Departments, spokes, flows
-- [ ] **Spoke Inventory** — All spokes with priorities
+- [ ] **Architecture Diagram** — Departments, desks, flows
+- [ ] **Desk Inventory** — All desks with priorities
 - [ ] **PLAN_*.md** — Implementation plan document
 
 ### Recommended
@@ -228,10 +228,10 @@ GET /api/{resource}?filter=value
 |---------|------------------|-------------|
 | ... | ... | ... |
 
-### Spokes (CMD)
+### Desks (CMD)
 
-| Spoke | Events | Priority |
-|-------|--------|----------|
+| Desk | Events | Priority |
+|------|--------|----------|
 | ... | ... | ... |
 
 ### Projections (PRJ)
@@ -252,7 +252,7 @@ GET /api/{resource}?filter=value
 - [ ] Scaffold
 - [ ] CI/CD
 - [ ] GitOps
-- [ ] `initialize_*` spoke
+- [ ] `initialize_*` desk
 
 ### Phase 1: Core
 - [ ] ...
@@ -281,9 +281,9 @@ GET /api/{resource}?filter=value
 
 ### Before Leaving AnP
 
-- [ ] Domain modeled (dossiers, spokes, events)
+- [ ] Domain modeled (dossiers, desks, events)
 - [ ] Architecture documented
-- [ ] Spokes inventoried with priorities
+- [ ] Desks inventoried with priorities
 - [ ] Walking skeleton identified
 - [ ] PLAN_*.md written
 - [ ] Ready to implement
@@ -295,7 +295,7 @@ GET /api/{resource}?filter=value
 | Anti-Pattern | Problem | Instead |
 |--------------|---------|---------|
 | **Big design up front** | Over-engineering | Design for first iterations, evolve |
-| **Horizontal thinking** | services/, handlers/ | Vertical spokes |
+| **Horizontal thinking** | services/, handlers/ | Vertical desks |
 | **Skipping the skeleton** | Code first, deploy later | Walking skeleton first |
 | **Implicit decisions** | "We just knew" | Document decisions |
 | **Ignoring constraints** | Beautiful but impossible | Design within constraints |

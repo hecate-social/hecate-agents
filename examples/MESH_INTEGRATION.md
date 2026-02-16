@@ -68,26 +68,26 @@ The emitter's ONLY job is to convert internal events into external facts.
 
 ## Emitter Code Example
 
-From `apps/manage_torches/src/identify_cartwheel/cartwheel_identified_v1_to_mesh.erl`:
+From `apps/discover_divisions/src/discover_division/division_discovered_v1_to_mesh.erl`:
 
 ```erlang
-%%% @doc Emitter: Publish cartwheel_identified_v1 events to mesh
+%%% @doc Emitter: Publish division_discovered_v1 events to mesh
 %%%
-%%% When a cartwheel is identified within a torch, this emitter publishes
-%%% the fact to mesh topic `hecate.torch.cartwheel_identified`.
+%%% When a division is discovered within a venture, this emitter publishes
+%%% the fact to mesh topic `hecate.venture.division_discovered`.
 %%%
-%%% The manage_cartwheels service subscribes to this topic and initiates
-%%% the cartwheel's lifecycle.
+%%% The design_division service subscribes to this topic and initiates
+%%% the division's lifecycle.
 %%%
-%%% Flow: cartwheel_identified_v1 (event) -> emitter -> mesh fact
+%%% Flow: division_discovered_v1 (event) -> emitter -> mesh fact
 %%% @end
--module(cartwheel_identified_v1_to_mesh).
+-module(division_discovered_v1_to_mesh).
 -behaviour(gen_server).
 
 -export([start_link/0, emit/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
 
--define(TOPIC, <<"hecate.torch.cartwheel_identified">>).
+-define(TOPIC, <<"hecate.venture.division_discovered">>).
 
 -record(state, {}).
 
@@ -98,19 +98,19 @@ From `apps/manage_torches/src/identify_cartwheel/cartwheel_identified_v1_to_mesh
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
-%% @doc Emit a cartwheel_identified event to mesh
--spec emit(map() | cartwheel_identified_v1:cartwheel_identified_v1()) -> ok.
+%% @doc Emit a division_discovered event to mesh
+-spec emit(map() | division_discovered_v1:division_discovered_v1()) -> ok.
 emit(Event) when is_map(Event) ->
     gen_server:cast(?MODULE, {emit, Event});
 emit(Event) ->
-    gen_server:cast(?MODULE, {emit, cartwheel_identified_v1:to_map(Event)}).
+    gen_server:cast(?MODULE, {emit, division_discovered_v1:to_map(Event)}).
 
 %%====================================================================
 %% gen_server callbacks
 %%====================================================================
 
 init([]) ->
-    logger:info("[cartwheel_identified_v1_to_mesh] Starting emitter for topic ~s", [?TOPIC]),
+    logger:info("[division_discovered_v1_to_mesh] Starting emitter for topic ~s", [?TOPIC]),
     {ok, #state{}}.
 
 handle_cast({emit, EventData}, State) ->
@@ -122,15 +122,15 @@ handle_cast({emit, EventData}, State) ->
 %%====================================================================
 
 do_emit(EventData) ->
-    TorchId = maps:get(<<"torch_id">>, EventData, maps:get(torch_id, EventData, undefined)),
-    CartwheelId = maps:get(<<"cartwheel_id">>, EventData, maps:get(cartwheel_id, EventData, undefined)),
+    VentureId = maps:get(<<"venture_id">>, EventData, maps:get(venture_id, EventData, undefined)),
+    DivisionId = maps:get(<<"division_id">>, EventData, maps:get(division_id, EventData, undefined)),
 
-    logger:debug("[emitter] Publishing cartwheel ~s for torch ~s", [CartwheelId, TorchId]),
+    logger:debug("[emitter] Publishing division ~s for venture ~s", [DivisionId, VentureId]),
 
     %% Publish FACT to mesh
     case hecate_mesh_client:publish(?TOPIC, EventData) of
         ok ->
-            logger:info("[emitter] Published to ~s: cartwheel=~s", [?TOPIC, CartwheelId]);
+            logger:info("[emitter] Published to ~s: division=~s", [?TOPIC, DivisionId]);
         {error, not_connected} ->
             logger:warning("[emitter] Mesh not connected, fact not published");
         {error, Reason} ->
@@ -148,27 +148,27 @@ do_emit(EventData) ->
 
 ## Listener Code Example
 
-From `apps/manage_cartwheels/src/initiate_cartwheel/subscribe_to_cartwheel_identified.erl`:
+From `apps/design_division/src/initiate_division/subscribe_to_division_discovered.erl`:
 
 ```erlang
-%%% @doc Listener: Subscribe to cartwheel_identified facts from mesh
+%%% @doc Listener: Subscribe to division_discovered facts from mesh
 %%%
-%%% Subscribes to mesh topic `hecate.torch.cartwheel_identified`.
-%%% When a torch identifies a cartwheel, this listener receives the fact
+%%% Subscribes to mesh topic `hecate.venture.division_discovered`.
+%%% When a venture discovers a division, this listener receives the fact
 %%% and forwards it to the policy for processing.
 %%%
-%%% This listener lives in the initiate_cartwheel spoke because its
-%%% sole purpose is to trigger cartwheel initiation.
+%%% This listener lives in the initiate_division desk because its
+%%% sole purpose is to trigger division initiation.
 %%%
 %%% Flow: Mesh FACT -> Listener -> Policy -> Command -> Aggregate
 %%% @end
--module(subscribe_to_cartwheel_identified).
+-module(subscribe_to_division_discovered).
 -behaviour(gen_server).
 
 -export([start_link/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
 
--define(TOPIC, <<"hecate.torch.cartwheel_identified">>).
+-define(TOPIC, <<"hecate.venture.division_discovered">>).
 
 -record(state, {
     subscription :: reference() | undefined
@@ -197,7 +197,7 @@ handle_info(subscribe, State) ->
 handle_info({mesh_fact, ?TOPIC, FactData}, State) ->
     %% Forward to POLICY for processing
     %% Policy will create COMMAND and dispatch to AGGREGATE
-    on_cartwheel_identified_maybe_initiate_cartwheel:handle(FactData),
+    on_division_discovered_maybe_initiate_division:handle(FactData),
     {noreply, State};
 
 handle_info(_Info, State) ->
@@ -233,7 +233,7 @@ unsubscribe(SubRef) -> hecate_mesh_client:unsubscribe(SubRef).
 **Key points:**
 - Listener subscribes to mesh topics
 - Forwards facts to POLICY (not projection!)
-- Lives in the spoke it triggers (vertical slicing)
+- Lives in the desk it triggers (vertical slicing)
 - Handles reconnection gracefully
 
 ---
@@ -243,45 +243,45 @@ unsubscribe(SubRef) -> hecate_mesh_client:unsubscribe(SubRef).
 The policy decides what to do with the fact:
 
 ```erlang
-%%% @doc Policy: React to cartwheel_identified facts
+%%% @doc Policy: React to division_discovered facts
 %%%
 %%% Naming convention: on_{source_event}_{action}_{target}
-%%% - Source: cartwheel_identified (from manage_torches)
+%%% - Source: division_discovered (from discover_divisions)
 %%% - Action: maybe_initiate (policy decision)
-%%% - Target: cartwheel (in manage_cartwheels)
+%%% - Target: division (in design_division)
 %%% @end
--module(on_cartwheel_identified_maybe_initiate_cartwheel).
+-module(on_division_discovered_maybe_initiate_division).
 
 -export([handle/1]).
 
-%% @doc Handle a cartwheel_identified fact and potentially initiate the cartwheel
+%% @doc Handle a division_discovered fact and potentially initiate the division
 -spec handle(map()) -> ok | {error, term()}.
 handle(FactData) ->
-    CartwheelId = get_field(cartwheel_id, FactData),
-    TorchId = get_field(torch_id, FactData),
+    DivisionId = get_field(division_id, FactData),
+    VentureId = get_field(venture_id, FactData),
     ContextName = get_field(context_name, FactData),
     Description = get_field(description, FactData),
 
-    logger:debug("[policy] Processing cartwheel ~s (~s) from torch ~s",
-                [CartwheelId, ContextName, TorchId]),
+    logger:debug("[policy] Processing division ~s (~s) from venture ~s",
+                [DivisionId, ContextName, VentureId]),
 
     %% Policy: Always initiate (future: conditional logic here)
     do_initiate(#{
-        cartwheel_id => CartwheelId,
-        torch_id => TorchId,
+        division_id => DivisionId,
+        venture_id => VentureId,
         context_name => ContextName,
         description => Description
     }).
 
-%% @doc Create and dispatch the initiate_cartwheel command
+%% @doc Create and dispatch the initiate_division command
 do_initiate(Params) ->
-    case initiate_cartwheel_v1:new(Params) of
+    case initiate_division_v1:new(Params) of
         {ok, Cmd} ->
             %% Dispatch to handler (which dispatches to aggregate)
-            case maybe_initiate_cartwheel:dispatch(Cmd) of
+            case maybe_initiate_division:dispatch(Cmd) of
                 {ok, _Version, _Events} ->
-                    logger:info("[policy] Cartwheel ~s initiated",
-                               [maps:get(cartwheel_id, Params)]),
+                    logger:info("[policy] Division ~s initiated",
+                               [maps:get(division_id, Params)]),
                     ok;
                 {error, Reason} = Error ->
                     logger:error("[policy] Failed to initiate: ~p", [Reason]),
@@ -298,62 +298,62 @@ do_initiate(Params) ->
 ## Complete Flow Diagram
 
 ```
-Agent A (manage_torches)                     Agent B (manage_cartwheels)
+Agent A (discover_divisions)                 Agent B (design_division)
 ────────────────────────                     ──────────────────────────
 
-1. User: POST /api/torches/:id/cartwheels/identify
+1. User: POST /api/ventures/:id/divisions/discover
    ↓
-2. identify_cartwheel_v1 (COMMAND)
+2. discover_division_v1 (COMMAND)
    ↓
-3. maybe_identify_cartwheel:handle/1
+3. maybe_discover_division:handle/1
    ↓
-4. cartwheel_identified_v1 (DOMAIN EVENT)
+4. division_discovered_v1 (DOMAIN EVENT)
    ↓
-5. Stored in Torch's event stream
+5. Stored in Venture's event stream
    ↓
-6. cartwheel_identified_v1_to_mesh:emit/1 (EMITTER)
+6. division_discovered_v1_to_mesh:emit/1 (EMITTER)
    ↓
 ═══════════════════════════════════════════════════════════════
-                      MESH (topic: hecate.torch.cartwheel_identified)
+                      MESH (topic: hecate.venture.division_discovered)
 ═══════════════════════════════════════════════════════════════
                                                      ↓
-7. subscribe_to_cartwheel_identified (LISTENER)
+7. subscribe_to_division_discovered (LISTENER)
    ↓
-8. on_cartwheel_identified_maybe_initiate_cartwheel:handle/1 (POLICY)
+8. on_division_discovered_maybe_initiate_division:handle/1 (POLICY)
    ↓
-9. initiate_cartwheel_v1 (COMMAND)
+9. initiate_division_v1 (COMMAND)
    ↓
-10. maybe_initiate_cartwheel:dispatch/1
+10. maybe_initiate_division:dispatch/1
     ↓
-11. cartwheel_initiated_v1 (DOMAIN EVENT)
+11. division_initiated_v1 (DOMAIN EVENT)
     ↓
-12. Stored in Cartwheel's event stream
+12. Stored in Division's event stream
     ↓
 13. Projected to read model
 ```
 
 ---
 
-## Spoke Structure
+## Desk Structure
 
-Both emitter and listener live in their respective spokes:
+Both emitter and listener live in their respective desks:
 
 ```
-manage_torches/src/
-└── identify_cartwheel/                     # Spoke owns emitter
-    ├── identify_cartwheel_v1.erl           # Command
-    ├── cartwheel_identified_v1.erl         # Event
-    ├── maybe_identify_cartwheel.erl        # Handler
-    └── cartwheel_identified_v1_to_mesh.erl # EMITTER
+discover_divisions/src/
+└── discover_division/                       # Desk owns emitter
+    ├── discover_division_v1.erl             # Command
+    ├── division_discovered_v1.erl           # Event
+    ├── maybe_discover_division.erl          # Handler
+    └── division_discovered_v1_to_mesh.erl   # EMITTER
 
-manage_cartwheels/src/
-└── initiate_cartwheel/                     # Spoke owns listener
-    ├── initiate_cartwheel_v1.erl           # Command
-    ├── cartwheel_initiated_v1.erl          # Event
-    ├── maybe_initiate_cartwheel.erl        # Handler
-    ├── initiate_cartwheel_spoke_sup.erl    # Supervisor
-    ├── subscribe_to_cartwheel_identified.erl                  # LISTENER
-    └── on_cartwheel_identified_maybe_initiate_cartwheel.erl   # POLICY
+design_division/src/
+└── initiate_division/                       # Desk owns listener
+    ├── initiate_division_v1.erl             # Command
+    ├── division_initiated_v1.erl            # Event
+    ├── maybe_initiate_division.erl          # Handler
+    ├── initiate_division_desk_sup.erl       # Supervisor
+    ├── subscribe_to_division_discovered.erl                   # LISTENER
+    └── on_division_discovered_maybe_initiate_division.erl     # POLICY
 ```
 
 ---
@@ -362,10 +362,10 @@ manage_cartwheels/src/
 
 | Component | Pattern | Example |
 |-----------|---------|---------|
-| **Topic** | `{namespace}.{domain}.{fact_name}` | `hecate.torch.cartwheel_identified` |
-| **Emitter** | `{event}_to_mesh` | `cartwheel_identified_v1_to_mesh` |
-| **Listener** | `subscribe_to_{fact}` | `subscribe_to_cartwheel_identified` |
-| **Policy** | `on_{fact}_{action}_{target}` | `on_cartwheel_identified_maybe_initiate_cartwheel` |
+| **Topic** | `{namespace}.{domain}.{fact_name}` | `hecate.venture.division_discovered` |
+| **Emitter** | `{event}_to_mesh` | `division_discovered_v1_to_mesh` |
+| **Listener** | `subscribe_to_{fact}` | `subscribe_to_division_discovered` |
+| **Policy** | `on_{fact}_{action}_{target}` | `on_division_discovered_maybe_initiate_division` |
 
 ---
 
@@ -375,7 +375,7 @@ manage_cartwheels/src/
 |-------------|----------------|------------------|
 | Mesh fact → Projection | Bypasses aggregate | Fact → Command → Event → Projection |
 | Domain event → Mesh directly | No transform layer | Event → Emitter → Fact → Mesh |
-| Listener in `listeners/` folder | Horizontal thinking | Listener in spoke it triggers |
+| Listener in `listeners/` folder | Horizontal thinking | Listener in desk it triggers |
 | Central mesh subscriber | God module | Each domain owns its listeners |
 | Treating facts as events | Different concepts | Facts external, events internal |
 
@@ -388,7 +388,7 @@ manage_cartwheels/src/
 3. **Listeners convert facts to commands** - Entry point to command layer
 4. **Policy contains the "maybe"** - Business logic for conditional actions
 5. **Single source of truth** - Projections read from event store, not mesh
-6. **Vertical slicing** - Emitters and listeners live in their spokes
+6. **Vertical slicing** - Emitters and listeners live in their desks
 7. **Graceful degradation** - Handle mesh disconnection without crashing
 
 ---

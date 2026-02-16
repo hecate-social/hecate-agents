@@ -11,7 +11,7 @@
 Transform the design into working software:
 - Scaffold the codebase
 - Set up deployment infrastructure
-- Implement spokes following templates
+- Implement desks following templates
 - Test and verify continuously
 
 **TnI is about disciplined execution.**
@@ -40,7 +40,7 @@ See: [HECATE_WALKING_SKELETON.md](HECATE_WALKING_SKELETON.md)
 - [ ] Codebase scaffold (CMD, PRJ, QRY structure)
 - [ ] CI/CD pipeline (build, test, deploy stages)
 - [ ] GitOps repositories (TEST, STAGING, PROD)
-- [ ] `initialize_{dossier}_v1` spoke (end-to-end)
+- [ ] `initialize_{dossier}_v1` desk (end-to-end)
 - [ ] Deployed to all environments
 - [ ] Verified working
 
@@ -60,7 +60,7 @@ apps/{domain}/
 │   ├── {domain}_app.erl
 │   ├── {domain}_sup.erl
 │   ├── {domain}_store.erl
-│   └── initialize_{dossier}/      ← Walking skeleton spoke
+│   └── initialize_{dossier}/      ← Walking skeleton desk
 │       └── ...
 └── rebar.config
 ```
@@ -131,9 +131,9 @@ gitops-{project}/
 
 ---
 
-### 4. Implement the Skeleton Spoke
+### 4. Implement the Skeleton Desk
 
-**`initialize_{dossier}_v1`** — The simplest possible spoke:
+**`initialize_{dossier}_v1`** — The simplest possible desk:
 
 **CMD:**
 ```erlang
@@ -156,7 +156,7 @@ initialize_{dossier}_v1:new(Id)
 find_{dossier}:execute(#{id => Id})
 ```
 
-**Why this spoke?**
+**Why this desk?**
 - Proves the full flow works
 - No complex business logic
 - Tests all infrastructure
@@ -186,9 +186,9 @@ curl https://test.example.com/api/{dossier}/health  # ✓ 200 OK
 
 ---
 
-### 6. Implement Feature Spokes
+### 6. Implement Feature Desks
 
-**For each spoke in the plan:**
+**For each desk in the plan:**
 
 ```
 1. Generate from CODEGEN template
@@ -201,7 +201,7 @@ curl https://test.example.com/api/{dossier}/health  # ✓ 200 OK
 8. Verify in TEST environment
 ```
 
-**One spoke at a time. Small commits. Continuous verification.**
+**One desk at a time. Small commits. Continuous verification.**
 
 ---
 
@@ -220,7 +220,7 @@ curl https://test.example.com/api/{dossier}/health  # ✓ 200 OK
 ```
 
 **Unit tests:** Test handlers, projections, queries in isolation
-**Integration tests:** Test spoke interactions, store operations
+**Integration tests:** Test desk interactions, store operations
 **E2E tests:** Test full flows through API
 
 **Test as you build, not after.**
@@ -233,7 +233,7 @@ Before merging, verify:
 
 - [ ] Follows vertical slicing (no services/, utils/)
 - [ ] Names scream intent (no handler, manager, processor)
-- [ ] Spoke structure matches CODEGEN template
+- [ ] Desk structure matches CODEGEN template
 - [ ] Tests exist and pass
 - [ ] Dialyzer clean
 - [ ] No antipatterns (check [ANTIPATTERNS.md](../skills/ANTIPATTERNS.md))
@@ -244,7 +244,7 @@ Before merging, verify:
 
 ### Required
 
-- [ ] **Working Code** — All planned spokes implemented
+- [ ] **Working Code** — All planned desks implemented
 - [ ] **Test Suite** — Unit, integration, E2E tests
 - [ ] **CI/CD Pipeline** — Automated build, test, deploy
 - [ ] **GitOps Configuration** — All environments
@@ -273,7 +273,7 @@ Before merging, verify:
 │                 └──────────┘                   │
 │                      │                         │
 │                      ▼                         │
-│                 Next Spoke                     │
+│                 Next Desk                     │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
@@ -285,7 +285,7 @@ Before merging, verify:
 ### Before Starting TnI
 
 - [ ] PLAN_*.md complete
-- [ ] Spokes prioritized
+- [ ] Desks prioritized
 - [ ] Walking skeleton scope defined
 - [ ] CI/CD requirements known
 - [ ] GitOps strategy decided
@@ -295,13 +295,13 @@ Before merging, verify:
 - [ ] Codebase scaffolded
 - [ ] CI/CD pipeline working
 - [ ] GitOps repos configured
-- [ ] `initialize_*` spoke implemented
+- [ ] `initialize_*` desk implemented
 - [ ] Deployed to TEST, STAGING, PROD
 - [ ] Smoke tests passing
 
 ### Before Leaving TnI
 
-- [ ] All planned spokes implemented
+- [ ] All planned desks implemented
 - [ ] All tests passing
 - [ ] Dialyzer clean
 - [ ] CI/CD green
@@ -319,7 +319,7 @@ Before merging, verify:
 | **Test later** | Bugs accumulate | Test as you build |
 | **Skipping dialyzer** | Type errors in prod | Run dialyzer always |
 | **Manual deployments** | "Works on my machine" | GitOps everything |
-| **Horizontal structure** | services/, handlers/ | Vertical spokes |
+| **Horizontal structure** | services/, handlers/ | Vertical desks |
 
 ---
 
@@ -327,7 +327,7 @@ Before merging, verify:
 
 When TnI is complete:
 
-1. All spokes implemented and tested
+1. All desks implemented and tested
 2. CI/CD pipeline fully operational
 3. STAGING deployment verified
 4. Release prepared (version, changelog)
