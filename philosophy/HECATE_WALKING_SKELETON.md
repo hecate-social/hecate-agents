@@ -122,7 +122,7 @@ package:
 
 deploy:
   - update GitOps repo
-  - (ArgoCD/Flux syncs automatically)
+  - (reconciler applies systemd units automatically)
 ```
 
 **The pipeline must work end-to-end before adding features.**

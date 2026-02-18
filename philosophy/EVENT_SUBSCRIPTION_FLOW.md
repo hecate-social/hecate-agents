@@ -29,8 +29,8 @@ evoq subscription (by event_type)
     +------+------+------+
     |      |      |      |
     v      v      v      v
-  to_pg  to_mesh to_tui  projection
-  (pg)   (QUIC)  (SSE)   (SQLite)
+  to_pg  to_mesh  projection
+  (pg)   (QUIC)   (SQLite)
 ```
 
 **Key principle: The API handler's job ends after dispatch. It does NOT call emitters.**
@@ -39,13 +39,12 @@ evoq subscription (by event_type)
 
 ## What Is an Emitter?
 
-An emitter is a **projection** — it subscribes to events from the event store and produces a side effect. The side effect happens to be broadcasting to pg, publishing to mesh, or streaming to TUI, rather than writing to SQLite.
+An emitter is a **projection** — it subscribes to events from the event store and produces a side effect. The side effect happens to be broadcasting to pg or publishing to mesh, rather than writing to SQLite.
 
 | Component | Subscribes To | Produces |
 |-----------|--------------|----------|
 | `*_to_pg.erl` | ReckonDB via evoq | pg broadcast (internal) |
 | `*_to_mesh.erl` | ReckonDB via evoq | Mesh fact (external) |
-| `*_to_tui.erl` | ReckonDB via evoq | SSE event (local) |
 | `*_to_sqlite_*.erl` | ReckonDB via evoq | SQLite write (read model) |
 
 **They are all projections.** The only difference is the output target.
@@ -113,16 +112,6 @@ For cross-node, WAN, agent-to-agent communication.
 ReckonDB -> evoq subscription -> emitter (*_to_mesh.erl) -> Macula mesh (QUIC)
                                                                   |
                                                      other nodes/agents
-```
-
-### Path 3: Local (tui)
-
-For same-machine, cross-process communication (daemon -> TUI).
-
-```
-ReckonDB -> evoq subscription -> emitter (*_to_tui.erl) -> SSE over Unix socket
-                                                                |
-                                                              TUI
 ```
 
 ---
@@ -306,8 +295,7 @@ Emitters are started by the **desk supervisor** (CMD side), not the API handler.
 guide_venture_lifecycle_sup (domain supervisor)
 |-- post_event_sticky_sup (desk supervisor)
 |   |-- event_sticky_posted_v1_to_pg (worker — subscribes via evoq)
-|   |-- event_sticky_posted_v1_to_mesh (worker — subscribes via evoq)
-|   +-- event_sticky_posted_v1_to_tui (worker — subscribes via evoq)
+|   +-- event_sticky_posted_v1_to_mesh (worker — subscribes via evoq)
 ```
 
 Query-side projections that subscribe directly via evoq are started by the **query domain supervisor**.

@@ -124,10 +124,10 @@ gitops-{project}/
 ```
 
 **Flow:**
-1. CI builds and pushes image
-2. CI updates image tag in GitOps repo
-3. ArgoCD/Flux detects change
-4. Kubernetes applies new state
+1. CI builds and pushes OCI image
+2. Update image tag in ~/.hecate/gitops/ .container file
+3. Reconciler detects change
+4. systemd restarts the unit with new image
 
 ---
 

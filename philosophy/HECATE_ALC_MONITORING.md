@@ -71,7 +71,7 @@ curl --unix-socket /run/hecate/daemon.sock http://localhost/ready
 # Expected: {"status": "ready"} or {"status": "not_ready", "reason": "..."}
 ```
 
-Kubernetes uses these for pod lifecycle management. If liveness fails, the pod restarts. If readiness fails, the pod is removed from service.
+systemd uses these for container lifecycle management. If liveness fails, the unit restarts. If readiness fails, dependent units wait.
 
 ---
 

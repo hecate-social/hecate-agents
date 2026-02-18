@@ -106,7 +106,7 @@ cat ~/work/github.com/hecate-social/hecate-agents/philosophy/DDD.md
 cat ~/work/github.com/hecate-social/hecate-agents/skills/ANTIPATTERNS.md
 ```
 
-### For Hecate TUI
+### For Hecate Martha (AI Agent)
 
 Skills are injected contextually based on the current task:
 - Architecture work → Load `philosophy/DDD.md`, `philosophy/CARTWHEEL.md`

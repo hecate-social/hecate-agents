@@ -25,7 +25,7 @@ But in the **user experience**, phases are not what the user works with. The use
 | AI assistance | Manual role switching | Auto-attached to task type |
 | What's blocked | Implicit (user guesses) | Explicit (task shows prerequisites) |
 
-**The domain model doesn't change.** The 10 processes, the venture hierarchy, the CMD/QRY/PRJ departments — all unchanged. What changes is how the TUI presents work to the user.
+**The domain model doesn't change.** The 10 processes, the venture hierarchy, the CMD/QRY/PRJ departments — all unchanged. What changes is how the Dev Studio presents work to the user.
 
 ---
 
@@ -497,13 +497,13 @@ GET    /api/venture/:venture_id/tasks
   }
 ```
 
-This single endpoint powers the Dev Studio's task list view. The TUI subscribes via SSE/fact stream for real-time updates. Timestamps from lifecycle events enable tracking ("Design paused 2 days ago", "Generation took 45 minutes").
+This single endpoint powers the Dev Studio's task list view. The frontend subscribes via the `hecate://` protocol for real-time updates. Timestamps from lifecycle events enable tracking ("Design paused 2 days ago", "Generation took 45 minutes").
 
 ---
 
 ## AI Role Auto-Selection
 
-Each task type knows which AI role it needs. The TUI doesn't ask the user to switch roles — it's automatic.
+Each task type knows which AI role it needs. The Dev Studio doesn't ask the user to switch roles — it's automatic.
 
 | Task Type | AI Role | Personality Aspect |
 |-----------|---------|-------------------|
@@ -593,7 +593,7 @@ apps/design_division/src/
 └── design_division_aggregate.erl            (enforces lifecycle state machine)
 ```
 
-5. **Evolves: Fact stream** — Lifecycle events emit facts (SSE) so the TUI updates in real-time. "Design Division started", "Generation paused", etc.
+5. **Evolves: Fact stream** — Lifecycle events emit facts via pg so the Dev Studio updates in real-time. "Design Division started", "Generation paused", etc.
 
 ### What Doesn't Change
 
@@ -605,7 +605,7 @@ apps/design_division/src/
 
 ---
 
-## Impact on TUI (Dev Studio)
+## Impact on Dev Studio
 
 ### Dev Studio Structure
 

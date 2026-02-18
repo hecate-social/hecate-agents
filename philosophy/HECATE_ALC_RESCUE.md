@@ -119,7 +119,7 @@ Once service is restored (mitigation complete), investigate the root cause.
 Resolution is the permanent fix. It may be a code change, a configuration update, a data repair, or an architectural change.
 
 - **Small fixes** go through the normal cycle: crafting --> debugging --> deployment
-- **Hotfixes** follow an expedited path but still go through GitOps -- no manual kubectl
+- **Hotfixes** follow an expedited path but still go through GitOps -- no ad-hoc podman run
 - **Architectural issues** escalate to design (see Escalation below)
 
 Every resolution must be verified in production after deployment. "It works in staging" is not sufficient.

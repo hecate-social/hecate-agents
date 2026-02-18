@@ -34,7 +34,7 @@ Get the division's software from a tested artifact into running environments. De
 | `resume_deployment` | `deployment_resumed_v1` | paused --> active |
 | `conclude_deployment` | `deployment_concluded_v1` | active --> completed |
 
-A deployment is opened when a debugged, tested artifact is ready to ship. It is shelved when blocked (e.g., environment unavailable, dependency not ready). It is concluded when the artifact is running in the target environment and smoke tests pass.
+A deployment is opened when a debugged, tested artifact is ready to ship. It is shelved when blocked (e.g., environment unavailable, dependency not ready). It is concluded when the artifact is running on the target node and smoke tests pass.
 
 ---
 
@@ -77,7 +77,7 @@ Before deploying, the artifact must be tagged and documented.
 
 ### 2. The GitOps Flow
 
-**The Golden Rule: Code Repo and GitOps Repo are separate.**
+**The Golden Rule: Code Repo and GitOps Directory are separate.**
 
 ```
 +----------------------------------------------------------------+
@@ -85,7 +85,7 @@ Before deploying, the artifact must be tagged and documented.
 |  - Source code, tests, Dockerfile                              |
 |  - Semantic versioning in app.src / mix.exs                    |
 |  - Git tags for releases (v0.7.3)                              |
-|  - CI builds docker images on tag push                         |
+|  - CI builds OCI images on tag push                            |
 +----------------------------------------------------------------+
                               |
                               v
@@ -97,17 +97,17 @@ Before deploying, the artifact must be tagged and documented.
                               |
                               v
 +----------------------------------------------------------------+
-|  GITOPS REPO (e.g., hecate-gitops)                             |
-|  - Kubernetes manifests only                                   |
+|  GITOPS DIR (~/.hecate/gitops/)                                 |
+|  - Podman Quadlet units (.container files)                     |
 |  - References specific image tags                              |
-|  - Flux / ArgoCD watches this repo                             |
+|  - Local reconciler watches this directory                     |
 +----------------------------------------------------------------+
                               |
                               v
 +----------------------------------------------------------------+
-|  CLUSTER                                                       |
-|  - Flux reconciles GitOps repo to actual state                 |
-|  - Pulls images from registry                                  |
+|  NODE (systemd)                                                 |
+|  - Reconciler applies Quadlet units to systemd --user          |
+|  - Pulls images from registry via podman                       |
 +----------------------------------------------------------------+
 ```
 
@@ -133,32 +133,32 @@ git push origin v0.7.3
 # Monitor: gh run list --repo hecate-social/hecate-daemon
 # NEVER build docker images locally for production!
 
-# STEP 4: GITOPS REPO -- Update image tag (after CI completes)
-cd ~/work/github.com/hecate-social/hecate-gitops
-# Edit infrastructure/hecate/daemonset.yaml:
-#   image: ghcr.io/hecate-social/hecate-daemon:v0.7.3
-git add -A && git commit -m "chore: Bump hecate-daemon to v0.7.3"
-git push origin main
+# STEP 4: GITOPS DIR -- Update .container file (after CI completes)
+# Edit ~/.hecate/gitops/hecate-daemon.container:
+#   Image=ghcr.io/hecate-social/hecate-daemon:v0.7.3
+git -C ~/.hecate/gitops add -A
+git -C ~/.hecate/gitops commit -m "chore: Bump hecate-daemon to v0.7.3"
 
-# STEP 5: CLUSTER -- Pull and reconcile (on control plane node)
-ssh beam00
-cd ~/.hecate/gitops && git pull
-flux reconcile kustomization hecate-infrastructure
-# Or wait for Flux to auto-reconcile (1 minute interval)
+# STEP 5: NODE -- Reconciler detects change, restarts systemd unit
+# The local reconciler watches ~/.hecate/gitops/ and:
+#   - Copies updated .container files to ~/.config/containers/systemd/
+#   - Runs: systemctl --user daemon-reload
+#   - Runs: systemctl --user restart hecate-daemon
+# Or trigger manually:
+systemctl --user restart hecate-daemon
 ```
 
 **Rollback is a forward action:**
 
 ```bash
 # To "rollback" to v0.7.2:
-cd ~/work/github.com/hecate-social/hecate-gitops
-# Edit daemonset.yaml: image: ghcr.io/.../hecate-daemon:v0.7.2
-git commit -m "fix: Rollback to v0.7.2 due to {reason}"
-git push origin main
-# Flux deploys v0.7.2
+# Edit ~/.hecate/gitops/hecate-daemon.container:
+#   Image=ghcr.io/hecate-social/hecate-daemon:v0.7.2
+git -C ~/.hecate/gitops commit -am "fix: Rollback to v0.7.2 due to {reason}"
+# Reconciler restarts systemd unit with the older image
 ```
 
-Rollback is just deploying an older known-good version -- via the same GitOps flow. There is no separate rollback mechanism. There is no `kubectl set image`. There is no SSH-and-restart.
+Rollback is just deploying an older known-good version -- via the same GitOps flow. There is no separate rollback mechanism. There is no ad-hoc `podman run`. There is no SSH-and-restart.
 
 ---
 
@@ -166,12 +166,11 @@ Rollback is just deploying an older known-good version -- via the same GitOps fl
 
 | Strategy | Use When | Risk | How |
 |----------|----------|------|-----|
-| **Rolling** | Standard deploys | Low | Kubernetes default -- old pods replaced one at a time |
-| **Blue/Green** | Zero-downtime critical | Medium | Two full environments, switch traffic |
-| **Canary** | High-risk changes | Low (gradual) | Route small % of traffic to new version |
-| **Recreate** | Breaking changes requiring clean state | High (downtime) | Kill all old pods, start new ones |
+| **In-place** | Single-node updates, quick iteration | Medium | Update .container file, reconciler restarts the unit |
+| **Node-by-node** | Multiple beam cluster nodes | Low | Update one node at a time, verify health before proceeding |
+| **Recreate** | Breaking changes requiring clean state | High (downtime) | Stop unit, clean up volumes/state, start with new version |
 
-For most Hecate divisions, **rolling** is the default. Use canary for changes that touch the mesh or event store schema. Use recreate only when old and new versions cannot coexist.
+For most Hecate divisions running on individual nodes, **in-place** is the default. When deploying across the beam cluster (beam00-03), update **one node at a time** and verify health before proceeding to the next. Blue/green and canary are not applicable to per-node systemd deployments -- node-by-node sequencing provides the same risk reduction.
 
 ---
 
@@ -180,12 +179,14 @@ For most Hecate divisions, **rolling** is the default. Use canary for changes th
 **Immediately after deployment, verify the artifact is alive and functional.**
 
 ```bash
-# Health check
-curl --unix-socket /run/hecate/daemon.sock http://localhost/health
+# Health check via Unix socket
+curl --unix-socket ~/.hecate/hecate-daemon/sockets/api.sock \
+  http://localhost/health
 # Expected: {"status": "ok", "version": "0.7.3"}
 
 # Basic API functionality
-curl --unix-socket /run/hecate/daemon.sock http://localhost/api/{resource}
+curl --unix-socket ~/.hecate/hecate-daemon/sockets/api.sock \
+  http://localhost/api/{resource}
 # Expected: 200 OK
 
 # Critical path test
@@ -200,11 +201,11 @@ Automated smoke tests should run on every deployment. If a smoke test fails, the
 
 | Anti-Pattern | Problem | Instead |
 |--------------|---------|---------|
-| `image: app:latest` | No traceability, unpredictable pulls | Explicit version tags: `app:v0.7.3` |
-| `image: app:main` | Same tag, different content over time | Immutable version tags |
-| `imagePullPolicy: Always` | Hides what version is actually running | Use specific tags, pull only on change |
-| `kubectl set image ...` | Bypasses GitOps, causes state drift | Update GitOps manifests |
-| Restarting pods manually | Masks the real issue, no audit trail | Version bump, tag, CI, GitOps |
+| `Image=app:latest` | No traceability, unpredictable pulls | Explicit version tags: `app:v0.7.3` |
+| `Image=app:main` | Same tag, different content over time | Immutable version tags |
+| `podman run` ad-hoc | Bypasses GitOps, causes state drift | Update .container file in gitops |
+| `systemctl restart` without version change | Masks the real issue, no audit trail | Version bump, tag, CI, GitOps |
+| Editing units in ~/.config/containers/systemd/ | Bypasses gitops, lost on next reconcile | Edit in ~/.hecate/gitops/ only |
 | Skipping the version bump | Cannot tell what is deployed | Always bump, always tag |
 | Building images locally | Unreproducible, no audit trail | Let CI build from the git tag |
 | Deploy and forget | Issues go unnoticed until users complain | Hand off to [Monitoring](HECATE_ALC_MONITORING.md) |
@@ -229,11 +230,11 @@ Automated smoke tests should run on every deployment. If a smoke test fails, the
 
 ## Exit Checklist (Before Concluding Deployment)
 
-- [ ] Artifact deployed to target environment
+- [ ] Artifact deployed to target node
 - [ ] Health checks passing
 - [ ] Smoke tests passing
 - [ ] No error spikes in initial observation window
-- [ ] Version traceable in cluster (correct image tag running)
+- [ ] Version traceable on node (correct image tag running: `podman ps`)
 - [ ] Monitoring process ready to open (hand off to [Monitoring](HECATE_ALC_MONITORING.md))
 - [ ] Users unaffected or notified of changes
 

@@ -69,50 +69,49 @@ Get the software into production and keep it healthy:
 
 ```
 1. Merge to main
-2. CI builds and tags image
-3. Update image tag in GitOps repo
-4. ArgoCD/Flux syncs to cluster
-5. Kubernetes rolls out new pods
-6. Health checks pass
-7. ✓ Deployed
+2. CI builds and tags OCI image
+3. Update .container file in ~/.hecate/gitops/
+4. Reconciler detects change, restarts systemd unit
+5. Health checks pass
+6. Deployed
 ```
 
 ---
 
 ### 2a. GitOps Deployment Principles
 
-**The Golden Rule: Code Repo ≠ GitOps Repo**
+**The Golden Rule: Code Repo =/= GitOps Directory**
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│  CODE REPO (hecate-daemon)                                      │
-│  • Source code, tests, Dockerfile                               │
-│  • Semantic versioning in app.src/mix.exs                       │
-│  • Git tags for releases (v0.7.3)                               │
-│  • CI builds docker images                                      │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  CONTAINER REGISTRY (ghcr.io)                                   │
-│  • Images tagged with version (ghcr.io/org/app:v0.7.3)         │
-│  • Immutable once pushed                                        │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  GITOPS REPO (hecate-gitops)                                    │
-│  • Kubernetes manifests only                                    │
-│  • References specific image tags                               │
-│  • Flux/ArgoCD watches this repo                                │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  CLUSTER                                                        │
-│  • Flux reconciles GitOps repo → actual state                   │
-│  • Pulls images from registry                                   │
-└─────────────────────────────────────────────────────────────────┘
++----------------------------------------------------------------+
+|  CODE REPO (hecate-daemon)                                      |
+|  - Source code, tests, Dockerfile                               |
+|  - Semantic versioning in app.src/mix.exs                       |
+|  - Git tags for releases (v0.7.3)                               |
+|  - CI builds OCI images                                         |
++----------------------------------------------------------------+
+                              |
+                              v
++----------------------------------------------------------------+
+|  CONTAINER REGISTRY (ghcr.io)                                   |
+|  - Images tagged with version (ghcr.io/org/app:v0.7.3)         |
+|  - Immutable once pushed                                        |
++----------------------------------------------------------------+
+                              |
+                              v
++----------------------------------------------------------------+
+|  GITOPS DIR (~/.hecate/gitops/)                                  |
+|  - Podman Quadlet units (.container files)                      |
+|  - References specific image tags                               |
+|  - Local reconciler watches this directory                      |
++----------------------------------------------------------------+
+                              |
+                              v
++----------------------------------------------------------------+
+|  NODE (systemd)                                                  |
+|  - Reconciler applies Quadlet units to systemd --user           |
+|  - Pulls images from registry via podman                        |
++----------------------------------------------------------------+
 ```
 
 **Complete Deployment Flow (Example):**
@@ -135,48 +134,47 @@ git push origin v0.7.3
 # Monitor: gh run list --repo hecate-social/hecate-daemon
 # NEVER build docker images locally for production!
 
-# 4. GITOPS REPO: Update image tag (after CI completes)
-cd ~/work/github.com/hecate-social/hecate-gitops
-# Edit infrastructure/hecate/daemonset.yaml:
-#   image: ghcr.io/hecate-social/hecate-daemon:v0.7.3
-git add -A && git commit -m "chore: Bump hecate-daemon to v0.7.3"
-git push origin main
+# 4. GITOPS DIR: Update .container file (after CI completes)
+# Edit ~/.hecate/gitops/hecate-daemon.container:
+#   Image=ghcr.io/hecate-social/hecate-daemon:v0.7.3
+git -C ~/.hecate/gitops add -A
+git -C ~/.hecate/gitops commit -m "chore: Bump hecate-daemon to v0.7.3"
 
-# 5. CLUSTER: Pull and reconcile (on control plane node)
-ssh beam00
-cd ~/.hecate/gitops && git pull
-flux reconcile kustomization hecate-infrastructure
-# Or wait for Flux to auto-reconcile (1 minute)
+# 5. NODE: Reconciler detects change, restarts systemd unit
+# The local reconciler watches ~/.hecate/gitops/ and:
+#   - Copies updated .container files to ~/.config/containers/systemd/
+#   - Runs: systemctl --user daemon-reload
+#   - Runs: systemctl --user restart hecate-daemon
+# Or trigger manually:
+systemctl --user restart hecate-daemon
 ```
 
 **Why Explicit Version Tags?**
 
-| ❌ Anti-Pattern | Problem |
-|-----------------|---------|
-| `image: app:latest` | No traceability, unpredictable pulls |
-| `image: app:main` | Same image tag, different content over time |
-| `imagePullPolicy: Always` | Works but hides what version is running |
-| Manual `kubectl set image` | Bypasses GitOps, state drift |
+| Anti-Pattern | Problem |
+|--------------|---------|
+| `Image=app:latest` | No traceability, unpredictable pulls |
+| `Image=app:main` | Same image tag, different content over time |
+| Manual `podman pull` + restart | Bypasses GitOps, state drift |
 
-| ✅ Best Practice | Benefit |
-|------------------|---------|
-| `image: app:v0.7.3` | Immutable, traceable, reproducible |
+| Best Practice | Benefit |
+|---------------|---------|
+| `Image=app:v0.7.3` | Immutable, traceable, reproducible |
 | Semantic versioning | Clear meaning (major.minor.patch) |
-| GitOps manifests | Single source of truth |
-| Flux/ArgoCD sync | Automated, auditable |
+| Quadlet .container files in gitops | Single source of truth per node |
+| Reconciler-driven restart | Automated, auditable |
 
 **Rollback is a Forward Action:**
 
 ```bash
 # To "rollback" to v0.7.2:
-cd ~/work/github.com/hecate-social/hecate-gitops
-# Edit daemonset.yaml: image: ghcr.io/.../hecate-daemon:v0.7.2
-git commit -m "fix: Rollback to v0.7.2 due to {reason}"
-git push origin main
-# Flux deploys v0.7.2
+# Edit ~/.hecate/gitops/hecate-daemon.container:
+#   Image=ghcr.io/hecate-social/hecate-daemon:v0.7.2
+git -C ~/.hecate/gitops commit -am "fix: Rollback to v0.7.2 due to {reason}"
+# Reconciler restarts systemd unit with the older image
 ```
 
-Rollback is just deploying an older known-good version — via the same GitOps flow.
+Rollback is just deploying an older known-good version -- via the same GitOps flow.
 
 ---
 
@@ -184,10 +182,11 @@ Rollback is just deploying an older known-good version — via the same GitOps f
 
 | Strategy | Use When | Risk |
 |----------|----------|------|
-| **Rolling** | Standard deploys | Low |
-| **Blue/Green** | Zero-downtime critical | Medium |
-| **Canary** | High-risk changes | Low (gradual) |
-| **Recreate** | Breaking changes | High (downtime) |
+| **Node-by-node** | Standard deploys across multiple nodes | Low |
+| **In-place** | Single-node updates, quick iteration | Medium |
+| **Recreate** | Breaking changes requiring clean state | High (downtime) |
+
+For most Hecate divisions deployed to individual nodes, **in-place** is the default. When deploying across multiple beam cluster nodes, update **one node at a time** and verify health before proceeding to the next.
 
 ---
 
@@ -196,16 +195,18 @@ Rollback is just deploying an older known-good version — via the same GitOps f
 **Immediately after deployment:**
 
 ```bash
-# Health check
-curl https://prod.example.com/health
-# → {"status": "ok", "version": "1.2.3"}
+# Health check via Unix socket
+curl --unix-socket ~/.hecate/hecate-daemon/sockets/api.sock \
+  http://localhost/health
+# Expected: {"status": "ok", "version": "0.7.3"}
 
-# Basic functionality
-curl https://prod.example.com/api/{resource}
-# → 200 OK
+# Basic API functionality
+curl --unix-socket ~/.hecate/hecate-daemon/sockets/api.sock \
+  http://localhost/api/{resource}
+# Expected: 200 OK
 
 # Critical path test
-# → Whatever is most important works
+# Whatever is most important -- verify it works.
 ```
 
 **Automated smoke tests should run on every deployment.**
@@ -263,6 +264,19 @@ curl https://prod.example.com/api/{resource}
 
 **Correlation IDs:** Trace requests across services.
 
+**Viewing logs on a node:**
+
+```bash
+# Follow logs for a specific unit
+journalctl --user -u hecate-daemon -f
+
+# Logs since last boot
+journalctl --user -u hecate-daemon -b
+
+# Logs from a specific time
+journalctl --user -u hecate-daemon --since "2026-02-18 10:00:00"
+```
+
 ---
 
 ### 6. Incident Response
@@ -270,12 +284,12 @@ curl https://prod.example.com/api/{resource}
 **When something goes wrong:**
 
 ```
-1. DETECT   — Alert fires or user reports
-2. TRIAGE   — Assess severity and impact
-3. MITIGATE — Stop the bleeding (rollback, scale, disable)
-4. DIAGNOSE — Find root cause
-5. RESOLVE  — Fix the issue
-6. REVIEW   — Post-incident analysis
+1. DETECT   -- Alert fires or user reports
+2. TRIAGE   -- Assess severity and impact
+3. MITIGATE -- Stop the bleeding (rollback, restart, disable)
+4. DIAGNOSE -- Find root cause
+5. RESOLVE  -- Fix the issue
+6. REVIEW   -- Post-incident analysis
 ```
 
 **Severity levels:**
@@ -316,20 +330,20 @@ curl https://prod.example.com/api/{resource}
 
 ```
 Production feedback
-    ↓
+    |
 Prioritize issues/improvements
-    ↓
+    |
 Add to backlog
-    ↓
+    |
 Next DnA cycle
 ```
 
 **Categories:**
 
-- **Bugs:** Things that don't work → Fix in current cycle
-- **Improvements:** Things that could be better → Next cycle
-- **Features:** New capabilities needed → Backlog
-- **Tech debt:** Internal quality → Scheduled maintenance
+- **Bugs:** Things that don't work -- Fix in current cycle
+- **Improvements:** Things that could be better -- Next cycle
+- **Features:** New capabilities needed -- Backlog
+- **Tech debt:** Internal quality -- Scheduled maintenance
 
 ---
 
@@ -337,15 +351,15 @@ Next DnA cycle
 
 ### Required
 
-- [ ] **Deployed Release** — Running in production
-- [ ] **Monitoring** — Dashboards and alerts configured
-- [ ] **Runbook** — How to operate the system
+- [ ] **Deployed Release** -- Running in production
+- [ ] **Monitoring** -- Dashboards and alerts configured
+- [ ] **Runbook** -- How to operate the system
 
 ### Recommended
 
-- [ ] **Incident Reports** — Post-mortems for issues
-- [ ] **Feedback Log** — Collected feedback organized
-- [ ] **Performance Baseline** — Normal metrics documented
+- [ ] **Incident Reports** -- Post-mortems for issues
+- [ ] **Feedback Log** -- Collected feedback organized
+- [ ] **Performance Baseline** -- Normal metrics documented
 
 ---
 
@@ -364,34 +378,42 @@ Next DnA cycle
 
 ### Restart the service
 ```bash
-kubectl rollout restart deployment/{name}
+systemctl --user restart {unit-name}
+```
+
+### Check status
+```bash
+systemctl --user status {unit-name}
 ```
 
 ### Check logs
 ```bash
-kubectl logs -f deployment/{name}
+journalctl --user -u {unit-name} -f
 ```
 
-### Scale up/down
+### Inspect running container
 ```bash
-kubectl scale deployment/{name} --replicas=N
+podman ps --filter name={container-name}
+podman inspect {container-name}
 ```
 
 ## Troubleshooting
 
 ### High latency
-1. Check resource utilization
+1. Check resource utilization: podman stats {container-name}
 2. Check dependent services
-3. Check recent deployments
+3. Check recent deployments: git -C ~/.hecate/gitops log --oneline -5
 
 ### Error rate spike
 1. Check logs for error patterns
 2. Check recent deployments
-3. Consider rollback
+3. Consider rollback (update .container file to previous version)
 
 ## Rollback Procedure
-1. ...
-2. ...
+1. Edit ~/.hecate/gitops/{unit}.container -- set Image to previous version
+2. Commit: git -C ~/.hecate/gitops commit -am "fix: Rollback {unit} to vX.Y.Z"
+3. Reconciler restarts unit (or: systemctl --user restart {unit-name})
+4. Verify health via smoke test
 
 ## Contacts
 - Team: ...
@@ -439,10 +461,11 @@ kubectl scale deployment/{name} --replicas=N
 | **Blame culture** | People hide mistakes | Blameless post-mortems |
 | **Ignoring feedback** | Same issues recur | Feed back into planning |
 | **`:latest` or `:main` tags** | No traceability, drift | Explicit version tags |
-| **`kubectl set image`** | Bypasses GitOps, state drift | Update GitOps manifests |
-| **Restarting pods manually** | Masks the real deployment flow | Version bump → tag → CI → GitOps |
-| **Skipping the version bump** | Can't tell what's deployed | Always bump, always tag |
+| **`podman run` ad-hoc** | Bypasses GitOps, state drift | Update .container file in gitops |
+| **`systemctl restart` without version change** | Masks the real deployment flow | Version bump -- tag -- CI -- GitOps |
+| **Skipping the version bump** | Cannot tell what is deployed | Always bump, always tag |
 | **Building images locally** | Unreproducible, no audit trail | Let CI build from tag |
+| **Editing units directly in ~/.config/containers/systemd/** | Bypasses gitops, changes lost on next reconcile | Edit in ~/.hecate/gitops/ only |
 
 ---
 

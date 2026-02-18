@@ -1,6 +1,6 @@
 # Integration Transports
 
-How umbrella apps communicate within hecate-daemon, with the TUI, and across the network.
+How umbrella apps communicate within hecate-daemon, with hecate-web, and across the network.
 
 ---
 
@@ -9,7 +9,7 @@ How umbrella apps communicate within hecate-daemon, with the TUI, and across the
 | Layer | Transport | Scope | Use Case |
 |-------|-----------|-------|----------|
 | **Internal** | `pg` (OTP process groups) | Same BEAM VM | CMD → PRJ projections, intra-daemon |
-| **Local** | `tui` (SSE over Unix socket) | Same machine, cross-process | Daemon → TUI fact delivery |
+| **Local** | `hecate://` (Unix socket proxy) | Same machine, cross-process | hecate-web → daemon API calls |
 | **External** | `mesh` (Macula) | WAN, cross-daemon | Agent-to-agent facts, inter-daemon |
 
 ```
@@ -20,21 +20,21 @@ How umbrella apps communicate within hecate-daemon, with the TUI, and across the
 │   ┌──────────────────────────────────────────┐                        │
 │   │         ReckonDB (dev_studio_store)       │                        │
 │   │    Events stored via evoq_dispatcher     │                        │
-│   └───────────┬──────────┬──────────┬────────┘                        │
-│               │          │          │                                   │
-│          evoq sub   evoq sub   evoq sub                                │
-│          (by type)  (by type)  (by type)                               │
-│               │          │          │                                   │
-│               ▼          ▼          ▼                                   │
-│   ┌───────────────┐ ┌────────────┐ ┌────────────┐                    │
-│   │ *_to_pg.erl   │ │*_to_mesh   │ │*_to_tui    │                    │
-│   │ (emitter)     │ │(emitter)   │ │(emitter)   │                    │
-│   └───────┬───────┘ └─────┬──────┘ └─────┬──────┘                    │
-│           │ pg broadcast   │ mesh publish  │ SSE stream                │
-│           │                │               │                           │
-│           ▼                ▼               └──────────────► TUI        │
-│   ┌───────────────┐   Macula Mesh                                     │
-│   │ pg listeners  │   (WAN/External)                                  │
+│   └───────────┬──────────┬───────────────────┘                        │
+│               │          │                                             │
+│          evoq sub   evoq sub                                          │
+│          (by type)  (by type)                                         │
+│               │          │                                             │
+│               ▼          ▼                                             │
+│   ┌───────────────┐ ┌────────────┐                                   │
+│   │ *_to_pg.erl   │ │*_to_mesh   │                                   │
+│   │ (emitter)     │ │(emitter)   │                                   │
+│   └───────┬───────┘ └─────┬──────┘                                   │
+│           │ pg broadcast   │ mesh publish                              │
+│           │                │                                           │
+│           ▼                ▼                                           │
+│   ┌───────────────┐   Macula Mesh                                    │
+│   │ pg listeners  │   (WAN/External)                                 │
 │   │ (projections  │                                                    │
 │   │  or CMD desks)│                                                    │
 │   └───────────────┘                                                    │
@@ -53,7 +53,37 @@ How umbrella apps communicate within hecate-daemon, with the TUI, and across the
 │   │ -> writes to SQLite read model│                                   │
 │   └───────────────────────────────┘                                   │
 │                                                                        │
+│   ┌──────────────────────────────────────────┐                        │
+│   │   Unix Socket API (~/.hecate/*/sockets/) │                        │
+│   │   HTTP request/response                  │                        │
+│   └───────────┬──────────────────────────────┘                        │
+│               │                                                        │
+└───────────────┼────────────────────────────────────────────────────────┘
+                │ Unix socket
+                ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│              HECATE-WEB (Tauri Desktop App)                           │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                                        │
+│   SvelteKit shell                                                     │
+│       │                                                                │
+│       │ hecate://{daemon}/path                                        │
+│       ▼                                                                │
+│   ┌───────────────────────────────┐                                   │
+│   │ socket_proxy.rs (Tauri)       │                                   │
+│   │ Routes hecate:// requests     │                                   │
+│   │ to Unix sockets               │                                   │
+│   └───────────┬───────────────────┘                                   │
+│               │                                                        │
+│   Plugin iframes (SvelteKit SPAs)                                     │
+│   also use hecate:// protocol                                         │
+│   /plugin/{name}/* routing                                            │
+│                                                                        │
 └──────────────────────────────────────────────────────────────────────┘
+
+CLI (headless):
+  hecate CLI → direct Unix socket → daemon API
+  (simple request/response, no streaming)
 ```
 
 ---
@@ -81,27 +111,23 @@ How umbrella apps communicate within hecate-daemon, with the TUI, and across the
 
 ---
 
-## Why `tui` for Local Integration
+## Why `hecate://` for Local Integration
 
-The TUI is an external process on the same machine. It can't join pg groups (it's Go, not Erlang). It needs its own transport layer.
+hecate-web is a Tauri desktop app with a custom `hecate://` URI scheme. All communication between the frontend and daemon(s) flows through this protocol.
 
-1. **SSE over Unix socket** — reuses existing streaming infrastructure
-2. **Per-fact emitters** — same pattern as `_to_pg` and `_to_mesh`
-3. **Per-fact listeners** — TUI hosts one listener per fact it cares about
-4. **Transport hidden** — listeners don't know about SSE; a shared bridge multiplexes
+1. **Unix socket proxy** -- Tauri's `socket_proxy.rs` intercepts `hecate://` requests and proxies them to Unix sockets on disk
+2. **Path-based routing** -- `/plugin/{name}/*` routes to `~/.hecate/hecate-{name}d/sockets/api.sock`, enabling each daemon to own its own socket
+3. **Request/response semantics** -- Standard HTTP verbs (GET, POST, PUT, DELETE) over Unix sockets. No SSE, no long-polling
+4. **Daemon-as-proxy** -- If no local socket exists for a given daemon, the primary daemon can forward the request to a cluster peer via BEAM distribution
+5. **Plugin isolation** -- Plugin frontends (`*w`) are SvelteKit SPAs served by nginx containers, embedded in hecate-web via iframes. They use the same `hecate://` protocol
+6. **CLI access** -- The `hecate` CLI provides headless/SSH access by making direct HTTP requests to the daemon's Unix socket. No browser required, no streaming
+
+**For real-time updates:** hecate-web polls or will use WebSocket in the future. The daemon does NOT push events to the frontend.
 
 **Key distinction from `pg` and `mesh`:**
-- `pg`: listener joins a group, receives messages directly
-- `mesh`: listener subscribes to a topic, receives messages via QUIC
-- `tui`: daemon-side emitter joins pg group, forwards to TUI via SSE bridge
-
-The TUI listener is the **consumer**. The `_to_tui.erl` emitter is the **bridge** — it subscribes to pg internally and pushes facts externally.
-
-### Side Effects Follow Facts
-
-> **The TUI must never perform side effects based on command acknowledgments (HTTP 200/202). Side effects are triggered only by received facts.**
-
-See [HOPE_FACT_SIDE_EFFECTS.md](../skills/HOPE_FACT_SIDE_EFFECTS.md) for the full pattern.
+- `pg`: Erlang processes join groups, receive messages directly (intra-BEAM)
+- `mesh`: Agents subscribe to topics, receive messages via QUIC (WAN)
+- `hecate://`: Frontend makes HTTP requests via Unix socket proxy (same machine, cross-process)
 
 ---
 
@@ -114,7 +140,6 @@ See [EVENT_SUBSCRIPTION_FLOW.md](EVENT_SUBSCRIPTION_FLOW.md) for the full canoni
 ```
 ReckonDB -> evoq subscription -> emitter (*_to_pg.erl)   -> pg broadcast
 ReckonDB -> evoq subscription -> emitter (*_to_mesh.erl)  -> mesh publish
-ReckonDB -> evoq subscription -> emitter (*_to_tui.erl)   -> SSE stream
 ReckonDB -> evoq subscription -> projection               -> SQLite write
 ```
 
@@ -171,12 +196,11 @@ handle_info({events, Events}, State) ->
 | Transport | Example |
 |-----------|---------|
 | pg | `venture_initiated_v1_to_pg.erl` |
-| tui | `vision_refined_v1_to_tui.erl` |
 | mesh | `capability_announced_v1_to_mesh.erl` |
 
 ### Listeners (Subscribers)
 
-**Daemon-side — CMD desks** (listener triggers a command):
+**Daemon-side -- CMD desks** (listener triggers a command):
 ```
 on_{event}_from_{transport}_maybe_{command}.erl
 ```
@@ -186,7 +210,7 @@ Example:
 on_division_discovered_v1_from_pg_maybe_initiate_division.erl
 ```
 
-**Daemon-side — PRJ desks** (listener triggers a projection):
+**Daemon-side -- PRJ desks** (listener triggers a projection):
 ```
 on_{event}_from_{transport}_project_to_{storage}_{target}.erl
 ```
@@ -194,18 +218,6 @@ on_{event}_from_{transport}_project_to_{storage}_{target}.erl
 Example:
 ```
 on_venture_initiated_v1_from_pg_project_to_sqlite_ventures.erl
-```
-
-**TUI-side — fact listeners** (listener performs a local side effect):
-```
-on_{event}_{side_effect}.go
-```
-
-Examples:
-```
-on_vision_refined_v1_write_vision_to_disk.go
-on_venture_archived_v1_clear_context.go
-on_venture_initiated_v1_scaffold_repo.go
 ```
 
 ---
@@ -324,7 +336,7 @@ handle_cast(_Msg, State) -> {noreply, State}.
 terminate(_Reason, _State) -> ok.
 ```
 
-### pg Listener (CMD desk — inter-division integration)
+### pg Listener (CMD desk -- inter-division integration)
 
 ```erlang
 %% on_division_identified_v1_from_pg_maybe_initiate_division.erl
@@ -419,6 +431,7 @@ handle_cast(_Msg, State) -> {noreply, State}.
 | mesh for intra-daemon | Massive overhead, wrong tool | Use pg |
 | pg for cross-daemon | Doesn't work across network | Use mesh |
 | Listener without a desk | Orphan code, unclear ownership | Every listener belongs to a desk |
+| SSE streaming to frontends | Complexity for little benefit | Use polling or WebSocket (future) |
 
 ---
 
@@ -432,11 +445,11 @@ handle_cast(_Msg, State) -> {noreply, State}.
 | 2026-02-08 | Naming: `on_{event}_from_{transport}_maybe_{command}.erl` |
 | 2026-02-08 | Naming: `on_{event}_from_{transport}_project_to_{storage}_{target}.erl` |
 | 2026-02-08 | PRJ desk directory: `{event}_to_{target}/` |
-| 2026-02-09 | Use `tui` (SSE/socket) for local integration (daemon → TUI) |
-| 2026-02-09 | TUI-side listeners: `on_{event}_{side_effect}.go` |
-| 2026-02-09 | Side effects follow facts, not hopes (see HOPE_FACT_SIDE_EFFECTS.md) |
-| 2026-02-09 | Daemon emitters: `{event}_to_tui.erl` — joins pg, bridges to SSE |
-| 2026-02-13 | Emitters subscribe to ReckonDB via evoq — not called manually from API handlers |
-| 2026-02-13 | Emitters are projections — same subscription mechanism, different output target |
+| 2026-02-13 | Emitters subscribe to ReckonDB via evoq -- not called manually from API handlers |
+| 2026-02-13 | Emitters are projections -- same subscription mechanism, different output target |
 | 2026-02-13 | QRY projections can subscribe via evoq (same division) OR pg/mesh listeners (inter-division) |
 | 2026-02-13 | See [EVENT_SUBSCRIPTION_FLOW.md](EVENT_SUBSCRIPTION_FLOW.md) for canonical pattern |
+| 2026-02-18 | TUI transport (`_to_tui.erl`, SSE, FactBus) is DEAD -- replaced by hecate-web `hecate://` protocol |
+| 2026-02-18 | Local integration is request/response via Unix socket proxy, not streaming |
+| 2026-02-18 | `hecate` CLI provides headless access via direct socket requests (no SSE) |
+| 2026-02-18 | Plugin routing: `/plugin/{name}/*` maps to `~/.hecate/hecate-{name}d/sockets/api.sock` |

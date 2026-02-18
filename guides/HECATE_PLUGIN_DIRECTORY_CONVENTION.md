@@ -3,8 +3,8 @@
 ## Overview
 
 `~/.hecate/` is the root directory for all Hecate components on a host.
-It contains two categories of entries: daemon namespaces and
-infrastructure repositories. Frontends are stateless -- they connect
+It contains three categories of entries: daemon namespaces, infrastructure
+configuration, and secrets. Frontends are stateless -- they connect
 to their daemon's socket and have no local data directory.
 
 The primary daemon (`hecate-daemon`) is the authority on directory layout
@@ -12,29 +12,49 @@ and acts as the plugin registry.
 
 ## The Hecate App Model
 
-Every Hecate app is a **pair**: a daemon (`*d`) and a frontend (`*w`).
+Every Hecate plugin is a **trio**: a daemon (`*d`), a web frontend (`*w`),
+and CLI subcommands registered by the daemon. The daemon and frontend run
+as OCI containers managed by systemd via Podman Quadlet units. The CLI
+subcommands are discovered dynamically by the `hecate` CLI through the
+daemon socket.
 
 | Component | Role | Runtime | Deployed as |
 |-----------|------|---------|-------------|
-| `hecate-daemon` | Primary daemon, plugin registry | Erlang/OTP | k3s DaemonSet |
+| `hecate-daemon` | Primary daemon, plugin registry | Erlang/OTP | podman container (systemd) |
 | `hecate-web` | Native desktop shell, renders all frontends | Tauri v2 (Rust + SvelteKit) | Install script |
-| `hecate-traderd` | Trading plugin daemon | Erlang/OTP | k3s DaemonSet |
-| `hecate-traderw` | Trading plugin frontend | SvelteKit | k3s DaemonSet |
-| `hecate-marthad` | DevOps AI agent daemon | Erlang/OTP | k3s DaemonSet |
-| `hecate-marthaw` | DevOps AI agent frontend | SvelteKit | k3s DaemonSet |
+| `hecate-traderd` | Trading plugin daemon | Erlang/OTP | podman container (systemd) |
+| `hecate-traderw` | Trading plugin frontend | SvelteKit | podman container (systemd) |
+| `hecate-marthad` | DevOps AI agent daemon | Erlang/OTP | podman container (systemd) |
+| `hecate-marthaw` | DevOps AI agent frontend | SvelteKit | podman container (systemd) |
+
+### Plugin Three Parts
+
+Every plugin consists of exactly three parts:
+
+| Part | What it is | Lifecycle |
+|------|-----------|-----------|
+| **Daemon** (`*d`) | OCI container running Erlang/OTP, owns all state | Long-running systemd service |
+| **Web Frontend** (`*w`) | OCI container running SvelteKit, stateless | Long-running systemd service |
+| **CLI Subcommands** | Registered by daemon, discovered via socket | On-demand per CLI invocation |
+
+The daemon is the authority. The frontend renders what the daemon provides.
+The CLI gives headless/SSH access to the same functionality.
 
 ### Communication Rules
 
 1. **Frontend to its daemon** -- Unix domain sockets only. No TCP/HTTP.
-   Socket files live in `~/.hecate/{daemon}/sockets/` (hostPath shared
-   between host and pods).
+   Socket files live in `~/.hecate/{daemon}/sockets/` (bind-mounted into
+   containers).
 2. **Daemon to daemon** -- BEAM-native clustering (pg process groups,
-   `erlang:send/2`, monitors). Zero-config within k3s. No APIs needed.
+   `erlang:send/2`, monitors). Zero-config within a host. No APIs needed.
 3. **Frontend to frontend** -- NEVER. All inter-app data flows through
    daemons via BEAM clustering.
 4. **hecate-web to plugin frontends** -- WebView embed. hecate-web loads
    plugin frontends as embedded webviews. The data channel from that
    webview to the plugin daemon goes via Unix socket.
+5. **Daemon-as-proxy** -- When hecate-web requests a plugin that is not
+   installed locally, the daemon forwards the request to a cluster peer
+   that has it. The user sees remote plugins seamlessly.
 
 ### Architecture Diagram
 
@@ -47,13 +67,22 @@ Every Hecate app is a **pair**: a daemon (`*d`) and a frontend (`*w`).
   #
   # --- Infrastructure ---
   #
-  gitops/                                   # Local GitOps repo (Flux source)
-    hecate-daemon/                          # DaemonSet manifests
-    hecate-traderd/                         # Plugin daemon manifests
-    hecate-traderw/                         # Plugin frontend manifests
-    hecate-marthad/                         # AI agent daemon manifests
-    hecate-marthaw/                         # AI agent frontend manifests
-    ...
+  gitops/                                   # Per-node source of truth for systemd units
+    system/
+      hecate-daemon.container               # Core daemon Quadlet unit
+    apps/
+      hecate-trader/
+        traderd.container                   # Plugin daemon Quadlet unit
+        traderw.container                   # Plugin frontend Quadlet unit
+      hecate-martha/
+        marthad.container                   # AI agent daemon Quadlet unit
+        marthaw.container                   # AI agent frontend Quadlet unit
+    config/
+      node.toml                            # Node-specific configuration
+
+  secrets/                                  # Encryption keys (sops + age)
+    age.key                                 # Private key (mode 0600)
+    age.pub                                 # Public key
 
   #
   # --- Daemon Namespaces (standard structure) ---
@@ -90,12 +119,12 @@ Every Hecate app is a **pair**: a daemon (`*d`) and a frontend (`*w`).
     hecate-agents/                           # Cloned knowledge base (AI instructions)
 ```
 
-Frontends (hecate-traderw, hecate-marthaw, etc.) are stateless k3s pods.
+Frontends (hecate-traderw, hecate-marthaw, etc.) are stateless containers.
 They connect to their daemon's socket (e.g. `~/.hecate/hecate-traderd/sockets/api.sock`)
 but do NOT have their own directory under `~/.hecate/`. Sockets are owned
 by daemons.
 
-## Two Categories
+## Three Categories
 
 ### 1. Daemon Namespaces
 
@@ -112,19 +141,33 @@ Every Erlang daemon gets the full standard structure:
 Daemons that include an AI agent (like `hecate-marthad`) may also have
 a cloned knowledge base directory (e.g. `hecate-agents/`).
 
-Frontends do NOT get their own namespace. They are stateless pods that
-connect to their daemon's socket via hostPath mount.
+Frontends do NOT get their own namespace. They are stateless containers
+that connect to their daemon's socket via bind mount.
 
 ### 2. Infrastructure
 
-Non-daemon directories that serve the platform:
+The gitops directory is the per-node source of truth for all deployments:
 
 | Directory | Purpose |
 |-----------|---------|
-| `gitops/` | Local GitOps repository. Flux watches this for all k3s deployments. |
+| `gitops/` | Per-node source of truth. The local reconciler watches this directory and manages systemd units accordingly. |
+
+The gitops directory contains Podman Quadlet `.container` files organized
+by component. The local reconciler detects changes and creates, updates,
+or removes the corresponding `systemd --user` units.
 
 Infrastructure directories do NOT follow the daemon namespace structure.
-They are plain git repos or configuration directories.
+
+### 3. Secrets
+
+Encryption keys for secret management (sops + age):
+
+| Directory | Purpose |
+|-----------|---------|
+| `secrets/` | Age keypair for encrypting/decrypting secrets in gitops config files. |
+
+The private key (`age.key`) must be mode 0600. Secrets in `gitops/config/`
+are encrypted with sops using this key.
 
 ## Rules
 
@@ -140,18 +183,18 @@ They are plain git repos or configuration directories.
 7. **hecate-daemon is the authority** -- it creates namespace directories
    and tracks registered plugins
 8. **All deployments via gitops** -- `~/.hecate/gitops/` is the single
-   source of truth for k3s deployments (except `hecate-web` which uses
-   the install script)
+   source of truth. The local reconciler watches it and manages systemd
+   units. The only exception is `hecate-web` which uses the install script.
 9. **Multi-user** -- `~` resolves per-user, so each user gets their own
-   `~/.hecate/` tree
+   `~/.hecate/` tree with their own systemd --user services
 
 ## Bootstrap Flow
 
 A plugin daemon starts by connecting to the well-known socket:
 
 ```
-1. Plugin daemon starts (deployed via gitops as DaemonSet)
-2. Connects to ~/.hecate/hecate-daemon/sockets/api.sock
+1. Plugin container starts (systemd unit created by reconciler from gitops)
+2. Connects to ~/.hecate/hecate-daemon/sockets/api.sock (bind-mounted)
 3. POST /api/plugins/register { "name": "hecate-traderd" }
 4. hecate-daemon creates ~/.hecate/hecate-traderd/{sqlite,reckon-db,...}
 5. Returns the assigned paths to the plugin
@@ -215,6 +258,46 @@ Response 200:
 Note: deregistration does NOT delete the plugin's data directory. Data
 cleanup is a separate, explicit operation.
 
+## Plugin CLI Subcommands
+
+Plugins register CLI subcommands with their daemon. The `hecate` CLI
+discovers available commands by querying the daemon socket.
+
+```
+$ hecate status                    # daemon health + installed plugins
+$ hecate install trader            # pull OCI, write container unit, reconcile
+$ hecate remove trader             # remove unit, reconcile
+$ hecate logs traderd              # journalctl --user -u hecate-traderd
+$ hecate trader status             # delegate to traderd via socket
+$ hecate trader agents             # plugin-specific subcommand
+```
+
+Daemons export their CLI interface:
+
+```erlang
+%% traderd_cli.erl
+-export([commands/0, handle_command/2]).
+
+commands() ->
+    [{<<"status">>, <<"Show trading agent status">>},
+     {<<"agents">>, <<"List active agents">>}].
+
+handle_command(<<"status">>, _Args) ->
+    {ok, #{agents => 3, pnl => 142.30}}.
+```
+
+The `hecate` CLI ships with hecate-daemon and provides headless/SSH access
+to all plugin functionality. There are no per-plugin CLI apps.
+
+## Deployment Scenarios
+
+| Scenario | How it works |
+|----------|-------------|
+| Single user, single laptop | Install hecate-web, auto-creates `~/.hecate/`, starts daemon. Plugins via UI. |
+| Family, single laptop | Each Unix user gets own `~/.hecate/`, own `systemd --user` units, fully isolated. |
+| Home cluster + laptops | Headless servers run daemon + plugins via systemd. Laptops connect via BEAM cluster. |
+| Corporate | IT deploys servers however they want. Desktops = single user scenario. |
+
 ## Why This Design
 
 | Concern | Solution |
@@ -226,8 +309,10 @@ cleanup is a separate, explicit operation.
 | Discovery | Plugins find each other through hecate-daemon |
 | Security | Unix sockets, no TCP exposure for frontend-daemon |
 | Backend communication | BEAM clustering, no APIs needed |
-| Deployment | Local gitops, consistent for all components |
+| Deployment | Local gitops + reconciler, consistent for all components |
 | Multi-user | Per-user home directory isolation |
+| Headless access | CLI subcommands via daemon socket, no GUI required |
+| Remote plugins | Daemon-as-proxy forwards to cluster peers transparently |
 
 ## Implementation
 
@@ -249,9 +334,9 @@ The base directory is configured via `{hecate, [{data_dir, "~/.hecate/hecate-dae
 |-----------|---------------|-----------------|
 | hecate-daemon (Erlang) | Everything | `shared_paths` module |
 | hecate-web (Tauri/Rust) | Socket path | Hardcoded well-known path |
+| hecate CLI | Socket + plugin commands | `$HOME/.hecate/hecate-daemon/sockets/api.sock` |
 | Shell scripts | Socket + PID paths | `$HOME/.hecate/hecate-daemon/sockets/api.sock` |
 | Plugin daemons | Their own namespace | Plugin registration API |
 | Plugin frontends | Daemon socket path | Convention: `~/.hecate/{daemon}/sockets/api.sock` |
-| k3s deployments | Socket path + data dirs | hostPath volumes to `~/.hecate/` |
-| Flux/GitOps | Manifests | `~/.hecate/gitops/` |
+| Systemd reconciler | Quadlet unit files | `~/.hecate/gitops/` |
 | AI agents (Martha) | Knowledge base | `~/.hecate/hecate-marthad/hecate-agents/` |

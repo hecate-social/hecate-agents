@@ -98,14 +98,14 @@ Event (capability_announced_v1)
 Store (ReckonDB)
 ```
 
-### Outbound (Domain → Mesh / pg / TUI)
+### Outbound (Domain → Mesh / pg)
 
 ```
 ReckonDB (event stored)
     ↓ evoq subscription (by event_type)
 Emitter (capability_announced_v1_to_mesh)
     ↓ receives {events, [Event]}, transforms
-FACT (published to mesh topic / pg group / SSE)
+FACT (published to mesh topic / pg group)
 ```
 
 **Emitters subscribe to the event store via evoq at startup.** They are NOT called manually by API handlers. See [EVENT_SUBSCRIPTION_FLOW.md](EVENT_SUBSCRIPTION_FLOW.md).

@@ -157,19 +157,21 @@ execute_argument_order_test() ->
 ## 🔥 Side Effects Based on Hope Acknowledgment
 
 **Date:** 2026-02-09
-**Origin:** TUI vision command architecture review
+**Origin:** Vision command architecture review
 
 ### The Antipattern
 
-Performing side effects (file I/O, state changes) in the TUI based on a command's HTTP response rather than on a received event (fact).
+Performing side effects (file I/O, state changes) in a client based on a command's HTTP response rather than on a received event (fact).
 
 **Example (WRONG):**
-```go
-// TUI sends command to daemon
-err := client.RefineVision(ventureID, params)
-if err == nil {
+```javascript
+// Client sends command to daemon
+const res = await fetch('hecate://localhost/api/ventures/refine-vision', {
+    method: 'POST', body: JSON.stringify(params)
+});
+if (res.ok) {
     // WRONG: treating 200 OK as a fact
-    writeVisionToDisk()
+    updateVisionDisplay(params);
 }
 ```
 
@@ -177,23 +179,21 @@ The 200 OK means "I received your hope." Not "the vision was refined." Between a
 
 ### The Rule
 
-> **Side effects in external systems (TUI, other agents) must be triggered by received FACTS (events), not by command acknowledgments (hope receipts).**
+> **Side effects in external systems (frontends, other agents) must be triggered by received FACTS (events), not by command acknowledgments (hope receipts).**
 
 ### The Correct Pattern
 
-```go
-// TUI subscribes to event stream
-events := client.EventStream(ctx, ventureID)
+```javascript
+// Client subscribes to event stream
+const events = new EventSource('hecate://localhost/api/ventures/events');
+events.addEventListener('vision_refined_v1', (e) => {
+    updateVisionDisplay(JSON.parse(e.data));  // NOW it's safe
+});
 
-// TUI sends hope (fire and forget the response)
-client.RefineVision(ventureID, params)  // 202 Accepted
-
-// TUI reacts to fact
-for event := range events {
-    if event.Type == "vision_refined_v1" {
-        writeVisionToDisk()  // NOW it's safe
-    }
-}
+// Client sends hope (fire and forget the response)
+fetch('hecate://localhost/api/ventures/refine-vision', {
+    method: 'POST', body: JSON.stringify(params)
+});  // 202 Accepted — don't act on the response
 ```
 
 ### Why It Matters
@@ -201,7 +201,7 @@ for event := range events {
 - Commands can be rejected by aggregate business rules AFTER acknowledgment
 - Event store writes can fail
 - Async processing means acknowledgment ≠ completion
-- The TUI is an **external system** — it must treat the daemon as eventually consistent
+- The frontend is an **external system** — it must treat the daemon as eventually consistent
 
 ### Reference
 
