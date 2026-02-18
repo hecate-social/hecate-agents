@@ -3,8 +3,9 @@
 ## Overview
 
 `~/.hecate/` is the root directory for all Hecate components on a host.
-It contains three categories of entries: daemon namespaces, frontend
-namespaces, and infrastructure repositories.
+It contains two categories of entries: daemon namespaces and
+infrastructure repositories. Frontends are stateless -- they connect
+to their daemon's socket and have no local data directory.
 
 The primary daemon (`hecate-daemon`) is the authority on directory layout
 and acts as the plugin registry.
@@ -87,20 +88,14 @@ See `assets/hecate-app-architecture.svg` for the full visual reference.
       daemon.state
     connectors/
     hecate-agents/                           # Cloned knowledge base (AI instructions)
-
-  #
-  # --- Frontend Namespaces (lighter structure) ---
-  #
-  hecate-traderw/                           # Trading plugin frontend
-    sockets/                                # Socket to its daemon
-    run/
-
-  hecate-marthaw/                           # DevOps AI agent frontend
-    sockets/
-    run/
 ```
 
-## Three Categories
+Frontends (hecate-traderw, hecate-marthaw, etc.) are stateless k3s pods.
+They connect to their daemon's socket (e.g. `~/.hecate/hecate-traderd/sockets/api.sock`)
+but do NOT have their own directory under `~/.hecate/`. Sockets are owned
+by daemons.
+
+## Two Categories
 
 ### 1. Daemon Namespaces
 
@@ -117,13 +112,10 @@ Every Erlang daemon gets the full standard structure:
 Daemons that include an AI agent (like `hecate-marthad`) may also have
 a cloned knowledge base directory (e.g. `hecate-agents/`).
 
-### 2. Frontend Namespaces
+Frontends do NOT get their own namespace. They are stateless pods that
+connect to their daemon's socket via hostPath mount.
 
-Frontends have a lighter structure -- they don't need event stores or
-SQLite databases. They primarily need a socket to communicate with their
-daemon.
-
-### 3. Infrastructure
+### 2. Infrastructure
 
 Non-daemon directories that serve the platform:
 
@@ -136,19 +128,21 @@ They are plain git repos or configuration directories.
 
 ## Rules
 
-1. **One directory per component** -- `~/.hecate/{component-name}/`
-2. **Consistent subdirectories for daemons** -- every daemon uses the same
-   internal layout (`sqlite/`, `reckon-db/`, `sockets/`, `run/`, `connectors/`)
-3. **Names are unique** -- lowercase, hyphenated (e.g. `hecate-traderd`)
+1. **One directory per daemon** -- `~/.hecate/{daemon-name}/`
+2. **Consistent subdirectories** -- every daemon uses the same internal
+   layout (`sqlite/`, `reckon-db/`, `sockets/`, `run/`, `connectors/`)
+3. **Daemon names are unique** -- lowercase, hyphenated (e.g. `hecate-traderd`)
 4. **Naming convention** -- daemons end in `d`, frontends end in `w`
-5. **Well-known bootstrap socket** -- `~/.hecate/hecate-daemon/sockets/api.sock`
+5. **Sockets are owned by daemons** -- frontends connect to their daemon's
+   socket, they do not have their own
+6. **Well-known bootstrap socket** -- `~/.hecate/hecate-daemon/sockets/api.sock`
    is the ONE path all plugin daemons use to find the primary daemon
-6. **hecate-daemon is the authority** -- it creates namespace directories
+7. **hecate-daemon is the authority** -- it creates namespace directories
    and tracks registered plugins
-7. **All deployments via gitops** -- `~/.hecate/gitops/` is the single
+8. **All deployments via gitops** -- `~/.hecate/gitops/` is the single
    source of truth for k3s deployments (except `hecate-web` which uses
    the install script)
-8. **Multi-user** -- `~` resolves per-user, so each user gets their own
+9. **Multi-user** -- `~` resolves per-user, so each user gets their own
    `~/.hecate/` tree
 
 ## Bootstrap Flow
