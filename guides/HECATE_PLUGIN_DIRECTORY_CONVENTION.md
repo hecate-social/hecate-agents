@@ -38,7 +38,7 @@ Every Hecate app is a **pair**: a daemon (`*d`) and a frontend (`*w`).
 
 ### Architecture Diagram
 
-See `assets/hecate-app-architecture.svg` for the full visual reference.
+![Hecate App Architecture](../assets/hecate-app-architecture.svg)
 
 ## Directory Structure
 
