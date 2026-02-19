@@ -50,7 +50,7 @@ hecate-martha/
 ```
 ~/.hecate/hecate-marthad/
   sqlite/            # Division/venture read models
-  reckon-db/         # Event store data
+  reckon-db/         # Event store data (martha_store)
   sockets/
     api.sock         # Discovered by hecate-web plugin watcher
   run/
@@ -63,16 +63,38 @@ Manifest: `GET /manifest` returns `{name: "martha", icon: ..., version: ..., des
 
 ---
 
+## Event Store
+
+Martha owns a single shared event store: **`martha_store`**.
+
+Both CMD apps (`guide_venture_lifecycle`, `guide_division_alc`) write to this store using separate event streams:
+
+| Stream Pattern | Owner | Example |
+|---------------|-------|---------|
+| `venture-{id}` | `guide_venture_lifecycle` | `venture-abc123` |
+| `division-{id}` | `guide_division_alc` | `division-def456` |
+
+The store is started by `hecate_marthad_app` (the app shell), not by domain apps. Domain supervisors only manage their own emitters, listeners, and process managers.
+
+**Migration note:** In hecate-daemon this store is currently named `dev_studio_store`. The rename to `martha_store` happens during extraction.
+
+---
+
 ## Frontend Vertical Slices
 
-The frontend is organized by **ALC process**, not by technical concern. Each vertical slice contains its own component, store, and types. No `components/`, `stores/`, `utils/` directories.
+The frontend is organized by **ALC task**, not by technical concern. Each vertical slice contains its own component, store, and types. No `components/`, `stores/`, `utils/` directories.
 
 ### Venture-Level Slices
 
-| Slice | ALC Process | What It Does |
-|-------|-------------|--------------|
-| `compose_vision/` | `setup_venture` | AI-guided venture vision creation (Oracle conversation + live preview) |
-| `discover_divisions/` | `discover_divisions` | Big Picture Event Storming (7 phases: storm, stack, groom, cluster, name, map, promote) |
+| Slice | ALC Task | What It Does |
+|-------|----------|--------------|
+| `compose_vision/` | Setup Venture | Initiate venture, AI-guided vision creation (Oracle conversation + live preview), submit vision |
+| `brainstorm_venture_events/` | Discovery (chaotic) | Timeboxed high-octane event brainstorming -- free-form domain event stickies on a timeline |
+| `storm_venture_big_picture/` | Discovery (structured) | Big Picture Event Storming organization: stack, groom, cluster, name, map, promote to divisions |
+
+**On the brainstorm/Big Picture split:** Event Storming's Big Picture technique starts with a chaotic brainstorming phase (posting stickies) and then moves through structured organization (stacking duplicates, grooming, clustering into bounded contexts, naming, context mapping, and finally promoting clusters to divisions). The brainstorm is the high-energy creative burst; the Big Picture phases are the methodical distillation.
+
+Both slices share the same underlying data model (stickies, stacks, clusters, fact arrows) via the venture aggregate. The `brainstorm_venture_events` slice manages the `storm` phase; `storm_venture_big_picture` manages `stack` through `promoted`.
 
 ### Division ALC Slices (8 processes)
 
@@ -91,7 +113,7 @@ The frontend is organized by **ALC process**, not by technical concern. Each ver
 
 | Slice | Purpose |
 |-------|---------|
-| `guide_venture/` | Venture header, division navigation, phase progress, lifecycle controls |
+| `guide_venture/` | Venture header, division list, manual division identification, phase progress, lifecycle controls |
 | `shared/` | TaskCard, AIAssistPanel, EventStreamViewer, ModelSelector |
 
 ### Slice Anatomy
@@ -105,13 +127,18 @@ Every slice follows the same pattern:
   types.ts               # Types scoped to this slice
 ```
 
-Example:
+Examples:
 
 ```
-discover_divisions/
-  DiscoverDivisions.svelte    # Big Picture board UI
-  discover_divisions.ts       # Storm state, sticky CRUD, cluster ops
-  types.ts                    # StickyNote, EventCluster, FactArrow, StormPhase
+brainstorm_venture_events/
+  BrainstormVentureEvents.svelte   # Chaotic sticky board UI
+  brainstorm_venture_events.ts     # Sticky post/pull, timer, state
+  types.ts                         # StickyNote, BrainstormSession
+
+storm_venture_big_picture/
+  StormVentureBigPicture.svelte    # Multi-phase board UI (stack/groom/cluster/name/map)
+  storm_venture_big_picture.ts     # Phase transitions, cluster ops, fact arrows
+  types.ts                         # EventCluster, FactArrow, StormPhase
 ```
 
 ### Why Vertical Slicing?
@@ -126,7 +153,8 @@ types.ts               # All types in one file
 
 This means understanding "how does event storming work?" requires reading 3+ files scattered across the tree. With vertical slicing:
 
-- **To understand event storming** -- read `discover_divisions/` (one directory)
+- **To understand brainstorming** -- read `brainstorm_venture_events/` (one directory)
+- **To understand Big Picture organization** -- read `storm_venture_big_picture/` (one directory)
 - **To understand deployment** -- read `deploy_division/` (one directory)
 - **To add monitoring features** -- edit `monitor_division/` (one directory)
 
@@ -156,12 +184,77 @@ The daemon is an Erlang/OTP umbrella with apps mirroring the ALC:
 
 | Module | Purpose |
 |--------|---------|
-| `hecate_marthad_app` | Starts Cowboy on Unix socket, ensures directory layout |
+| `hecate_marthad_app` | Starts Cowboy on Unix socket, starts `martha_store`, ensures directory layout |
 | `hecate_marthad_sup` | Top-level supervisor |
 | `marthad_paths` | Path helpers for `~/.hecate/hecate-marthad/` |
 | `marthad_health_api` | `GET /health` |
 | `marthad_manifest_api` | `GET /manifest` |
 | `marthad_api_handler` | Domain API routes (venture/division commands + queries) |
+
+---
+
+## Venture-to-Division Bridge
+
+The two CMD apps (`guide_venture_lifecycle` and `guide_division_alc`) are **completely decoupled**. They share `martha_store` but use separate event streams and have zero direct coupling.
+
+### How Divisions Are Discovered
+
+Two paths produce `division_identified_v1` in the venture aggregate:
+
+| Path | Command | Context |
+|------|---------|---------|
+| Manual | `identify_division_v1` | User manually names a division during discovery |
+| Storm promotion | `promote_event_cluster_v1` | Promotes a named cluster from Big Picture (emits TWO events atomically: `event_cluster_promoted_v1` + `division_identified_v1`) |
+
+Both paths add to the venture's `discovered_divisions` map (`context_name => division_id`).
+
+### Missing Process Manager
+
+Currently, **no process manager bridges** the venture lifecycle to division ALC. When `division_identified_v1` fires, nothing automatically creates the division aggregate in `guide_division_alc`.
+
+This bridge is needed:
+
+```
+guide_venture_lifecycle                          guide_division_alc
+─────────────────────                            ─────────────────────
+division_identified_v1  ────  PM  ────────►  initiate_division_v1
+                               │
+              on_division_identified_initiate_division
+```
+
+The process manager would:
+1. Subscribe to `martha_store` for `division_identified_v1` events
+2. Extract `division_id`, `context_name`, `description` from the event
+3. Dispatch `initiate_division_v1` to `guide_division_alc`
+
+Per convention, this PM lives in the **target domain** (`guide_division_alc`):
+
+```
+apps/guide_division_alc/src/
+  on_division_identified_initiate_division/
+    on_division_identified_initiate_division.erl
+    on_division_identified_initiate_division_sup.erl
+```
+
+### Big Picture Storm Phases (Venture Aggregate)
+
+The storm runs as a linear state machine within the venture aggregate:
+
+```
+storm ──► stack ──► groom ──► cluster ──► name ──► map ──► promoted
+```
+
+| Phase | Activity | Commands |
+|-------|----------|----------|
+| `storm` | Chaotic brainstorming -- post domain event stickies | `post_event_sticky_v1`, `pull_event_sticky_v1` |
+| `stack` | Group duplicate/related stickies | `stack_event_sticky_v1`, `unstack_event_sticky_v1` |
+| `groom` | Pick canonical sticky per stack, absorb duplicates | `groom_event_stack_v1` |
+| `cluster` | Group stickies into bounded context clusters | `cluster_event_sticky_v1`, `uncluster_event_sticky_v1` |
+| `name` | Name each cluster (the bounded context name) | `name_event_cluster_v1` |
+| `map` | Draw fact arrows between clusters (context mapping) | `draw_fact_arrow_v1`, `erase_fact_arrow_v1` |
+| `promoted` | Clusters promoted to divisions | `promote_event_cluster_v1` |
+
+Phase transitions are strictly linear via `advance_storm_phase_v1`. Lifecycle controls: `shelve_big_picture_storm_v1`, `resume_big_picture_storm_v1`, `archive_big_picture_storm_v1`.
 
 ---
 
@@ -197,8 +290,10 @@ Martha is being extracted from hecate-web's built-in DevOps studio. The extracti
 
 1. **Frontend**: Move 13 components + 1 store + types from `hecate-web/src/lib/` to `hecate-marthaw/src/lib/`, restructured as vertical slices
 2. **Backend**: Move 4 Erlang apps from `hecate-daemon/apps/` to `hecate-marthad/apps/`
-3. **API routes**: Extract venture/division routes from `hecate_api_routes.erl` to Martha's own API handler
-4. **Decouple**: Remove Martha-specific error codes from shared `api.ts`, Martha-specific types from shared `types.ts`, Martha-specific StatusBar logic
+3. **Store rename**: `dev_studio_store` becomes `martha_store`
+4. **API routes**: Extract venture/division routes from `hecate_api_routes.erl` to Martha's own API handler
+5. **Decouple**: Remove Martha-specific error codes from shared `api.ts`, Martha-specific types from shared `types.ts`, Martha-specific StatusBar logic
+6. **Add bridge PM**: Implement `on_division_identified_initiate_division` process manager
 
 After extraction, Martha registers as `{id: "martha", path: "/martha"}` in the plugin system, discovered automatically via the socket convention.
 
