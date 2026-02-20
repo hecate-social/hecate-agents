@@ -33,7 +33,7 @@ hecate-martha/
       guide_division_alc/            # CMD: division 8-process lifecycle
       query_venture_lifecycle/       # QRY+PRJ: venture read models
       query_division_alc/            # QRY+PRJ: division read models
-      hecate_marthad/                # App shell: Cowboy, socket, health, manifest
+    src/                             # App shell: Cowboy, socket, health, manifest
     priv/static/                     # Frontend bundle (component.js)
 
   hecate-marthaw/                    # SvelteKit frontend
@@ -189,7 +189,11 @@ The daemon is an Erlang/OTP umbrella with apps mirroring the ALC:
 | `marthad_paths` | Path helpers for `~/.hecate/hecate-marthad/` |
 | `marthad_health_api` | `GET /health` |
 | `marthad_manifest_api` | `GET /manifest` |
-| `marthad_api_handler` | Domain API routes (venture/division commands + queries) |
+| `marthad_api_routes` | Auto-discovery route handler for `/api/[...]` |
+| `marthad_api_utils` | JSON response helpers, body parsing, field extraction |
+| `marthad_projection_event` | Flattens `#event{}` records to maps for projections |
+| `marthad_mesh_proxy` | Routes mesh publishes to hecate-daemon via pg groups |
+| `marthad_plugin_registrar` | Registers Martha with hecate-daemon on startup |
 
 ---
 
