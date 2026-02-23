@@ -877,4 +877,244 @@ When generating code that uses ReckonDB subscriptions:
 
 ---
 
+## 🔥 Demon 26: Calling PG Emitters "Dead Code" Without Subscribers
+
+**Date exorcised:** 2026-02-23
+**Where it appeared:** hecate-app-appstored audit — 6 `*_to_pg.erl` emitters
+**Cost:** Nearly deleted working infrastructure that enables inter-domain integration
+
+### The Lie
+
+"These `*_to_pg.erl` emitters have no subscribers — they're dead code and should be removed."
+
+### What Happened
+
+During an audit of `hecate-app-appstored`, all 6 PG emitters were flagged as "dead code" because no process currently calls `pg:join/3` on their topics. The reasoning was:
+
+1. No module subscribes to these pg groups → nobody receives the broadcasts → the emitters do nothing
+2. Therefore they are dead code and should be removed to reduce complexity
+
+This reasoning is **fundamentally wrong** and misunderstands two things:
+
+### Two Misconceptions Corrected
+
+**Misconception 1: "No current subscribers = dead code"**
+
+PG emitters are **pub/sub publishers**. In pub/sub, the publisher does NOT need to know about consumers. The publisher's job is to PUBLISH. Consumers arrive when they need the data — possibly in a different app, possibly months later, possibly in a process manager that doesn't exist yet.
+
+Calling a publisher "dead" because it has no current subscribers is like calling a radio tower "dead" because nobody is tuned in right now. The tower's job is to broadcast. Listeners come and go.
+
+**Misconception 2: "ReckonDB is just an Event Store"**
+
+ReckonDB (like any Event Store) serves **two roles**:
+
+1. **Event Store** — durable, ordered storage of domain events
+2. **Event Bus** — processes subscribe via `reckon_evoq_adapter:subscribe/5` and receive events as they're appended
+
+The `*_to_pg.erl` emitters bridge from the Event Bus to OTP `pg` groups. This serves a different audience than direct evoq subscriptions:
+
+| Channel | Audience | Scope |
+|---------|----------|-------|
+| Direct evoq subscription | Projections within the same division | Intra-domain |
+| PG emitter → pg group | Process managers, listeners in OTHER divisions | Inter-domain |
+
+Both channels are valid. They serve different integration needs.
+
+### The Architecture
+
+```
+ReckonDB (Store + Bus)
+  ↓ reckon_evoq_adapter:subscribe/5
+  ├── Projections → SQLite (read models, same domain)
+  └── PG Emitters → pg groups (inter-domain integration)
+                      └── Future consumers join when needed
+```
+
+### Why It's Dangerous to Remove
+
+1. **Silent breakage** — A future process manager that `pg:join`s an emitter's topic will receive nothing if the emitter was deleted
+2. **No error signal** — pg groups with no publishers don't error — they just never deliver messages
+3. **Architectural intent lost** — The emitter documents that "this event is important enough to broadcast inter-domain"
+4. **Rebuilding is expensive** — Re-creating the emitter, its supervisor child spec, and its evoq subscription is significant work
+
+### The Rule
+
+> **Never remove a pub/sub publisher because it has no current subscribers.**
+> **PG emitters are inter-domain integration infrastructure — they exist to PUBLISH, not to serve known consumers.**
+> **An Event Store is also an Event Bus. Emitters bridge from store-bus to pg-bus for a different audience.**
+
+### Prevention
+
+Before calling any emitter "dead code," ask:
+
+1. Is it a pub/sub publisher? → Publishers don't need subscribers to be valid
+2. Does it bridge between integration layers? → It's infrastructure
+3. Was it intentionally created as part of a vertical slice? → It documents intent
+4. Could a future consumer need this topic? → Leave it alone
+
+### The Lesson
+
+> **Pub/sub publishers are infrastructure. Infrastructure exists before its consumers.**
+> **ReckonDB = Event Store + Event Bus. PG emitters bridge the bus to pg groups for inter-domain use.**
+> **"No subscribers" ≠ "dead code." It means "no consumers yet."**
+
+---
+
+## 🔥 Demon 27: Hardcoded User/Submitter IDs
+
+**Date exorcised:** 2026-02-23
+**Where it appeared:** hecate-app-appstored command modules
+**Cost:** Every event in the store records the wrong actor — audit trail is useless
+
+### The Lie
+
+"Just use `<<"system">>` or a placeholder for the user ID — we'll fix it later."
+
+### What Happened
+
+Command modules hardcoded the submitter identity:
+
+```erlang
+%% WRONG — who actually did this?
+Cmd = buy_license_v1:new(#{
+    license_id => LicenseId,
+    plugin_id => PluginId,
+    user_id => <<"system">>   %% Hardcoded placeholder
+}),
+```
+
+Every event stored in ReckonDB records `<<"system">>` as the actor. The audit trail — "who did what, when" — is destroyed. In an event-sourced system, events are immutable. You cannot retroactively fix the actor identity.
+
+### Why It's Wrong
+
+1. **Audit trail destroyed** — Event sourcing's primary value is a complete, truthful history. Hardcoded actors make the history a lie.
+2. **Immutable damage** — Events cannot be amended. Once stored with `<<"system">>`, that event will always say "system did it."
+3. **Security blind spot** — No way to trace actions back to actual users for access control, debugging, or compliance.
+4. **Multi-user broken** — When two users buy licenses, both events say "system" — indistinguishable.
+
+### The Rule
+
+> **Commands MUST carry the real actor identity. The API handler extracts the user from the request context and passes it through to the command.**
+
+### The Correct Pattern
+
+```erlang
+%% API handler extracts identity from request
+handle_post(Req0, State) ->
+    UserId = extract_user_id(Req0),  %% From auth token, session, etc.
+    {ok, Params, Req1} = app_api_utils:read_json_body(Req0),
+    Cmd = buy_license_v1:new(#{
+        license_id => maps:get(<<"license_id">>, Params),
+        plugin_id => maps:get(<<"plugin_id">>, Params),
+        user_id => UserId   %% Real actor identity
+    }),
+    ...
+```
+
+For commands triggered by Policies or Listeners (no HTTP request), the actor is the **system process** that initiated the action — record it explicitly:
+
+```erlang
+%% Policy — actor is the policy itself
+Cmd = remove_plugin_v1:new(#{
+    license_id => LicenseId,
+    initiated_by => <<"policy:on_license_revoked_v1_maybe_remove_plugin">>
+}),
+```
+
+### Prevention
+
+- Every command struct MUST have a `submitter_id` or `initiated_by` field
+- API handlers MUST extract identity from request context
+- Policies/Listeners MUST identify themselves as the actor
+- Code review: reject any command with hardcoded `<<"system">>`, `<<"admin">>`, or `<<>>`
+
+### The Lesson
+
+> **Events are immutable history. Hardcoded actor IDs destroy that history permanently.**
+> **The identity flows from the entry point (API, Policy, Listener) into the command. No exceptions.**
+
+---
+
+## 🔥 Demon 28: No Tests on Event-Sourced Domains
+
+**Date exorcised:** 2026-02-23
+**Where it appeared:** hecate-app-appstored — 0 tests across 6 CMD desks, 5 projections, 4 query handlers, 4 policies
+**Cost:** Bugs found only by dialyzer or at runtime — no safety net for refactoring
+
+### The Lie
+
+"Dialyzer catches type errors, so we don't need tests."
+
+### What Happened
+
+The appstore daemon shipped with zero tests. Dialyzer caught the `row_to_map` tuple/list bug (Demon #19), but only because it was a type mismatch. Business logic bugs — wrong aggregate guards, incorrect projection SQL, broken policy chains — are invisible to dialyzer.
+
+### What Dialyzer Cannot Catch
+
+| Bug Type | Dialyzer? | Unit Test? |
+|----------|-----------|------------|
+| Wrong function argument types | Yes | Yes |
+| Dead code branches | Yes | Yes |
+| Wrong aggregate business rule (rejects valid command) | **No** | Yes |
+| Projection writes wrong column value | **No** | Yes |
+| Policy dispatches wrong command | **No** | Yes |
+| Command validation too permissive | **No** | Yes |
+| Event missing required field | **No** | Yes |
+| Bit flag combination produces wrong status_label | **No** | Yes |
+
+Dialyzer proves types align. Tests prove behavior is correct. Both are needed.
+
+### Minimum Test Coverage for Event-Sourced Domains
+
+| Component | What to Test | Priority |
+|-----------|-------------|----------|
+| **Aggregate** | Every command + every business rule guard | Critical |
+| **Projection** | Each event type with real `#event{}` record input (Demon #23) | Critical |
+| **Command struct** | `new/1` produces valid command, required fields enforced | High |
+| **Event struct** | `new/N` produces valid event, `to_map/1` round-trips | High |
+| **Policy** | Receives event, dispatches correct command | High |
+| **Query API** | `row_to_map` works with actual esqlite3 output format | Medium |
+
+### The Rule
+
+> **Every event-sourced domain needs tests BEFORE it ships. Dialyzer is a type checker, not a behavior checker.**
+
+### Minimum Viable Test Suite
+
+For an aggregate with N commands:
+
+```erlang
+%% 1. Each command produces the right event
+initiate_test() ->
+    {ok, State} = my_aggregate:init(<<"agg-1">>),
+    Cmd = #{command_type => <<"initiate_thing_v1">>, id => <<"t-1">>},
+    {ok, [Event]} = my_aggregate:execute(State, Cmd),
+    ?assertEqual(<<"thing_initiated_v1">>, maps:get(event_type, Event)).
+
+%% 2. Business rules reject invalid commands
+cannot_archive_already_archived_test() ->
+    State = state_with_flags(?ARCHIVED),
+    Cmd = #{command_type => <<"archive_thing_v1">>, id => <<"t-1">>},
+    ?assertMatch({error, already_archived}, my_aggregate:execute(State, Cmd)).
+
+%% 3. Projection handles real #event{} records
+projection_with_record_test() ->
+    Event = #event{
+        event_type = <<"thing_initiated_v1">>,
+        data = #{id => <<"t-1">>, name => <<"Test">>},
+        stream_id = <<"thing-t-1">>, version = 0,
+        event_id = <<"evt-1">>, metadata = #{},
+        timestamp = 1000, epoch_us = 1000000
+    },
+    FlatMap = projection_event:to_map(Event),
+    ok = thing_initiated_v1_to_sqlite_things:project(FlatMap).
+```
+
+### The Lesson
+
+> **Dialyzer catches type bugs. Tests catch logic bugs. An event-sourced domain without tests is a domain you can't safely refactor.**
+> **The appstore's tuple/list bug (Demon #19) was found by dialyzer. The next bug won't be.**
+
+---
+
 *We burned these demons so you don't have to. Keep the fire going.* 🔥🗝️🔥

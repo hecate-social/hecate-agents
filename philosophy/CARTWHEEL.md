@@ -76,7 +76,8 @@ Every CMD desk contains:
 **Optional:**
 | File | Type | Purpose |
 |------|------|---------|
-| `on_{event}_maybe_*.erl` | Policy/PM | Cross-domain integration trigger |
+| `on_{event}_maybe_*.erl` | Policy | Reacts to internal domain event, dispatches command |
+| `on_{fact}_maybe_*.erl` | Listener | Reacts to external fact (pg/mesh), dispatches command |
 
 ---
 
@@ -110,16 +111,28 @@ FACT (published to mesh topic / pg group)
 
 **Emitters subscribe to the event store via evoq at startup.** They are NOT called manually by API handlers. See [EVENT_SUBSCRIPTION_FLOW.md](EVENT_SUBSCRIPTION_FLOW.md).
 
-### Cross-Domain (via Process Manager)
+### Internal Reaction (via Policy)
 
 ```
-Event from Domain A (llm_model_detected_v1)
+Event from own domain (license_revoked_v1)
+    ↓ evoq subscription (by event_type)
+Policy (on_license_revoked_v1_maybe_remove_plugin)
+    ↓ dispatches command to own aggregate
+Command (remove_plugin_v1)
     ↓
-Policy/PM (on_llm_model_detected_maybe_announce_capability)
-    ↓ subscribes to Domain A, dispatches to Domain B
-Command to Domain B (announce_capability_v1)
+Normal CMD flow
+```
+
+### Cross-Domain Reaction (via Listener)
+
+```
+FACT from another domain (app_available)
+    ↓ arrives via pg group or mesh
+Listener (on_app_available_maybe_install_plugin)
+    ↓ dispatches command to local aggregate
+Command (install_plugin_v1)
     ↓
-Normal CMD flow in Domain B
+Normal CMD flow
 ```
 
 ---
@@ -194,21 +207,25 @@ init([]) ->
 | Responder | `{verb}_{noun}_responder_v1.erl` | `announce_capability_responder_v1.erl` |
 | Emitter (pg) | `{event}_to_pg.erl` | `capability_announced_v1_to_pg.erl` |
 | Emitter (mesh) | `{event}_to_mesh.erl` | `capability_announced_v1_to_mesh.erl` |
-| Policy/PM | `on_{event}_maybe_{verb}_{noun}.erl` | `on_llm_model_detected_maybe_announce_capability.erl` |
+| Policy | `on_{event}_maybe_{verb}_{noun}.erl` | `on_license_revoked_v1_maybe_remove_plugin.erl` |
+| Listener | `on_{fact}_maybe_{verb}_{noun}.erl` | `on_app_available_maybe_install_plugin.erl` |
 | HOPE struct | `{verb}_{noun}_hope_v1.erl` | `announce_capability_hope_v1.erl` |
 
 ---
 
 ## PRJ Domain Structure
 
-Projections subscribe to events and update read models (SQLite).
+**PRJ is a SEPARATE app from QRY.** Projections are writers (react to events, update read models). Queries are readers (serve HTTP, read from read models). Different responsibilities, different apps.
+
+PRJ app naming: `project_{read_model_plural}` (e.g., `project_capabilities`).
 
 ```
-apps/query_capabilities/
+apps/project_capabilities/
 ├── src/
-│   ├── query_capabilities_app.erl
-│   ├── query_capabilities_sup.erl
-│   ├── query_capabilities_store.erl      # SQLite read model
+│   ├── project_capabilities.app.src
+│   ├── project_capabilities_app.erl
+│   ├── project_capabilities_sup.erl
+│   ├── project_capabilities_store.erl      # SQLite read model (owned by PRJ)
 │   │
 │   ├── capability_announced_v1_to_capabilities/  # PRJ desk
 │   │   ├── capability_announced_v1_to_capabilities_sup.erl
@@ -218,20 +235,49 @@ apps/query_capabilities/
 │       └── ...
 ```
 
+PRJ desks subscribe to ReckonDB via `reckon_evoq_adapter:subscribe/5` and write to SQLite.
+
 ---
 
 ## QRY Domain Structure
 
-Queries read from projections. Simple functions, no events.
+**QRY is a SEPARATE app from PRJ.** Queries read from the read models that PRJ populates. Simple functions, no events, no subscriptions.
+
+QRY app naming: `query_{read_model_plural}` (e.g., `query_capabilities`).
 
 ```
 apps/query_capabilities/
 ├── src/
-│   ├── find_capability/
-│   │   └── find_capability.erl           # execute/1 → query store
+│   ├── query_capabilities.app.src
+│   ├── query_capabilities_app.erl
+│   ├── query_capabilities_sup.erl
 │   │
-│   └── list_capabilities/
-│       └── list_capabilities.erl         # execute/1 → query store
+│   ├── get_capability_by_id/
+│   │   └── get_capability_by_id_api.erl    # GET /api/.../capabilities/:id
+│   │
+│   └── get_capabilities_page/
+│       └── get_capabilities_page_api.erl   # GET /api/.../capabilities
+```
+
+QRY depends on PRJ (for the SQLite store module). QRY has NO subscriptions, NO event handling — it only reads.
+
+---
+
+## Three-App Division Structure
+
+Every division with event sourcing has three apps:
+
+| App | Department | Responsibility | Naming |
+|-----|-----------|---------------|--------|
+| CMD | Command | Receives intents, produces events | `{process_verb}_{subject}` |
+| PRJ | Projection | Subscribes to events, writes read models | `project_{read_model_plural}` |
+| QRY | Query | Serves HTTP, reads from read models | `query_{read_model_plural}` |
+
+```
+apps/
+├── manage_capabilities/        # CMD — event sourcing, aggregates, commands
+├── project_capabilities/       # PRJ — projections, SQLite store, event subscriptions
+└── query_capabilities/         # QRY — API handlers, reads from SQLite
 ```
 
 ---

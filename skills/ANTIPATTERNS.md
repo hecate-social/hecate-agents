@@ -33,6 +33,9 @@
 | 23 | Raw #event{} Records in Projections | Projections receive records, call maps:find on tuples | 2026-02-13 |
 | 24 | Silent Subscription Pipeline Failures | POST succeeds, GET returns [] — three bugs, zero errors | 2026-02-13 |
 | 25 | Centralized Route Registration Files | One file per app listing all routes — horizontal grouping | 2026-02-16 |
+| 26 | PG Emitters "Dead Code" Without Subscribers | Pub/sub publishers are infrastructure — no subscribers ≠ dead code | 2026-02-23 |
+| 27 | Hardcoded User/Submitter IDs | Commands must carry the real actor identity, not placeholders | 2026-02-23 |
+| 28 | No Tests on Event-Sourced Domains | Aggregates, projections, and policies need tests — dialyzer alone isn't enough | 2026-02-23 |
 
 ---
 
@@ -64,7 +67,7 @@ Demons #2, #4, #5, #9. Errors in modeling aggregate lifecycles, parent-child rel
 
 ### [ANTIPATTERNS_RUNTIME.md](ANTIPATTERNS_RUNTIME.md) — Event Sourcing & Integration Runtime
 
-Demons #7, #10, #11, #12, #15, #19, #20, #21, #22, #23, #24. Runtime mistakes in event handling, callback signatures, integration channels, projection timing, subscription flow, and Erlang/esqlite3 gotchas.
+Demons #7, #10, #11, #12, #15, #19, #20, #21, #22, #23, #24, #26, #27, #28. Runtime mistakes in event handling, callback signatures, integration channels, projection timing, subscription flow, pub/sub infrastructure, identity propagation, test coverage, and Erlang/esqlite3 gotchas.
 
 ---
 

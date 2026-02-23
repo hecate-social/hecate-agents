@@ -9,8 +9,9 @@ _An LLM doing TnI codegen reads ONLY this file + the relevant template._
 
 | Component | Pattern | Example |
 |-----------|---------|---------|
-| **Command Service** (app) | `{verb}_{aggregate_plural}` | `process_orders` |
-| **Query Service** (app) | `query_{aggregate_plural}` | `query_orders` |
+| **CMD app** | `{verb}_{aggregate_plural}` | `process_orders` |
+| **PRJ app** | `project_{read_model_plural}` | `project_orders` |
+| **QRY app** | `query_{read_model_plural}` | `query_orders` |
 | **Desk** (directory) | `{verb_present}_{subject}/` | `initiate_order/` |
 | **Command** | `{verb_present}_{subject}_v1` | `initiate_order_v1` |
 | **Event** | `{subject}_{verb_past}_v1` | `order_initiated_v1` |
@@ -22,7 +23,8 @@ _An LLM doing TnI codegen reads ONLY this file + the relevant template._
 | **Emitter (pg)** | `{event}_to_pg` | `order_initiated_to_pg` |
 | **Aggregate** | `{noun}_aggregate` | `order_aggregate` |
 | **Projection** | `{event}_to_{read_store}` | `order_initiated_to_orders` |
-| **Process Manager** | `on_{event}_{action}_{target}` | `on_order_placed_reserve_inventory` |
+| **Policy** | `on_{event}_maybe_{command}` | `on_license_revoked_v1_maybe_remove_plugin` |
+| **Listener** | `on_{fact}_maybe_{command}` | `on_app_available_maybe_install_plugin` |
 | **Query (by PK)** | `get_{aggregate}_by_id` | `get_order_by_id` |
 | **Query (by field)** | `get_{aggregate}_by_{field}` | `get_order_by_number` |
 | **Query (paged)** | `get_{aggregates}_page` | `get_orders_page` |
@@ -30,6 +32,73 @@ _An LLM doing TnI codegen reads ONLY this file + the relevant template._
 | **QRY API** | `{query_module}_api` | `get_orders_page_api` |
 | **Tests** | `{module}_tests` | `order_aggregate_tests` |
 | **Status Header** | `{aggregate}_status.hrl` | `order_status.hrl` |
+
+---
+
+## Event Flows from the Store
+
+Every event stored in ReckonDB can trigger one of 5 flow types. Each has a distinct naming pattern and role:
+
+| # | Flow | Module Pattern | Role |
+|---|------|---------------|------|
+| 1 | Event Store → Read Model | `on_{event}_to_sqlite_{table}` / `on_{event}_to_couchdb_{table}` | **Projection** |
+| 2 | Event Store → PubSub | `{event}_to_pg` | **Integration Emitter** |
+| 3 | Event Store → Mesh | `{event}_to_mesh` | **Mesh Emitter** |
+| 4 | Event Store → own Aggregate | `on_{event}_maybe_{command}` | **Policy** |
+| 5 | Other Domain/Mesh → own Aggregate | `on_{fact}_maybe_{command}` | **Listener** |
+
+All 5 subscribe to events via `reckon_evoq_adapter:subscribe/5`. The difference is what they DO with the event:
+
+- **Projection** (1): Writes to a read model (SQLite, CouchDB). Lives in the PRJ app.
+- **Integration Emitter** (2): Broadcasts to OTP `pg` groups for inter-domain consumption. Lives in CMD desk.
+- **Mesh Emitter** (3): Publishes to Macula mesh for WAN/cross-network consumption. Lives in CMD desk.
+- **Policy** (4): Reacts to an internal domain event, dispatches a command to own aggregate. Lives in the target CMD desk.
+- **Listener** (5): Reacts to a FACT from outside (another domain via pg, or mesh), dispatches a local command. Lives in the target CMD desk.
+
+### Policy vs Listener
+
+Both dispatch commands. The difference is the SOURCE of the trigger:
+
+| Name | Source | Example |
+|------|--------|---------|
+| **Policy** | Internal domain event (own event store) | `on_license_revoked_v1_maybe_remove_plugin` |
+| **Listener** | External fact (pg from another domain, or mesh) | `on_app_available_maybe_install_plugin` |
+
+## Command Entry Points
+
+A command is NOT always triggered by an API call. There are three entry points:
+
+| Entry Point | Pattern | Name | Source |
+|-------------|---------|------|--------|
+| API call (HOPE) | `{command}_api.erl` | **API Handler** | User/frontend via HTTP |
+| Internal domain event | `on_{event}_maybe_{command}.erl` | **Policy** | Own event store |
+| External fact | `on_{fact}_maybe_{command}.erl` | **Listener** | Another domain via pg/mesh |
+
+A command without an API handler is NOT dead code — it may only be triggered by policies or listeners. The audit question is: "does every command have at least one entry point?"
+
+### Department Ownership
+
+| Flow | Lives in | Department |
+|------|----------|------------|
+| Projection | `apps/project_{plural}/` | PRJ |
+| Integration Emitter | `apps/{cmd_app}/src/{desk}/` | CMD |
+| Mesh Emitter | `apps/{cmd_app}/src/{desk}/` | CMD |
+| Policy | `apps/{cmd_app}/src/{desk}/` | CMD |
+| Listener | `apps/{cmd_app}/src/{desk}/` | CMD |
+
+---
+
+## Division App Structure (CMD / PRJ / QRY)
+
+Every division with event sourcing has three separate apps:
+
+| Department | Naming Pattern | Example | Responsibility |
+|-----------|---------------|---------|---------------|
+| **CMD** | `{process_verb}_{subject}` | `guide_plugin_lifecycle` | Commands, events, aggregates, emitters, PMs |
+| **PRJ** | `project_{read_model_plural}` | `project_appstore` | Projections, SQLite store, event subscriptions |
+| **QRY** | `query_{read_model_plural}` | `query_appstore` | API handlers, reads from SQLite |
+
+PRJ and QRY are SEPARATE apps. PRJ writes read models, QRY reads them. Different responsibilities.
 
 ---
 
@@ -162,9 +231,10 @@ Macro naming: `?{AGGREGATE_UPPER}_{FLAG}` (e.g., `?VENTURE_INITIATED`, `?ORDER_A
 Given: dossier `process_orders`, desk `initiate_order` (command type)
 
 ```
-App name:        process_orders
-Aggregate:       order
-Query app:       query_orders
+CMD app:         process_orders
+PRJ app:         project_orders
+QRY app:         query_orders
+Aggregate:       order_aggregate
 Desk dir:        src/initiate_order/
 Command module:  initiate_order_v1
 Event module:    order_initiated_v1
@@ -172,10 +242,12 @@ Handler:         maybe_initiate_order
 API handler:     initiate_order_api
 Supervisor:      initiate_order_desk_sup
 Responder:       initiate_order_responder_v1
-Mesh emitter:    order_initiated_to_mesh
-pg emitter:      order_initiated_to_pg
-Projection:      order_initiated_to_orders
-Route:           POST /api/orders/initiate
+Mesh emitter:    order_initiated_v1_to_mesh
+pg emitter:      order_initiated_v1_to_pg
+Projection:      order_initiated_v1_to_sqlite_orders  (in PRJ app)
+QRY handler:     get_orders_page_api                   (in QRY app)
+Route (CMD):     POST /api/orders/initiate
+Route (QRY):     GET /api/orders
 Test:            order_aggregate_tests
 Status header:   order_status.hrl
 ```
