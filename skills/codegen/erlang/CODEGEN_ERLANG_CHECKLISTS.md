@@ -5,6 +5,7 @@ _Step-by-step checklists for generating Division Architecture (Cartwheel) code._
 **Target:** Erlang/OTP with `reckon_evoq`
 
 **Related files:**
+- [CODEGEN_ERLANG_UMBRELLA.md](CODEGEN_ERLANG_UMBRELLA.md) — Umbrella project layout
 - [CODEGEN_ERLANG_TEMPLATES.md](CODEGEN_ERLANG_TEMPLATES.md) — Code templates
 - [CODEGEN_ERLANG_NAMING.md](CODEGEN_ERLANG_NAMING.md) — Naming conventions
 - [../../NAMING_CONVENTIONS.md](../../NAMING_CONVENTIONS.md) — Consolidated quick-reference
