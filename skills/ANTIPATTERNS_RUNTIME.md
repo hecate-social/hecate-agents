@@ -1167,4 +1167,62 @@ static_dir() ->
 
 ---
 
+## 🔥 Demon 30: Forgetting to Bump `.app.src` Versions Before Tagging
+
+**Date exorcised:** 2026-02-24
+**Where it appeared:** hecate-app-appstored — 4 `.app.src` files stuck at `"0.1.0"` while tagging `v0.2.0`
+**Cost:** Had to delete the remote tag, bump versions, re-commit, and re-tag
+
+### The Lie
+
+"Just commit, tag, and push. The version takes care of itself."
+
+### What Happened
+
+A significant feature was implemented (schema extension, new endpoints, bug fixes), committed, tagged as `v0.2.0`, and pushed — but all 4 `.app.src` files still contained `{vsn, "0.1.0"}`. The OCI image built by CI would ship with the old version baked into the BEAM release, causing version mismatches between the git tag and the running application.
+
+### Why It's Wrong
+
+1. **BEAM release version comes from `.app.src`** — `application:get_key(App, vsn)` returns what's in the `.app.src`, not the git tag
+2. **OCI images carry the wrong version** — Logs, health endpoints, and manifest responses report the old version
+3. **Impossible to debug version mismatches** — "I deployed v0.2.0 but the daemon says 0.1.0"
+4. **Tag deletion is destructive** — If CI already built on the tag, you have a phantom image with wrong metadata
+
+### The Rule
+
+> **When tagging a release, ALWAYS bump `{vsn, "X.Y.Z"}` in ALL `.app.src` files BEFORE committing and tagging.**
+
+### Pre-Tag Checklist
+
+Before running `git tag vX.Y.Z`:
+
+1. [ ] **Root `.app.src`** — `src/{app_name}.app.src` bumped
+2. [ ] **All umbrella app `.app.src` files** — `apps/*/src/*.app.src` bumped
+3. [ ] **`rebar3 compile`** — still compiles clean
+4. [ ] **Commit the version bump** — version change is IN the tagged commit
+5. [ ] **Then tag and push**
+
+### Where to Find `.app.src` Files
+
+```bash
+# Erlang umbrella — find all version files
+grep -r '{vsn,' src/*.app.src apps/*/src/*.app.src
+```
+
+### For Other Ecosystems
+
+| Ecosystem | Version File(s) | Same Rule |
+|-----------|----------------|-----------|
+| Erlang/OTP | `src/*.app.src`, `apps/*/src/*.app.src` | Yes |
+| Tauri | `src-tauri/Cargo.toml` AND `src-tauri/tauri.conf.json` | Yes (see hecate-web incident) |
+| Elixir | `mix.exs` | Yes |
+| Node.js | `package.json` | Yes |
+
+### The Lesson
+
+> **The git tag is a label. The `.app.src` version is the truth. They must match.**
+> **Bump versions FIRST, commit, THEN tag. Never the other way around.**
+
+---
+
 *We burned these demons so you don't have to. Keep the fire going.* 🔥🗝️🔥
