@@ -1117,4 +1117,54 @@ projection_with_record_test() ->
 
 ---
 
+## 🔥 Missing `/ui/[...]` Cowboy Route in Plugin Daemon
+
+**Demon #29** — 2026-02-24
+
+### What Happened
+
+The snake-duel daemon had a working `/manifest` endpoint and a healthy Unix socket. Its Dockerfile correctly built the SvelteKit frontend and copied `dist/` into `priv/static/`. But the plugin never appeared in hecate-web.
+
+### The Bug
+
+The cowboy route list in the daemon's `_app.erl` had no `/ui/[...]` route. The frontend assets were sitting in `priv/static/component.js` but cowboy never served them. When hecate-web fetched `/ui/component.js` through the Tauri socket proxy, it got a 404. The plugin loading code treats a 404 on the custom element as "plugin doesn't exist" and silently drops it.
+
+### Why It's Insidious
+
+- The daemon was running fine (health OK, manifest OK)
+- The socket existed and responded to API calls
+- The Dockerfile built and copied the frontend correctly
+- The plugin discovery scan found the socket
+- Zero errors in logs — the failure is a silent 404 in the browser
+
+### The Fix
+
+Every plugin daemon MUST include this route in its cowboy dispatch:
+
+```erlang
+{"/ui/[...]", cowboy_static, {dir, static_dir(), [{mimetypes, cow_mimetypes, all}]}}
+```
+
+With the helper:
+
+```erlang
+static_dir() ->
+    PrivDir = code:priv_dir(my_plugin_app),
+    filename:join(PrivDir, "static").
+```
+
+### Plugin Daemon Required Endpoints Checklist
+
+| Endpoint | Purpose | Without it |
+|----------|---------|-----------|
+| `GET /health` | Health check | Plugin marked unhealthy |
+| `GET /manifest` | Plugin metadata | Discovery fails with error |
+| `GET /ui/[...]` | Frontend custom element | **Plugin silently invisible** |
+
+### The Lesson
+
+> **A plugin with a working daemon and manifest but no `/ui/[...]` route is invisible to hecate-web. The failure is completely silent. Always verify all three required endpoints when creating a new plugin daemon.**
+
+---
+
 *We burned these demons so you don't have to. Keep the fire going.* 🔥🗝️🔥

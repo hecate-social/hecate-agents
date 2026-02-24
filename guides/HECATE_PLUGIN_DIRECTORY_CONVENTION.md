@@ -169,6 +169,86 @@ Encryption keys for secret management (sops + age):
 The private key (`age.key`) must be mode 0600. Secrets in `gitops/config/`
 are encrypted with sops using this key.
 
+## Required Plugin Daemon HTTP Endpoints
+
+Every plugin daemon MUST serve these HTTP endpoints on its Unix socket
+for hecate-web to discover and render the plugin:
+
+| Endpoint | Handler | Purpose |
+|----------|---------|---------|
+| `GET /health` | Custom handler | Health check (200 OK = alive) |
+| `GET /manifest` | Custom handler | Plugin metadata (name, version, icon, description, tag) |
+| `GET /ui/[...]` | `cowboy_static` | Frontend custom element (component.js) served from `priv/static/` |
+
+### Why All Three Are Required
+
+hecate-web discovers plugins by scanning for Unix sockets, then:
+
+1. **Fetches `/manifest`** to get plugin name, icon, description, version
+2. **Loads `/ui/component.js`** as a web component (custom element)
+3. If `/ui/component.js` returns 404, **the plugin is silently dropped**
+
+A plugin with a working daemon and manifest but no `/ui/[...]` route
+will appear to not exist in the hecate-web UI.
+
+### Cowboy Route Pattern
+
+```erlang
+start_cowboy() ->
+    StaticDir = static_dir(),
+    Routes = [
+        {"/health", my_plugin_health_api, []},
+        {"/manifest", my_plugin_manifest_api, []},
+        {"/ui/[...]", cowboy_static, {dir, StaticDir, [{mimetypes, cow_mimetypes, all}]}},
+        %% ... plugin-specific API routes ...
+    ],
+    Dispatch = cowboy_router:compile([{'_', Routes}]),
+    %% ...
+
+static_dir() ->
+    PrivDir = code:priv_dir(my_plugin_app),
+    filename:join(PrivDir, "static").
+```
+
+### Manifest Response Format
+
+```json
+{
+  "name": "my-plugin",
+  "version": "0.1.0",
+  "icon": "\uD83D\uDD27",
+  "description": "What this plugin does",
+  "tag": "my-plugin-studio"
+}
+```
+
+The `tag` field is the custom element tag name that the frontend JS
+registers via `customElements.define()`.
+
+### Frontend Build Pipeline (Dockerfile)
+
+The Dockerfile must build the frontend and copy the output into the
+daemon's `priv/static/` before building the Erlang release:
+
+```dockerfile
+# Stage 1: Build frontend as ES module
+FROM node:22-alpine AS frontend
+WORKDIR /frontend
+COPY my-pluginw/ .
+RUN npm ci && npm run build:lib
+
+# Stage 2: Build Erlang release
+FROM erlang:27-alpine AS backend
+WORKDIR /build
+COPY my-plugind/ .
+RUN rebar3 get-deps && rebar3 compile
+COPY --from=frontend /frontend/dist priv/static/   # <-- CRITICAL
+RUN rebar3 as prod release
+```
+
+Without the `COPY --from=frontend` line, `priv/static/` will be empty
+and `/ui/component.js` will 404.
+
 ## Rules
 
 1. **One directory per daemon** -- `~/.hecate/{daemon-name}/`
