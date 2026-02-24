@@ -94,9 +94,9 @@ Every division with event sourcing has three separate apps:
 
 | Department | Naming Pattern | Example | Responsibility |
 |-----------|---------------|---------|---------------|
-| **CMD** | `{process_verb}_{subject}` | `guide_plugin_lifecycle` | Commands, events, aggregates, emitters, PMs |
-| **PRJ** | `project_{read_model_plural}` | `project_appstore` | Projections, SQLite store, event subscriptions |
-| **QRY** | `query_{read_model_plural}` | `query_appstore` | API handlers, reads from SQLite |
+| **CMD** | `guide_{aggregate}_lifecycle` or `{process_verb}_{subject}` | `guide_license_lifecycle` | Commands, events, aggregates, emitters, PMs |
+| **PRJ** | `project_{domain}` or `project_{read_model_plural}` | `project_appstore` | Projections, SQLite store, event subscriptions |
+| **QRY** | `query_{domain}` or `query_{read_model_plural}` | `query_appstore` | API handlers, reads from SQLite |
 
 PRJ and QRY are SEPARATE apps. PRJ writes read models, QRY reads them. Different responsibilities.
 
@@ -251,6 +251,68 @@ Route (QRY):     GET /api/orders
 Test:            order_aggregate_tests
 Status header:   order_status.hrl
 ```
+
+---
+
+## [PROPOSED] Plugin App Naming Template
+
+> **Status: PROPOSED — discuss before adopting universally.**
+> This template emerged from the appstore plugin and fits lifecycle-centric domains well.
+> Not all plugin apps may fit this paradigm — evaluate case by case.
+
+### The Template
+
+For plugin daemons (`hecate-app-{name}d`) that manage an aggregate through a lifecycle:
+
+```
+hecate-app-{name}d/
+├── apps/
+│   ├── guide_{aggregate}_lifecycle/   ← CMD department
+│   ├── project_{aggregate}/           ← PRJ department
+│   └── query_{aggregate_plural}/      ← QRY department
+```
+
+| Department | Pattern | Intent | Example |
+|-----------|---------|--------|---------|
+| **CMD** | `guide_{aggregate}_lifecycle` | Shepherds the aggregate through its business process | `guide_license_lifecycle` |
+| **PRJ** | `project_{aggregate}` | Projects domain events into read models | `project_appstore` |
+| **QRY** | `query_{aggregate_plural}` | Serves read models via API | `query_appstore` |
+
+### Why `guide_`?
+
+- "Guide" screams intent — the app **guides** something through a process
+- Plugin domains are inherently lifecycle managers (initiate → use → archive)
+- The `_lifecycle` suffix distinguishes from hecate core `guide_*` orchestrators (e.g., `guide_venture`)
+
+### When This Template Fits
+
+- The plugin manages a **single aggregate** through a defined lifecycle
+- The lifecycle has clear phases (buy, install, upgrade, remove, archive)
+- Commands map to lifecycle transitions
+
+### When It Might NOT Fit
+
+- The plugin has **multiple independent aggregates** with separate lifecycles
+- The domain is not lifecycle-centric (e.g., a real-time data stream processor)
+- The CMD app is better described by a specific process verb (e.g., `trade_assets`)
+
+### Derivation Example
+
+Given: plugin `appstore`, aggregate `license`
+
+```
+CMD app:    guide_license_lifecycle
+PRJ app:    project_appstore           (domain-oriented — acceptable when PRJ serves
+                                        multiple read models like catalog + licenses)
+QRY app:    query_appstore             (same reasoning)
+Aggregate:  license_aggregate
+```
+
+Note: PRJ/QRY apps may use the **domain name** instead of the aggregate name
+when the bounded context has multiple read models (e.g., `plugin_catalog` +
+`licenses` tables both served by `query_appstore`). The aggregate-oriented
+naming (`project_licenses` / `query_licenses`) is preferred when the domain
+has a single aggregate with a single read model.
 
 ---
 
