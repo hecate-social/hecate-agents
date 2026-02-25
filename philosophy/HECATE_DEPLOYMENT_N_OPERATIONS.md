@@ -68,13 +68,14 @@ Get the software into production and keep it healthy:
 **GitOps flow:**
 
 ```
-1. Merge to main
-2. CI builds and tags OCI image
-3. Update .container file in ~/.hecate/gitops/
-4. Reconciler detects change, restarts systemd unit
-5. Health checks pass
-6. Deployed
+1. Merge to main (or push tag)
+2. CI builds OCI image, pushes :latest + semver tag to ghcr.io
+3. podman auto-update detects new :latest, pulls and restarts
+4. Health checks pass
+5. Deployed
 ```
+
+`.container` files use `:latest` with `AutoUpdate=registry`. No manual file edits per release. Semver tags (`v0.10.3`) remain on ghcr.io for rollback.
 
 ---
 
@@ -117,64 +118,61 @@ Get the software into production and keep it healthy:
 **Complete Deployment Flow (Example):**
 
 ```bash
-# 1. CODE REPO: Bump version
+# STEP 1: CODE REPO — Bump version
 cd ~/work/github.com/hecate-social/hecate-daemon
 # Edit src/hecate.app.src: {vsn, "0.7.3"}
 
-# 2. CODE REPO: Commit, tag, push
+# STEP 2: CODE REPO — Commit, tag, push
 git add -A && git commit -m "chore: Bump version to 0.7.3"
 git tag v0.7.3
 git push origin main
 git push origin v0.7.3
 
-# 3. CI BUILDS AUTOMATICALLY
+# STEP 3: CI BUILDS AUTOMATICALLY
 # GitHub Actions triggers on tag push:
 # - .github/workflows/docker.yml builds multi-arch image
-# - Pushes to ghcr.io/hecate-social/hecate-daemon:0.7.3
+# - Pushes BOTH ghcr.io/hecate-social/hecate-daemon:0.7.3 AND :latest
 # Monitor: gh run list --repo hecate-social/hecate-daemon
 # NEVER build docker images locally for production!
 
-# 4. GITOPS DIR: Update .container file (after CI completes)
-# Edit ~/.hecate/gitops/hecate-daemon.container:
-#   Image=ghcr.io/hecate-social/hecate-daemon:v0.7.3
-git -C ~/.hecate/gitops add -A
-git -C ~/.hecate/gitops commit -m "chore: Bump hecate-daemon to v0.7.3"
+# STEP 4: AUTOMATIC UPDATE
+# podman auto-update detects new :latest digest, pulls and restarts.
+# .container files use Image=app:latest + AutoUpdate=registry.
+# No manual .container file edits needed per release.
 
-# 5. NODE: Reconciler detects change, restarts systemd unit
-# The local reconciler watches ~/.hecate/gitops/ and:
-#   - Copies updated .container files to ~/.config/containers/systemd/
-#   - Runs: systemctl --user daemon-reload
-#   - Runs: systemctl --user restart hecate-daemon
-# Or trigger manually:
-systemctl --user restart hecate-daemon
+# STEP 5: VERIFY
+curl --unix-socket ~/.hecate/hecate-daemon/sockets/api.sock \
+  http://localhost/api/health
+# Check version matches expected release
 ```
 
-**Why Explicit Version Tags?**
+**Image Tagging Strategy:**
 
-| Anti-Pattern | Problem |
-|--------------|---------|
-| `Image=app:latest` | No traceability, unpredictable pulls |
-| `Image=app:main` | Same image tag, different content over time |
-| Manual `podman pull` + restart | Bypasses GitOps, state drift |
+| What | Tag | Purpose |
+|------|-----|---------|
+| `.container` files | `:latest` | `AutoUpdate=registry` pulls automatically |
+| CI pushes | `:latest` + `:v0.7.3` | Latest for auto-update, semver for rollback |
+| Rollback | Pin to `:v0.7.2` | Temporarily override `:latest` in `.container` |
 
-| Best Practice | Benefit |
-|---------------|---------|
-| `Image=app:v0.7.3` | Immutable, traceable, reproducible |
-| Semantic versioning | Clear meaning (major.minor.patch) |
-| Quadlet .container files in gitops | Single source of truth per node |
-| Reconciler-driven restart | Automated, auditable |
+| Practice | Benefit |
+|----------|---------|
+| `AutoUpdate=registry` | Zero-touch deployments after CI |
+| Semver tags on ghcr.io | Rollback to any known-good version |
+| `.container` files in gitops | Single source of truth per node |
+| CI-only builds | Reproducible, auditable |
 
-**Rollback is a Forward Action:**
+**Rollback (Pin to Specific Version):**
 
 ```bash
 # To "rollback" to v0.7.2:
 # Edit ~/.hecate/gitops/hecate-daemon.container:
 #   Image=ghcr.io/hecate-social/hecate-daemon:v0.7.2
-git -C ~/.hecate/gitops commit -am "fix: Rollback to v0.7.2 due to {reason}"
-# Reconciler restarts systemd unit with the older image
+git -C ~/.hecate/gitops commit -am "fix: Pin hecate-daemon to v0.7.2 due to {reason}"
+# Reconciler restarts systemd unit with the pinned image.
+# After fixing: revert to :latest to resume auto-updates.
 ```
 
-Rollback is just deploying an older known-good version -- via the same GitOps flow.
+Rollback pins to a specific semver tag. After the fix is released, revert to `:latest` to resume auto-updates.
 
 ---
 
@@ -460,9 +458,9 @@ podman inspect {container-name}
 | **Manual deployments** | Inconsistent, error-prone | GitOps always |
 | **Blame culture** | People hide mistakes | Blameless post-mortems |
 | **Ignoring feedback** | Same issues recur | Feed back into planning |
-| **`:latest` or `:main` tags** | No traceability, drift | Explicit version tags |
+| **`:main` branch tags** | Same tag, different content, no semver | Use `:latest` + semver tags from CI |
 | **`podman run` ad-hoc** | Bypasses GitOps, state drift | Update .container file in gitops |
-| **`systemctl restart` without version change** | Masks the real deployment flow | Version bump -- tag -- CI -- GitOps |
+| **Pinned version without `AutoUpdate`** | Must manually edit .container per release | Use `:latest` + `AutoUpdate=registry` |
 | **Skipping the version bump** | Cannot tell what is deployed | Always bump, always tag |
 | **Building images locally** | Unreproducible, no audit trail | Let CI build from tag |
 | **Editing units directly in ~/.config/containers/systemd/** | Bypasses gitops, changes lost on next reconcile | Edit in ~/.hecate/gitops/ only |
