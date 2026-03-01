@@ -18,6 +18,63 @@ as OCI containers managed by systemd via Podman Quadlet units. The CLI
 subcommands are discovered dynamically by the `hecate` CLI through the
 daemon socket.
 
+### App = Division (The Fundamental Equivalence)
+
+**A Hecate App corresponds 1-to-1 with a Division (bounded context).**
+
+This is the single most important architectural insight for understanding
+the Hecate plugin model. The runtime deployment model (App) and the software
+architecture model (Division) are the same thing viewed from different angles:
+
+| Division Concept | Hecate App Equivalent |
+|------------------|-----------------------|
+| **Division** (bounded context) | **App** (plugin repo) |
+| **CMD Department** (command apps) | Erlang apps under `apps/` in the daemon |
+| **PRJ Department** (projection apps) | Erlang apps under `apps/` in the daemon |
+| **QRY Department** (query apps) | Erlang apps under `apps/` in the daemon |
+| **Desks** (vertical slices) | Directories within each Erlang app + frontend slices |
+| **Dossier** (aggregate) | ReckonDB event streams in the daemon's store |
+
+The daemon IS the Division's runtime. Its Erlang umbrella apps ARE the
+CMD/PRJ/QRY departments. The frontend's vertical slices ARE the user-facing
+aspect of the desks.
+
+**Example — Martha:**
+
+```
+Martha App = Martha Division (the ALC bounded context)
+
+Daemon (hecate-marthad):
+  apps/guide_venture_lifecycle/     = CMD department (venture process)
+  apps/guide_division_alc/          = CMD department (division process)
+  apps/query_venture_lifecycle/     = QRY+PRJ department (venture reads)
+  apps/query_division_alc/          = QRY+PRJ department (division reads)
+
+Frontend (hecate-marthaw):
+  brainstorm_venture_events/        = UI for venture storm desk
+  design_division/                  = UI for design desk
+  plan_division/                    = UI for planning desk
+  ...etc
+```
+
+**Why this matters:**
+
+1. **One repo per Division** -- a Division is not scattered across repos
+2. **Daemon owns all state** -- CMD writes events, PRJ builds read models,
+   QRY serves them. The frontend is stateless.
+3. **BEAM clustering for cross-Division** -- Divisions (daemons) communicate
+   via pg process groups, not APIs. Just like departments within a company
+   talk internally, not through formal contracts.
+4. **Mesh for cross-node** -- When Divisions on different machines need to
+   communicate, they use the Macula mesh (integration facts, not domain events).
+5. **Frontend never crosses Division boundaries** -- Each frontend talks only
+   to its own daemon. If it needs data from another Division, the daemon
+   proxies via BEAM clustering.
+
+See [CARTWHEEL.md](../philosophy/CARTWHEEL.md) for the Division architecture
+blueprint and [MARTHA_PLUGIN_ARCHITECTURE.md](MARTHA_PLUGIN_ARCHITECTURE.md)
+for a complete example.
+
 | Component | Role | Runtime | Deployed as |
 |-----------|------|---------|-------------|
 | `hecate-daemon` | Primary daemon, plugin registry | Erlang/OTP | podman container (systemd) |

@@ -5,6 +5,10 @@
 > **Note:** "Cartwheel" is the historical name for what is now called "Division Architecture".
 > `cartwheel` -> `division`, `spoke` -> `desk`.
 
+> **Runtime equivalence:** A Division maps 1-to-1 to a Hecate App (plugin).
+> The daemon IS the Division's runtime; its Erlang umbrella apps ARE the
+> CMD/PRJ/QRY departments. See [Hecate Plugin Directory Convention](../guides/HECATE_PLUGIN_DIRECTORY_CONVENTION.md#app--division-the-fundamental-equivalence).
+
 ---
 
 ## Overview
