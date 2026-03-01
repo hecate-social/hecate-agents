@@ -278,6 +278,22 @@ hecate-app-meshview/
 
 ---
 
+## Security Considerations
+
+Observation plugins are the primary candidate for the **untrusted** trust
+tier. They are read-only by design and should not need BEAM-level access
+once the session-scoped cookie system is implemented.
+
+Until then, they share `hecate_cookie` and use erpc for polling. When
+session cookies arrive, observation plugins will switch to HTTP polling
+against the daemon's REST API (e.g. `GET /api/mesh/status`) with a
+session-scoped cookie for authentication.
+
+See [PLUGIN_SECURITY_MODEL.md](../philosophy/PLUGIN_SECURITY_MODEL.md)
+for the full tiered trust model.
+
+---
+
 ## When to Graduate
 
 If the observation plugin grows to need:

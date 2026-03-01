@@ -177,6 +177,19 @@ shows the gen_server mailbox becoming a bottleneck.
 4. **Frontend shows connection status** -- no error dialogs for transient disconnects
 5. **Observer can start before target** -- it will discover when target appears
 
+## Trust Level Note
+
+The erpc observer pattern requires BEAM clustering (shared cookie,
+`net_adm:ping/1`). This places the plugin in the **trusted** tier.
+
+When the session-scoped cookie system is implemented, untrusted plugins
+will poll via HTTP instead of erpc. The observer gen_server pattern still
+applies -- only the transport changes from `erpc:call/4` to an HTTP GET.
+
+See [PLUGIN_SECURITY_MODEL.md](../philosophy/PLUGIN_SECURITY_MODEL.md).
+
+---
+
 ## Pairing with a Cowboy Endpoint
 
 ```erlang
