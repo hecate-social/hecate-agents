@@ -72,8 +72,9 @@ Frontend (hecate-marthaw):
    proxies via BEAM clustering.
 
 See [CARTWHEEL.md](../philosophy/CARTWHEEL.md) for the Division architecture
-blueprint and [MARTHA_PLUGIN_ARCHITECTURE.md](MARTHA_PLUGIN_ARCHITECTURE.md)
-for a complete example.
+blueprint, [MARTHA_PLUGIN_ARCHITECTURE.md](MARTHA_PLUGIN_ARCHITECTURE.md)
+for a full CQRS example, and [OBSERVATION_PLUGIN_PATTERN.md](OBSERVATION_PLUGIN_PATTERN.md)
+for a read-only observation plugin (no ReckonDB, no evoq -- just erpc polling).
 
 | Component | Role | Runtime | Deployed as |
 |-----------|------|---------|-------------|
@@ -83,6 +84,8 @@ for a complete example.
 | `hecate-traderw` | Trading plugin frontend | SvelteKit | podman container (systemd) |
 | `hecate-marthad` | DevOps AI agent daemon | Erlang/OTP | podman container (systemd) |
 | `hecate-marthaw` | DevOps AI agent frontend | SvelteKit | podman container (systemd) |
+| `hecate-app-meshviewd` | Mesh observer daemon (read-only) | Erlang/OTP | podman container (systemd) |
+| `hecate-app-meshvieww` | Mesh observer frontend | SvelteKit | podman container (systemd) |
 
 ### Plugin Three Parts
 

@@ -34,7 +34,11 @@ hecate-agents/
 │   ├── CARTWHEEL_COMPANY_MODEL.md
 │   ├── CARTWHEEL_WRITE_SEQUENCE.md
 │   ├── CARTWHEEL_PROJECTION_SEQUENCE.md
-│   └── CARTWHEEL_QUERY_SEQUENCE.md
+│   ├── CARTWHEEL_QUERY_SEQUENCE.md
+│   ├── HECATE_PLUGIN_DIRECTORY_CONVENTION.md
+│   ├── MARTHA_PLUGIN_ARCHITECTURE.md  # Full CQRS plugin reference
+│   ├── OBSERVATION_PLUGIN_PATTERN.md  # Read-only plugin (erpc, no CQRS)
+│   └── APPSTORE_PLUGIN_LICENSE_LIFECYCLE.md
 │
 ├── skills/                           # Executable knowledge (HOW to do things)
 │   ├── ANTIPATTERNS.md               # What NOT to do (guardrails)
@@ -52,7 +56,8 @@ hecate-agents/
 │   ├── PROJECTIONS.md
 │   ├── BIT_FLAGS_STATUS.md
 │   ├── MESH_INTEGRATION.md
-│   └── VERTICAL_API_HANDLERS.md
+│   ├── VERTICAL_API_HANDLERS.md
+│   └── ERPC_OBSERVER_PATTERN.md       # Cross-node observation via erpc
 │
 ├── templates/                        # Parameterized templates for codegen
 │   ├── CHANGELOG.md.tmpl             # Venture scaffolding
