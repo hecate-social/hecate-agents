@@ -1225,4 +1225,139 @@ grep -r '{vsn,' src/*.app.src apps/*/src/*.app.src
 
 ---
 
+## 🔥🔥🔥 Inline Projections After Command Dispatch
+
+**Date:** 2026-03-02
+**Origin:** macula-realm franchise storefront LiveViews
+
+### The Antipattern
+
+Writing to the read model (Repo.insert, Repo.update_all) immediately after dispatching an evoq command inside a LiveView or handler.
+
+**Example (WRONG):**
+```elixir
+case :evoq_router.dispatch(cmd) do
+  {:ok, _version, _events} ->
+    # BAD: LiveView does the projection's job
+    Repo.insert(%RealmLicense{license_id: id, status: 1, sold_at: now})
+    {:noreply, put_flash(socket, :info, "License sold.")}
+end
+```
+
+### Why It's Wrong
+
+1. **Duplicates projection logic** — Same write exists in the projection AND the LiveView
+2. **Bypasses the event stream** — If you replay events, the LiveView writes are lost
+3. **Couples UI to persistence** — LiveViews should only dispatch commands and query read models
+4. **Breaks CQRS** — The whole point is separating writes (commands → events) from reads (projections → read models)
+5. **Untestable** — You can't test the projection independently if the LiveView does the write
+
+### The Rule
+
+> **LiveViews dispatch commands. Projections update read models. NEVER both.**
+>
+> After dispatch succeeds, allow the projection to process (brief sleep if needed), then reload from the read model.
+
+### The Correct Pattern
+
+```elixir
+case :evoq_router.dispatch(cmd) do
+  {:ok, _version, _events} ->
+    # Projection gen_server handles the read model update
+    Process.sleep(50)
+    {:noreply, socket |> put_flash(:info, "License sold.") |> reload_license()}
+end
+```
+
+The projection gen_server subscribes to events via `evoq_subscriptions:subscribe/5` and writes to the read model autonomously.
+
+---
+
+## 🔥🔥🔥 Consolidating PRJ and QRY Into One Department
+
+**Date:** 2026-03-02
+**Origin:** macula-realm franchise storefront architecture
+
+### The Antipattern
+
+Treating PRJ (projections) and QRY (queries) as one combined "QRY+PRJ" department.
+
+### Why It's Wrong
+
+1. **Different responsibilities** — PRJ subscribes to events and WRITES to read models. QRY READS from read models.
+2. **Different lifecycles** — PRJ is event-driven (reactive). QRY is request-driven (on demand).
+3. **Different scaling concerns** — PRJ throughput is event volume. QRY throughput is query volume.
+4. **Violates separation of concerns** — Write path and read path must be independent.
+
+### The Rule
+
+> **PRJ and QRY are ALWAYS separate departments.**
+>
+> | Department | Nature | Direction |
+> |-----------|--------|-----------|
+> | **PRJ** | Event-driven | Events → Read Model (WRITE) |
+> | **QRY** | Request-driven | Read Model → Response (READ) |
+>
+> Never combine them. Even if they share the same database tables.
+
+### In Practice
+
+```
+Division: procure_realm_license
+├── CMD: procure_realm_license (commands, aggregates, handlers)
+├── PRJ: project_realm_licenses (event → PostgreSQL projections)
+└── QRY: query_realm_licenses (Ecto queries on read model)
+```
+
+---
+
+## 🔥🔥🔥 Evoq Without ReckonDB ("In-Memory" Event Sourcing)
+
+**Date:** 2026-03-02
+**Origin:** macula-realm initial plan said "In-Memory Evoq"
+
+### The Antipattern
+
+Using evoq CQRS framework without ReckonDB as the event store, claiming events can be stored "in memory."
+
+### Why It's Wrong
+
+1. **No event persistence** — Without an event store, events are lost on restart. There's nothing to replay.
+2. **No projections** — Projections subscribe to the event store. No store = no subscriptions = no projections.
+3. **No audit trail** — The entire point of event sourcing is an immutable log of facts. "In-memory" means no log.
+4. **Defeats CQRS** — Without stored events flowing to projections, you're back to CRUD with extra steps.
+5. **No snapshots** — Aggregate state reconstruction requires replaying events from the store.
+
+### The Rule
+
+> **Evoq REQUIRES ReckonDB. There is no "in-memory" mode for production.**
+>
+> The stack is: `reckon_db` (event store) + `reckon_evoq` (adapter) + `evoq` (framework).
+> All three are required. Remove any one and the system collapses.
+
+### Configuration (MANDATORY)
+
+```erlang
+%% sys.config / config.exs
+{evoq, [
+    {event_store_adapter, reckon_evoq_adapter},
+    {subscription_adapter, reckon_evoq_adapter}
+]}.
+```
+
+### Store Creation (MANDATORY at app startup)
+
+```erlang
+Config = #store_config{
+    store_id = my_domain_store,
+    data_dir = "/path/to/store",
+    mode = single
+},
+{ok, _Pid} = reckon_db_sup:start_store(Config).
+```
+
+Without both of these, evoq will crash on first dispatch.
+
+---
+
 *We burned these demons so you don't have to. Keep the fire going.* 🔥🗝️🔥

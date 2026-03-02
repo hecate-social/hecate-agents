@@ -38,6 +38,9 @@
 | 28 | No Tests on Event-Sourced Domains | Aggregates, projections, and policies need tests — dialyzer alone isn't enough | 2026-02-23 |
 | 29 | Missing `/ui/[...]` Cowboy Route in Plugin Daemon | Plugin has manifest + socket but no static file route — hecate-web silently drops it | 2026-02-24 |
 | 30 | Forgetting to Bump `.app.src` Versions Before Tagging | Tag a release without bumping vsn in .app.src files — OCI image ships old version | 2026-02-24 |
+| 31 | Inline Projections After Command Dispatch | LiveViews writing to read models after evoq dispatch — bypasses PRJ department | 2026-03-02 |
+| 32 | Consolidating PRJ and QRY Into One Department | PRJ (event→write) and QRY (read→response) are ALWAYS separate departments | 2026-03-02 |
+| 33 | Evoq Without ReckonDB ("In-Memory" Event Sourcing) | Evoq REQUIRES ReckonDB — "in-memory only" loses all events on restart | 2026-03-02 |
 
 ---
 
@@ -69,7 +72,7 @@ Demons #2, #4, #5, #9. Errors in modeling aggregate lifecycles, parent-child rel
 
 ### [ANTIPATTERNS_RUNTIME.md](ANTIPATTERNS_RUNTIME.md) — Event Sourcing & Integration Runtime
 
-Demons #7, #10, #11, #12, #15, #19, #20, #21, #22, #23, #24, #26, #27, #28, #29, #30. Runtime mistakes in event handling, callback signatures, integration channels, projection timing, subscription flow, pub/sub infrastructure, identity propagation, test coverage, plugin discovery, release versioning, and Erlang/esqlite3 gotchas.
+Demons #7, #10, #11, #12, #15, #19, #20, #21, #22, #23, #24, #26, #27, #28, #29, #30, #31, #32, #33. Runtime mistakes in event handling, callback signatures, integration channels, projection timing, subscription flow, pub/sub infrastructure, identity propagation, test coverage, plugin discovery, release versioning, inline projections, department consolidation, missing event store, and Erlang/esqlite3 gotchas.
 
 ---
 
