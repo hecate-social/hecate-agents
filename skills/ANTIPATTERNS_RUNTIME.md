@@ -1360,4 +1360,145 @@ Without both of these, evoq will crash on first dispatch.
 
 ---
 
+## 🔥 Binary Keys in Event `to_map/1` Functions
+
+**Date:** 2026-03-05
+**Origin:** "Publish from URL" never projects to SQLite — 11 event modules affected
+
+### The Antipattern
+
+Using binary keys in `to_map/1` return maps:
+
+```erlang
+%% WRONG — binary keys
+to_map(#license_initiated_v1{} = E) ->
+    #{
+        <<"event_type">> => <<"license_initiated_v1">>,
+        <<"license_id">> => E#license_initiated_v1.license_id
+    }.
+```
+
+### Why It's Wrong
+
+`evoq_aggregate:append_events` extracts the event type with an **atom** key lookup:
+
+```erlang
+EventType = maps:get(event_type, Event, undefined),
+```
+
+In Erlang, `event_type` (atom) and `<<"event_type">>` (binary) are **completely different map keys**. The atom lookup on a binary-keyed map returns `undefined`. The event gets stored in ReckonDB with `event_type = undefined`, so Khepri trigger filters (`#event{event_type = <<"license_initiated_v1">>}`) never match. Projections never receive events. Zero errors logged anywhere.
+
+### The Correct Pattern
+
+```erlang
+%% CORRECT — atom keys
+to_map(#license_initiated_v1{} = E) ->
+    #{
+        event_type => <<"license_initiated_v1">>,
+        license_id => E#license_initiated_v1.license_id
+    }.
+```
+
+**Rule:** `to_map/1` MUST use atom keys. The values remain binaries, but the keys must be atoms.
+
+### How We Caught It
+
+Settings events (atom keys) worked. License events (binary keys) didn't. Comparing `settings_initiated_v1.erl` to `license_initiated_v1.erl` revealed the difference. The bug was completely silent — dispatch returned `{ok, 2, Events}`, no errors, no warnings.
+
+### Detection Checklist
+
+If `POST` succeeds but `GET` returns empty:
+1. Check `to_map/1` key types — atom vs binary
+2. Check stored events in ReckonDB — is `event_type` populated or `undefined`?
+3. Check Khepri trigger filter — does the pattern match the stored event?
+
+---
+
+## 🔥 gen_server Self-Call Deadlock
+
+**Date:** 2026-03-05
+**Origin:** reckon_db emitter pool fix deadlocked on `is_active/1`
+
+### The Antipattern
+
+Calling a gen_server from within its own process via a function that does `gen_server:call`:
+
+```erlang
+%% In reckon_db_leader handle_cast({activate, StoreId}, State):
+%%   → save_default_subscriptions(StoreId)
+%%     → subscribe/5
+%%       → setup_event_notification
+%%         → reckon_db_leader:is_active(StoreId)  %% gen_server:call back to self!
+%%           → DEADLOCK
+```
+
+### Why It's Wrong
+
+`gen_server:call` sends a message and waits for a reply. If the target is the calling process itself, the process is already handling a message and can't process the call. Erlang raises `{calling_self, {gen_server, call, [...]}}`.
+
+### The Correct Pattern
+
+Use a non-blocking check that doesn't require the gen_server to respond:
+
+```erlang
+%% CORRECT — check if the supervisor process exists via whereis/1
+SupName = reckon_db_naming:emitter_sup_name(StoreId),
+maybe_start_emitter_pool(StoreId, Key, Sub, whereis(SupName)).
+
+maybe_start_emitter_pool(_StoreId, _Key, _Sub, undefined) -> ok;
+maybe_start_emitter_pool(StoreId, Key, Sub, _SupPid) ->
+    case reckon_db_emitter_pool:start_emitter(StoreId, Sub) of
+        {ok, _Pid} ->
+            logger:info("Started emitter pool for ~s (store: ~p)", [Key, StoreId]);
+        {error, {already_started, _}} -> ok;
+        {error, _} -> ok
+    end.
+```
+
+**Rule:** If a function might be called from inside a gen_server, never use `gen_server:call` to query that same server. Use `whereis/1`, ETS lookups, or process dictionary reads instead.
+
+---
+
+## 🔥 Hex Packages Without debug_info
+
+**Date:** 2026-03-05
+**Origin:** Dialyzer couldn't analyze reckon_gater beams from hex
+
+### The Antipattern
+
+Publishing a hex package with `no_debug_info` in the build profile:
+
+```erlang
+%% rebar.config
+{profiles, [
+    {prod, [
+        {erl_opts, [
+            no_debug_info,    %% Strips debug info from beams
+            deterministic
+        ]}
+    ]}
+]}.
+```
+
+### Why It's Wrong
+
+Consumers need `debug_info` in beam files to run dialyzer. Without it, dialyzer reports "Could not get Core Erlang code" and silently skips the dependency, potentially missing type errors at the boundary.
+
+### The Correct Pattern
+
+```erlang
+{prod, [
+    {erl_opts, [
+        debug_info,       %% KEEP for library packages
+        deterministic
+    ]}
+]}
+```
+
+`no_debug_info` is appropriate for **release binaries** (final deployment artifacts), never for **library packages** published to hex.
+
+**Rule:** Libraries on hex.pm MUST include `debug_info`. Only strip it from end-user release tarballs.
+
+---
+
 *We burned these demons so you don't have to. Keep the fire going.* 🔥🗝️🔥

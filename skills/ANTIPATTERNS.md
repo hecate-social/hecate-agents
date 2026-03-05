@@ -41,6 +41,9 @@
 | 31 | Inline Projections After Command Dispatch | LiveViews writing to read models after evoq dispatch — bypasses PRJ department | 2026-03-02 |
 | 32 | Consolidating PRJ and QRY Into One Department | PRJ (event→write) and QRY (read→response) are ALWAYS separate departments | 2026-03-02 |
 | 33 | Evoq Without ReckonDB ("In-Memory" Event Sourcing) | Evoq REQUIRES ReckonDB — "in-memory only" loses all events on restart | 2026-03-02 |
+| 34 | Binary Keys in Event `to_map/1` | Atom vs binary keys — silently stores `event_type = undefined` | 2026-03-05 |
+| 35 | gen_server Self-Call Deadlock | `gen_server:call` from within the same server deadlocks | 2026-03-05 |
+| 36 | Hex Packages Without debug_info | `no_debug_info` breaks consumers' dialyzer | 2026-03-05 |
 
 ---
 
@@ -72,7 +75,7 @@ Demons #2, #4, #5, #9. Errors in modeling aggregate lifecycles, parent-child rel
 
 ### [ANTIPATTERNS_RUNTIME.md](ANTIPATTERNS_RUNTIME.md) — Event Sourcing & Integration Runtime
 
-Demons #7, #10, #11, #12, #15, #19, #20, #21, #22, #23, #24, #26, #27, #28, #29, #30, #31, #32, #33. Runtime mistakes in event handling, callback signatures, integration channels, projection timing, subscription flow, pub/sub infrastructure, identity propagation, test coverage, plugin discovery, release versioning, inline projections, department consolidation, missing event store, and Erlang/esqlite3 gotchas.
+Demons #7, #10, #11, #12, #15, #19, #20, #21, #22, #23, #24, #26, #27, #28, #29, #30, #31, #32, #33, #34, #35, #36. Runtime mistakes in event handling, callback signatures, integration channels, projection timing, subscription flow, pub/sub infrastructure, identity propagation, test coverage, plugin discovery, release versioning, inline projections, department consolidation, missing event store, Erlang/esqlite3 gotchas, map key type mismatches, gen_server deadlocks, and hex packaging.
 
 ---
 
