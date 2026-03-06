@@ -44,6 +44,8 @@
 | 34 | Binary Keys in Event `to_map/1` | Atom vs binary keys — silently stores `event_type = undefined` | 2026-03-05 |
 | 35 | gen_server Self-Call Deadlock | `gen_server:call` from within the same server deadlocks | 2026-03-05 |
 | 36 | Hex Packages Without debug_info | `no_debug_info` breaks consumers' dialyzer | 2026-03-05 |
+| 37 | Flattening Event Envelopes Into Business Data | `maps:merge(Data, Envelope)` silently overwrites business fields | 2026-03-06 |
+| 38 | Emoji Literals in esqlite3 SQL Strings | 4-byte UTF-8 emojis in SQL cause `badarg` crash in esqlite3 NIF | 2026-03-06 |
 
 ---
 
@@ -73,9 +75,25 @@ Demons #3, #6, #8, #14, #18, #25. Structural mistakes where code is organized by
 
 Demons #2, #4, #5, #9. Errors in modeling aggregate lifecycles, parent-child relationships, and domain boundaries.
 
-### [ANTIPATTERNS_RUNTIME.md](ANTIPATTERNS_RUNTIME.md) — Event Sourcing & Integration Runtime
+### [ANTIPATTERNS_EVENT_SOURCING.md](ANTIPATTERNS_EVENT_SOURCING.md) — Aggregates, Events, Envelopes
 
-Demons #7, #10, #11, #12, #15, #19, #20, #21, #22, #23, #24, #26, #27, #28, #29, #30, #31, #32, #33, #34, #35, #36. Runtime mistakes in event handling, callback signatures, integration channels, projection timing, subscription flow, pub/sub infrastructure, identity propagation, test coverage, plugin discovery, release versioning, inline projections, department consolidation, missing event store, Erlang/esqlite3 gotchas, map key type mismatches, gen_server deadlocks, and hex packaging.
+Demons #10, #23, #33, #34, #37. Aggregate callback order, event record handling, evoq+reckondb requirements, map key types, and envelope flattening.
+
+### [ANTIPATTERNS_PROJECTIONS.md](ANTIPATTERNS_PROJECTIONS.md) — Projections & Read Models
+
+Demons #12, #22, #31, #32. Projection timing, manual event emission, inline projections, and PRJ/QRY separation.
+
+### [ANTIPATTERNS_INTEGRATION.md](ANTIPATTERNS_INTEGRATION.md) — Subscriptions, Messaging, Process Managers
+
+Demons #7, #11, #15, #24, #26. pg vs mesh, hope acknowledgments, command IDs, subscription pipeline failures, and emitter lifecycle.
+
+### [ANTIPATTERNS_ERLANG.md](ANTIPATTERNS_ERLANG.md) — Erlang/OTP Gotchas
+
+Demons #19, #20, #21, #35, #38. esqlite3 return types and argument order, eager map defaults, gen_server self-call deadlocks, and emoji literals in SQL.
+
+### [ANTIPATTERNS_RELEASE.md](ANTIPATTERNS_RELEASE.md) — Release, Testing & Packaging
+
+Demons #27, #28, #29, #30, #36. Hardcoded IDs, missing tests, plugin discovery routes, version bumping, and hex packaging.
 
 ---
 
