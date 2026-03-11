@@ -47,6 +47,7 @@ Agents request a capability tier. The daemon maps it to whatever model is availa
 | 9 | **Reviewer** | cross-cutting | T1 | Review Gate | `reviewer.md` |
 | 10 | **Coordinator** | kanban, all | T3/T0 | — | `coordinator.md` |
 | 11 | **Delivery Manager** | crafting (post-review) | T3/T0 | Release Gate | `delivery_manager.md` |
+| 12 | **Mentor** | post-mortem, continuous | T1 | — | `mentor.md` |
 
 ---
 
@@ -76,6 +77,9 @@ Five mandatory checkpoints where the human must approve before the pipeline adva
 │                   Reviewer ──► [REVIEW GATE] ──► Delivery Manager   │
 │                                                       │              │
 │                                               [RELEASE GATE]        │
+│                                                       │              │
+│                                                   Mentor             │
+│                                               (retrospective)        │
 │                                                                      │
 │                    Coordinator (orchestrates all)                     │
 │                                                                      │
@@ -133,6 +137,7 @@ The `context:` frontmatter lists shared knowledge files the agent needs. The run
 | Reviewer | 10 files | ~12K |
 | Coordinator | 1 file | ~1K |
 | Delivery Manager | 2 files | ~3K |
+| Mentor | 4 files | ~6K |
 
 ---
 
@@ -171,3 +176,29 @@ The new `roles/` directory contains **autonomous agent roles** with context mani
 | `roles/` | Autonomous agent roles (pipeline) | Martha agent orchestrator |
 
 The two coexist. Some roles (Visionary, Stormer) are human-interactive AND autonomous.
+
+---
+
+## Learning Loop
+
+The Mentor closes the feedback loop. After every pipeline run (RELEASE GATE pass or fail):
+
+```
+Pipeline Run N
+  → Reviewer findings (recurring anti-patterns)
+  → HITL gate corrections (what human changed)
+  → Tester failures (systematic issues)
+  → Token spend anomalies
+          │
+          ▼
+      Mentor (T1)
+          │
+          ├── Amends roles/*.md (rules, output format, context manifests)
+          ├── Adds demons to skills/ANTIPATTERNS_*.md
+          └── Adjusts tier assignments if cost/quality ratio is off
+          │
+          ▼
+  Pipeline Run N+1 (improved)
+```
+
+Every venture the team builds makes the next venture cheaper, faster, and higher quality. The role files are living documents that encode accumulated wisdom.
