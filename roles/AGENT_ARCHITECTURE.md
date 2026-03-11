@@ -181,24 +181,31 @@ The two coexist. Some roles (Visionary, Stormer) are human-interactive AND auton
 
 ## Learning Loop
 
-The Mentor closes the feedback loop. After every pipeline run (RELEASE GATE pass or fail):
+The Mentor operates continuously in three modes:
 
 ```
-Pipeline Run N
-  → Reviewer findings (recurring anti-patterns)
-  → HITL gate corrections (what human changed)
-  → Tester failures (systematic issues)
-  → Token spend anomalies
-          │
-          ▼
-      Mentor (T1)
-          │
-          ├── Amends roles/*.md (rules, output format, context manifests)
-          ├── Adds demons to skills/ANTIPATTERNS_*.md
-          └── Adjusts tier assignments if cost/quality ratio is off
-          │
-          ▼
-  Pipeline Run N+1 (improved)
+┌─────────────────────────────────────────────────────────┐
+│                    LIVE (T3 — cheap)                     │
+│  Watches every agent's output as it's produced.         │
+│  Flags issues BEFORE downstream agents consume them.    │
+│  One-line corrections. Pattern matching, not reasoning. │
+└───────────────────────────┬─────────────────────────────┘
+                            │
+┌───────────────────────────▼─────────────────────────────┐
+│                 GATE COACHING (T1 — per gate)            │
+│  At each HITL gate, briefs the human:                   │
+│  "Here's what looks good, here are my concerns."        │
+│  Helps the human make better gate decisions.            │
+└───────────────────────────┬─────────────────────────────┘
+                            │
+┌───────────────────────────▼─────────────────────────────┐
+│               POST-MORTEM (T1 — per run)                │
+│  After RELEASE GATE: full retrospective.                │
+│  Amends role files, antipattern docs, tier assignments. │
+│  Encodes lessons permanently for the next run.          │
+└─────────────────────────────────────────────────────────┘
 ```
+
+**Why three modes:** A correction after the Stormer costs 1 message. After the Reviewer it costs rework across 5 agents. Catch early, fix cheap.
 
 Every venture the team builds makes the next venture cheaper, faster, and higher quality. The role files are living documents that encode accumulated wisdom.
