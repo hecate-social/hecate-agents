@@ -280,6 +280,172 @@ The dossier model:
 
 ---
 
+---
+
+## The Default Read Model and Data Flow
+
+*The most important principle in event-sourced architecture.*
+
+### The Default Read Model
+
+Every process instance has a **default read model**: the aggregate state itself.
+
+```
+Default Read Model = Aggregate State = The Dossier's Current Content
+```
+
+When you replay all events for a single stream, you get the complete truth about that process instance. This IS the default read model. It is:
+
+- The sum of everything that has happened to this dossier
+- The authoritative source of truth within the bounded context
+- What the `#license_state{}` or `#plugin_state{}` record represents
+
+The PRJ department creates *derived* read models (index cards) for queries. But the *default* read model — the dossier itself — lives in the CMD department as the aggregate state.
+
+### Event Payloads Are Subsets of the Default Read Model
+
+When a desk adds a slip (event) to the dossier, the slip's payload is a **subset of the default read model**, possibly enriched with data from the command:
+
+```
+Event Payload = subset(Aggregate State) + new data from Command
+```
+
+For example, when `grant_license` runs:
+- The aggregate state has `plugin_id`, `oci_image`, `plugin_name` (from initiation)
+- The command brings `grant_reason` (new data)
+- The event `license_granted_v1` carries both: fields echoed from state + new data from command
+
+This means downstream consumers (PMs, projections) receive everything they need IN the event — because the event was built from the authoritative source (the dossier).
+
+### Data Enters Through Commands Only
+
+**Any data from outside the bounded context MUST enter the CMD service through an enriched command payload.**
+
+```
+                    BOUNDARY
+                       │
+  ┌─────────────┐      │      ┌──────────────────┐
+  │ API Handler │      │      │   CMD Service     │
+  │             │      │      │                   │
+  │ Reads from  │──────┼─────>│ Command arrives   │
+  │ read models │  CMD │      │ with ALL needed   │
+  │ to build    │      │      │ data. Aggregate   │
+  │ fat command │      │      │ processes it.     │
+  │             │      │      │ Events echo from  │
+  └─────────────┘      │      │ aggregate state.  │
+                       │      │ PMs read events.  │
+                       │      │ NO external       │
+                       │      │ lookups.           │
+                       │      └──────────────────┘
+                       │
+```
+
+**Where read model access IS allowed — at the boundary:**
+
+| Location | Read Model Access | Why |
+|----------|-------------------|-----|
+| API handler | YES | Building the command payload |
+| Convenience endpoint | YES | Orchestrating user intent into commands |
+| CLI handler | YES | Same as API handler |
+
+**Where read model access is FORBIDDEN — inside the flow:**
+
+| Location | Read Model Access | Why |
+|----------|-------------------|-----|
+| Aggregate execute | NEVER | Uses its own state (the dossier) |
+| Event handler / PM | NEVER | Uses the event payload (a subset of the dossier) |
+| Projection | NEVER* | Writes to its own read model, never reads from others |
+| Emitter | NEVER | Publishes the event as-is |
+
+*(\* A projection may read its own state to merge updates — e.g., `evoq_read_model:get(Id, RM)` — but never another projection's state.)*
+
+### The Chain of Responsibility
+
+If a PM needs data it doesn't have, the fix is NEVER to reach outside. Walk the chain backward:
+
+```
+PM needs field X
+  └── Event doesn't carry X
+       └── Handler didn't echo X from aggregate state
+            └── Aggregate state doesn't have X
+                 └── Command didn't bring X into the bounded context
+                      └── API handler didn't enrich the command with X
+```
+
+**Fix it at the source.** Usually this means:
+1. The command needs a new field (carry X from the boundary)
+2. The handler needs to echo X from aggregate state into the event
+3. The PM reads X from the event
+
+### Why This Matters
+
+This principle makes event-sourced systems **deterministic** and **replayable**:
+
+- Events are self-contained facts — they carry everything needed to understand what happened
+- PMs produce the same commands regardless of the current state of read models
+- Replaying events produces the same results every time
+- No race conditions between projections and PMs
+- No coupling between CMD and PRJ departments
+
+**If a PM reads from a read model, the system becomes non-deterministic.** The PM's behavior depends on whether the projection has caught up — a timing dependency that makes the system fragile, untestable, and unreplayable.
+
+### The Practical Test
+
+Before writing any event handler or PM, ask:
+
+> *"Can I delete all read models, replay all events, and get the same result?"*
+
+If the answer is no — because a PM reads from a read model that might be empty during replay — you have a Demon #41 violation. The event payload is too poor. Enrich it.
+
+See: `skills/ANTIPATTERNS_EVENT_SOURCING.md` — Demon #41
+
+---
+
+---
+
+## Minimal Ceremony
+
+*Don't add steps that exist only to transition between states.*
+
+When designing business processes, every desk (command) should do **real work**. If a command exists only to "unlock" or "reopen" something so the real command can run, it's ceremony — remove it.
+
+### The Test
+
+> *"Does this command produce a business-meaningful event, or does it just change a flag so another command can run?"*
+
+If the answer is the latter, merge the transition into the command that does the real work.
+
+### Example: Vision Refinement
+
+```
+BAD (ceremony):
+  submit_vision → SUBMITTED (locked)
+  reopen_vision → SUBMITTED cleared (ceremony — does nothing but unlock)
+  refine_vision → actually changes the vision
+
+GOOD (minimal):
+  submit_vision → SUBMITTED (locked)
+  refine_vision → changes vision AND clears SUBMITTED
+```
+
+`refine_vision` IS the reopening. No separate unlock step needed.
+
+### When Ceremony Is Justified
+
+A dedicated transition command is NOT ceremony when:
+- It carries its own business data (e.g., `shelve_planning` records a `shelve_reason`)
+- It triggers side effects (e.g., a PM reacts to the transition event)
+- It represents a distinct business decision that should be auditable in the event stream
+
+### In Cyclic Processes
+
+Cyclic processes (refine/submit, open/shelve/resume) should flow naturally:
+- **Non-exit states** must never permanently block re-entry
+- The command that does the work should handle the state transition itself
+- Exit states (archived, concluded) are the only permanent locks
+
+---
+
 *The dossier is the aggregate. The slips are the events. The desks are the capabilities.*
 
-*Pass the dossier. Add the slip. Move on.* 🗝️
+*Pass the dossier. Add the slip. Move on.*

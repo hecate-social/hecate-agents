@@ -17,8 +17,10 @@ _Strict naming rules for all components in the Venture/Division/Desk architectur
 | -------------- | ---------------------------- | ------------------------------------------- |
 | Domain app     | `{verb}_{noun}`              | `manage_capabilities`                       |
 | Query app      | `query_{noun}`               | `query_capabilities`                        |
-| Desk dir       | `{command}/`                 | `announce_capability/`                      |
-| Desk sup       | `{command}_desk_sup`         | `announce_capability_desk_sup`              |
+| CMD Desk dir   | `{command}/`                 | `announce_capability/`                      |
+| PRJ Desk dir   | `{event}/` (version-agnostic) | `capability_announced/`                   |
+| CMD Desk sup   | `{command}_desk_sup`         | `announce_capability_desk_sup`              |
+| PRJ Desk sup   | `{event}_sup`                | `capability_announced_sup`                  |
 | Command        | `{command}_v1`               | `announce_capability_v1`                    |
 | Event          | `{noun}_{past_verb}_v1`      | `capability_announced_v1`                   |
 | Handler        | `maybe_{command}`            | `maybe_announce_capability`                 |
@@ -135,7 +137,8 @@ These suffixes reveal implementation, not intent:
 ## Allowed Suffixes (With Meaning)
 
 - `*_v1` (Version)
-- `*_desk_sup` (Desk supervisor)
+- `*_desk_sup` (CMD desk supervisor)
+- `*_sup` (PRJ desk supervisor, e.g., `capability_announced_sup`)
 - `*_responder_v1` (HOPE receiver)
 - `*_to_mesh` (Emitter to mesh)
 - `*_to_pg` (Emitter to pg)

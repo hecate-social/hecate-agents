@@ -12,12 +12,14 @@ _An LLM doing TnI codegen reads ONLY this file + the relevant template._
 | **CMD app** | `{verb}_{aggregate_plural}` | `process_orders` |
 | **PRJ app** | `project_{read_model_plural}` | `project_orders` |
 | **QRY app** | `query_{read_model_plural}` | `query_orders` |
-| **Desk** (directory) | `{verb_present}_{subject}/` | `initiate_order/` |
+| **CMD Desk** (directory) | `{verb_present}_{subject}/` | `initiate_order/` |
+| **PRJ Desk** (directory) | `{event}/` (version-agnostic) | `order_initiated/` |
 | **Command** | `{verb_present}_{subject}_v1` | `initiate_order_v1` |
 | **Event** | `{subject}_{verb_past}_v1` | `order_initiated_v1` |
 | **Handler** | `maybe_{verb_present}_{subject}` | `maybe_initiate_order` |
 | **CMD API** | `{command}_api` | `initiate_order_api` |
-| **Desk Supervisor** | `{command}_desk_sup` | `initiate_order_desk_sup` |
+| **CMD Desk Supervisor** | `{command}_desk_sup` | `initiate_order_desk_sup` |
+| **PRJ Desk Supervisor** | `{event}_sup` | `order_initiated_sup` |
 | **Responder** | `{command}_responder_v1` | `initiate_order_responder_v1` |
 | **Emitter (mesh)** | `{event}_to_mesh` | `order_initiated_to_mesh` |
 | **Emitter (pg)** | `{event}_to_pg` | `order_initiated_to_pg` |
@@ -80,7 +82,7 @@ A command without an API handler is NOT dead code — it may only be triggered b
 
 | Flow | Lives in | Department |
 |------|----------|------------|
-| Projection | `apps/project_{plural}/` | PRJ |
+| Projection | `apps/project_{plural}/src/{event}/` | PRJ |
 | Integration Emitter | `apps/{cmd_app}/src/{desk}/` | CMD |
 | Mesh Emitter | `apps/{cmd_app}/src/{desk}/` | CMD |
 | Policy | `apps/{cmd_app}/src/{desk}/` | CMD |
@@ -126,6 +128,20 @@ Given a dossier/app name, all other names are **deterministic**:
 | `initiate_order` | `_responder_v1` suffix | responder: `initiate_order_responder_v1` |
 | `initiate_order` | event `_to_mesh` | emitter: `order_initiated_to_mesh` |
 | `initiate_order` | event `_to_pg` | pg emitter: `order_initiated_to_pg` |
+
+### From PRJ Desk Name (Event-Based)
+
+PRJ desk directories are named after the **triggering event** (version-agnostic).
+Modules inside keep their full `{event}_v{N}_to_{target}` names.
+
+| Input | Convention | Output |
+|-------|-----------|--------|
+| `order_initiated` | directory name | desk dir: `order_initiated/` |
+| `order_initiated` | `_sup` suffix | supervisor: `order_initiated_sup` |
+| `order_initiated` | `_v1_to_{target}` | projection module: `order_initiated_v1_to_orders` |
+| `order_initiated` | `_v2_to_{target}` | projection module: `order_initiated_v2_to_orders` |
+
+Multiple versions and targets coexist in the same desk directory.
 
 ### From Query Desk Name
 
@@ -182,12 +198,24 @@ Given a dossier/app name, all other names are **deterministic**:
 Every desk directory MUST be listed in `src_dirs`:
 
 ```erlang
+%% CMD app (process_orders)
 {src_dirs, [
     "src",
     "src/initiate_order",
     "src/archive_order",
-    "src/refine_order",
-    "src/order_initiated_to_orders",
+    "src/refine_order"
+]}.
+
+%% PRJ app (project_orders) — desk dirs named after the event, version-agnostic
+{src_dirs, [
+    "src",
+    "src/order_initiated",
+    "src/order_archived"
+]}.
+
+%% QRY app (query_orders)
+{src_dirs, [
+    "src",
     "src/get_order_by_id",
     "src/get_orders_page"
 ]}.
@@ -244,7 +272,9 @@ Supervisor:      initiate_order_desk_sup
 Responder:       initiate_order_responder_v1
 Mesh emitter:    order_initiated_v1_to_mesh
 pg emitter:      order_initiated_v1_to_pg
-Projection:      order_initiated_v1_to_sqlite_orders  (in PRJ app)
+PRJ desk dir:    src/order_initiated/                   (in PRJ app)
+PRJ desk sup:    order_initiated_sup                    (in PRJ app)
+Projection:      order_initiated_v1_to_sqlite_orders    (in PRJ app, inside order_initiated/)
 QRY handler:     get_orders_page_api                   (in QRY app)
 Route (CMD):     POST /api/orders/initiate
 Route (QRY):     GET /api/orders

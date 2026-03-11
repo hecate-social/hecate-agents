@@ -2,7 +2,7 @@
 
 _How Hecate models software development as a set of first-class processes._
 
-**Date:** 2026-02-10 (updated 2026-02-12)
+**Date:** 2026-02-10 (updated 2026-03-10)
 **Status:** Active — supersedes parent-child aggregate pattern
 **Origin:** DnA conversation on process-centric vs data-centric architecture
 
@@ -54,7 +54,8 @@ Each division produces N apps following the department pattern:
 | Department | Naming | Nature |
 |------------|--------|--------|
 | CMD | The **process name** itself | Process-centric (verbs) |
-| QRY + PRJ | `query_{read_model}` | Data-centric (nouns) |
+| PRJ | `project_{read_model}` | Data-centric (projections) |
+| QRY | `query_{read_model}` | Data-centric (queries) |
 
 ---
 
@@ -72,26 +73,45 @@ The venture has two processes:
 
 The venture orchestrates divisions. Once divisions are discovered, each follows its own ALC independently.
 
-### 2. Division ALC (`guide_division_alc`)
+**Apps:**
+- CMD: `guide_venture_lifecycle`
+- PRJ: `project_ventures`
+- QRY: `query_ventures`
 
-**Scope:** Per division. **Duration:** Long-lived, cyclical.
+### 2. Division ALC — 2 Processes
 
-The Application Lifecycle — 8 processes that a division cycles through:
+**Scope:** Per division. **Duration:** Long-lived, sequential.
 
-| # | Process | Purpose |
-|---|---------|---------|
-| 1 | `design` | Event storming, aggregate design, architecture |
-| 2 | `planning` | Desk inventory, priorities, sequencing |
-| 3 | `crafting` | Code generation and implementation |
-| 4 | `refactoring` | Structural improvements (can enter anywhere) |
-| 5 | `debugging` | Verify quality, acceptance criteria, fix defects |
-| 6 | `deployment` | CI/CD, staged rollouts, ship it |
-| 7 | `monitoring` | Observe production health, track SLAs |
-| 8 | `rescue` | Diagnose incidents, intervene, escalate |
+The Application Lifecycle has **2 process-centric phases**, each with its own dossier (aggregate), its own event stream, and its own CMD/PRJ/QRY app trio:
 
-Each process is a first-class aggregate with its own event stream, its own dossier, and its own desks. Long-lived processes use the `open/shelve/resume/conclude` lifecycle protocol.
+| # | Process | Dossier | Purpose |
+|---|---------|---------|---------|
+| 1 | **Planning** | `division_planning` | Event storming, aggregate design, desk inventory, dependencies |
+| 2 | **Crafting** | `division_crafting` | Code generation, testing, release delivery |
 
-See **`HECATE_ALC.md`** for detailed event flows, commands, and per-process guides.
+Each process is a first-class aggregate with its own event stream, its own desks, and its own read models. Process managers chain them: when planning concludes, crafting initiates automatically.
+
+**Apps per process:**
+
+| Process | CMD App | PRJ App | QRY App |
+|---------|---------|---------|---------|
+| Planning | `guide_division_planning` | `project_division_plannings` | `query_division_plannings` |
+| Crafting | `guide_division_crafting` | `project_division_craftings` | `query_division_craftings` |
+
+**Planning dossier desks:**
+- `initiate_planning` — birth (auto-triggered by PM on `division_identified_v1`)
+- `archive_planning` — soft delete
+- `open_planning` / `shelve_planning` / `resume_planning` / `conclude_planning` — lifecycle
+- `design_aggregate` / `design_event` — architecture
+- `plan_desk` / `plan_dependency` — desk inventory
+
+**Crafting dossier desks:**
+- `initiate_crafting` — birth (auto-triggered by PM on `planning_concluded_v1`)
+- `archive_crafting` — soft delete
+- `open_crafting` / `shelve_crafting` / `resume_crafting` / `conclude_crafting` — lifecycle
+- `generate_module` / `generate_test` — code generation
+- `run_test_suite` / `record_test_result` — testing
+- `deliver_release` / `stage_delivery` — release management
 
 ### 3. Node Continuous (`guide_node_lifecycle`)
 
@@ -111,20 +131,36 @@ There is no lifecycle protocol — the node is simply alive and responding to co
 
 ## Lifecycle Protocol
 
-Long-lived processes (venture discovery + all 8 ALC processes) implement:
+Long-lived processes (venture discovery + planning + crafting) implement:
 
 ```
+Command:  initiate_{process}_v1   →  Event: {process}_initiated_v1
 Command:  open_{process}_v1       →  Event: {process}_opened_v1
 Command:  shelve_{process}_v1     →  Event: {process}_shelved_v1
 Command:  resume_{process}_v1     →  Event: {process}_resumed_v1
 Command:  conclude_{process}_v1   →  Event: {process}_concluded_v1
+Command:  archive_{process}_v1    →  Event: {process}_archived_v1
+```
+
+**Status bit flags** (powers of 2):
+
+```
+INITIATED = 1
+ARCHIVED  = 2
+OPEN      = 4
+SHELVED   = 8
+CONCLUDED = 16
 ```
 
 **State transitions:**
 
 ```
-             open
-  pending ──────────► active
+             initiate
+  (none) ──────────► initiated
+                        │
+                   open │
+                        ▼
+                      open
                         │ ▲
                  shelve │ │ resume
                         ▼ │
@@ -133,62 +169,58 @@ Command:  conclude_{process}_v1   →  Event: {process}_concluded_v1
                conclude │
                         ▼
                     concluded
+
+  (any state) ──archive──► archived
 ```
 
 **Rules:**
-- Domain-specific commands only work when state is `active`
+- Domain-specific commands only work when state is `open`
 - `shelve` records a reason (blocked, waiting, break)
 - `resume` clears the shelve
-- `conclude` is the hand-off — facts flow to the next process
+- `conclude` is the hand-off — triggers the next process via PM
+
+---
+
+## Process Manager Chain
+
+```
+guide_venture_lifecycle              guide_division_planning           guide_division_crafting
+        │                                      │                                │
+  division_identified_v1  ──PM──►  initiate_planning_v1                         │
+                                               │                                │
+                                   planning_concluded_v1  ──PM──►  initiate_crafting_v1
+```
+
+Each PM is a gen_server that subscribes to the source event and dispatches the target command:
+
+| PM | Subscribes To | Dispatches |
+|----|--------------|------------|
+| `on_division_identified_initiate_planning` | `division_identified_v1` | `initiate_planning_v1` |
+| `on_planning_concluded_initiate_crafting` | `planning_concluded_v1` | `initiate_crafting_v1` |
 
 ---
 
 ## Fact Flow Diagram
 
 ```
-                        guide_venture
+                        guide_venture_lifecycle
                         (orchestrator)
-                             ▲
-          ┌──────────────────┼──────────────────────┐
-          │                  │                       │
-   setup_venture    discover_divisions               │
-          │                  │                       │
-          └────fact──────────┤                       │
-                             │                       │
-                    ┌────────▼─────────┐             │
-                    │ design           │─────fact─────┤
-                    └────────┬─────────┘             │
-                    ┌────────▼─────────┐             │
-                    │ planning         │─────fact─────┤
-                    └──┬───────────┬───┘             │
-                  ┌────▼──────┐   │                  │
-                  │ crafting  │   │                  │
-                  └────┬──────┘   │                  │
-                  ┌────▼──────┐   │                  │
-                  │ debugging │───┤                  │
-                  └────┬──────┘   │                  │
-                  ┌────▼──────┐   │                  │
-                  │ deployment│───┤                  │
-                  └────┬──────┘   │                  │
-                  ┌────▼──────────▼───┐              │
-                  │ monitoring        │──────────────┤
-                  └────────┬──────────┘              │
-                  ┌────────▼──────────┐              │
-                  │ rescue            │──────────────┘
-                  └────────┬──────────┘
-                           │ escalate
-                           ▼
-                    design (cycle restarts)
-```
-
-Refactoring can enter anywhere in the cycle — it is triggered by any process discovering structural issues. Not shown in main flow.
-
-**Key insight:** the lifecycle is a cycle, not a line:
-
-```
-setup → discover → design → planning → crafting → debugging → deployment → monitoring
-                      ▲                                                        │
-                      └──── rescue ◄───────────────────────────────────────────┘
+                             │
+          ┌──────────────────┼────────────────┐
+          │                  │                │
+   setup_venture    discover_divisions        │
+          │                  │                │
+          └────fact──────────┤                │
+                             │                │
+                    ┌────────▼─────────┐      │
+                    │ planning         │──────┤
+                    │ (design + plan)  │      │
+                    └────────┬─────────┘      │
+                             │ PM             │
+                    ┌────────▼─────────┐      │
+                    │ crafting         │──────┘
+                    │ (build + deliver)│
+                    └──────────────────┘
 ```
 
 ---
@@ -210,14 +242,8 @@ setup → discover → design → planning → crafting → debugging → deploy
 |-------|------------------------------|
 | `setup_venture` | Venture name + brief |
 | `discover_divisions` | Division list with names, descriptions, boundary rationale |
-| `design` | Aggregates, events, stream patterns, status flags |
-| `planning` | Desk inventory, types, priorities, sprint sequence |
-| `crafting` | Minimal — mechanical, template-driven |
-| `refactoring` | Structural analysis, improvement targets, migration plan |
-| `debugging` | Test strategy, acceptance criteria, defect diagnosis |
-| `deployment` | Release manifest, version, rollout strategy |
-| `monitoring` | Health check definitions, SLA thresholds |
-| `rescue` | Diagnosis, root cause, fix plan, escalation decision |
+| `planning` | Aggregates, events, desk inventory, dependencies, sprint sequence |
+| `crafting` | Module generation, test strategy, release manifest |
 
 ### The Decision Cascade
 
@@ -228,13 +254,13 @@ setup: name = "my-saas-app"
   └─ constrains discovery scope
 
 discover: divisions = [auth, billing, notify]
-  └─ constrains design: 3 divisions to design
+  └─ constrains planning: 3 divisions to plan
 
-design(auth): aggregates = [user, session, credential]
-  └─ constrains planning: desks must cover these aggregates
+planning(auth): aggregates = [user, session, credential]
+                desks = [register_user, authenticate_user, ...]
+  └─ constrains crafting: exactly these desks to implement
 
-planning(auth): desks = [register_user, authenticate_user, ...]
-  └─ constrains crafting: exactly these desks, in this order
+crafting(auth): modules generated, tests passed, release delivered
 ```
 
 Each phase's output is the next phase's input. The conversation at each phase only needs to cover that phase's decisions — everything else is already settled.
@@ -246,13 +272,15 @@ Each phase's output is the next phase's input. The conversation at each phase on
 | Old Concept | Replaced By | Why |
 |------------|-------------|-----|
 | `manage_torches` | `setup_venture` + `guide_venture` | Process, not data management |
-| `manage_cartwheels` | Division ALC (8 processes) | Split by phase |
-| Parent-child aggregates | Orchestrator + fact flow | No hierarchy, just coordination |
+| `guide_division_alc` (8 processes) | `guide_division_planning` + `guide_division_crafting` | 2 focused dossiers |
+| `query_division_alc` (monolithic) | `project_division_plannings/craftings` + `query_division_plannings/craftings` | Proper PRJ/QRY split per dossier |
+| Parent-child aggregates | Orchestrator + PM chain | No hierarchy, just coordination |
 | `torch_aggregate` | `setup` aggregate | Scoped to inception only |
-| `cartwheel_aggregate` | Per-phase aggregates | Each phase owns its state |
-| `identify_cartwheel` | `discover_division_v1` | Discovery is a process |
-| 10-process model | 2 venture + 8 ALC + node continuous | Cleaner separation of concerns |
-| start/pause/resume/complete | open/shelve/resume/conclude | More expressive verbs |
+| `cartwheel_aggregate` | `division_planning_aggregate` + `division_crafting_aggregate` | Each process owns its state |
+| 8-process ALC | 2-process ALC (planning + crafting) | Simpler, focused dossiers |
+| 4 frontend phases (DnA/AnP/TnI/DnO) | 2 frontend phases (Planning/Crafting) | Matches backend structure |
+| `dna_status/anp_status/tni_status/dno_status` | `planning_status/crafting_status` | One status per dossier |
+| start/pause/resume/complete | initiate/open/shelve/resume/conclude/archive | Full lifecycle protocol |
 | spoke | desk | Work lands on a desk |
 
 ---
@@ -263,4 +291,4 @@ Inter-process communication uses **facts on the mesh** (external) or **pg groups
 
 ---
 
-*Process-centric architecture. Each phase is a first-class citizen. The lifecycle is a cycle, not a line.*
+*Process-centric architecture. Each phase is a first-class citizen.*

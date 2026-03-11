@@ -1,31 +1,34 @@
 # HECATE ALC -- The Division Application Lifecycle
 
-*Eight processes. One cycle. The wheel turns for every division.*
+*Two processes. One chain. Planning feeds crafting.*
+
+**Updated:** 2026-03-10 — Consolidated from 8 processes to 2 process-centric dossiers.
 
 ---
 
 ## Overview
 
-The ALC governs how a **division** (bounded context, cohesive piece of software) evolves from idea to production and back again. It replaces the old four-phase model (DnA/AnP/TnI/DnO) with eight independent, long-lived processes -- each with its own aggregate, its own lifecycle, its own voice.
+The ALC governs how a **division** (bounded context, cohesive piece of software) evolves from design to delivery. It uses **two independent processes**, each with its own dossier (aggregate), its own event stream, and its own CMD/PRJ/QRY app trio.
 
 The ALC applies to **divisions specifically**. Ventures have their own lifecycle. Nodes run continuously. The division is where craft happens, and the ALC is the rhythm of that craft.
 
 ---
 
-## The Eight Processes
+## The Two Processes
 
-| # | Process | Purpose | Replaces |
-|---|---------|---------|----------|
-| 1 | **Design** | Discover the domain, model aggregates and events, event storming | DnA |
-| 2 | **Planning** | Plan desk capabilities, sequence work, define inboxes/policies/emitters | AnP |
-| 3 | **Crafting** | Generate code, scaffold structures, write implementations | TnI (generate) |
-| 4 | **Refactoring** | Planned structural improvement of existing code | *New* |
-| 5 | **Debugging** | Test, investigate failures, verify correctness | TnI (test) |
-| 6 | **Deployment** | CI/CD, staged rollouts, ship to environments | DnO (deploy) |
-| 7 | **Monitoring** | Observe health, collect metrics, detect anomalies | DnO (monitor) |
-| 8 | **Rescue** | Incident response, hotfixes, escalation back to design | DnO (rescue) |
+| # | Process | CMD App | Purpose |
+|---|---------|---------|---------|
+| 1 | **Planning** | `guide_division_planning` | Event storming, aggregate design, desk inventory, dependencies |
+| 2 | **Crafting** | `guide_division_crafting` | Code generation, testing, release delivery |
 
-Each process is a first-class citizen -- its own CMD app, its own dossier, its own desks.
+Each process is a first-class citizen -- its own dossier, its own desks, its own read models.
+
+### Apps
+
+| Process | CMD | PRJ | QRY |
+|---------|-----|-----|-----|
+| Planning | `guide_division_planning` | `project_division_plannings` | `query_division_plannings` |
+| Crafting | `guide_division_crafting` | `project_division_craftings` | `query_division_craftings` |
 
 ---
 
@@ -34,90 +37,150 @@ Each process is a first-class citizen -- its own CMD app, its own dossier, its o
 Every process is long-lived. Every process speaks with **screaming verbs** -- not generic `start_phase` / `pause_phase`, but verbs that name the process they govern.
 
 ```
-open_{process}     --> {process}_opened_v1       (begin work)
-shelve_{process}   --> {process}_shelved_v1       (blocked, set aside)
-resume_{process}   --> {process}_resumed_v1       (pick back up)
-conclude_{process} --> {process}_concluded_v1     (hand off to next)
+initiate_{process}  --> {process}_initiated_v1   (birth, auto via PM)
+open_{process}      --> {process}_opened_v1      (begin work)
+shelve_{process}    --> {process}_shelved_v1      (blocked, set aside)
+resume_{process}    --> {process}_resumed_v1      (pick back up)
+conclude_{process}  --> {process}_concluded_v1    (hand off to next)
+archive_{process}   --> {process}_archived_v1     (soft delete)
+```
+
+### Status Bit Flags
+
+```
+INITIATED = 1
+ARCHIVED  = 2
+OPEN      = 4
+SHELVED   = 8
+CONCLUDED = 16
 ```
 
 ### State Machine
 
 ```
-pending --> active --> paused --> completed
-  |          |          |
-  |       shelve     resume
-  |          |          |
-  open       +--paused--+
-                         |
-                      conclude
-                         |
-                      completed
+             initiate
+  (none) ──────────► initiated
+                        │
+                   open │
+                        ▼
+                      open
+                        │ ▲
+                 shelve │ │ resume
+                        ▼ │
+                      shelved
+                        │
+               conclude │
+                        ▼
+                    concluded
+
+  (any state) ──archive──► archived
 ```
 
-A process that has never been opened is `pending`. Opening it makes it `active`. Shelving pauses it. Resuming reactivates it. Concluding completes it and signals readiness for the next process.
+A process that has never been initiated is not yet born. Initiating creates it (usually via process manager). Opening it makes it active. Shelving pauses it. Resuming reactivates it. Concluding completes it and signals readiness for the next process.
 
 See **Demon #16** in [ANTIPATTERNS.md](../skills/ANTIPATTERNS.md) for why generic lifecycle verbs are forbidden.
 
 ---
 
-## The Cycle
-
-The eight processes form a cycle. Feedback flows backward through rescue, which can escalate all the way to design.
+## Process Manager Chain
 
 ```
-  design --> planning --> crafting --> debugging --> deployment --> monitoring
-    ^                                                                 |
-    |                                                                 v
-    +------------------------- rescue <-------------------------------+
+guide_venture_lifecycle              guide_division_planning           guide_division_crafting
+        │                                      │                                │
+  division_identified_v1  ──PM──►  initiate_planning_v1                         │
+                                               │                                │
+                                   planning_concluded_v1  ──PM──►  initiate_crafting_v1
 ```
 
-**Refactoring** is the wildcard. It enters the cycle wherever structural improvement is needed -- after debugging reveals tangled code, after monitoring reveals performance rot, after design reveals a better model. It feeds back into crafting or deployment depending on scope.
-
-```
-  monitoring ---> refactoring ---> crafting
-  debugging  ---> refactoring ---> crafting
-  design     ---> refactoring ---> crafting
-```
-
-The cycle is not a waterfall. Processes overlap. A division may have active design *and* active monitoring simultaneously -- the goddess holds many threads.
+| PM | Lives In | Subscribes To | Dispatches |
+|----|----------|--------------|------------|
+| `on_division_identified_initiate_planning` | `guide_division_planning` | `division_identified_v1` | `initiate_planning_v1` |
+| `on_planning_concluded_initiate_crafting` | `guide_division_crafting` | `planning_concluded_v1` | `initiate_crafting_v1` |
 
 ---
 
-## CMD App Naming
+## Planning Dossier
 
-Each process gets its own CMD app, named after what it does:
+**Aggregate:** `division_planning_aggregate` (stream: `division-planning-{id}`)
 
-| Process | CMD App | QRY+PRJ App |
-|---------|---------|-------------|
-| Design | `design_division` | `query_designs` |
-| Planning | `plan_division` | `query_plans` |
-| Crafting | `craft_division` | `query_crafts` |
-| Refactoring | `refactor_division` | `query_refactors` |
-| Debugging | `debug_division` | `query_debugs` |
-| Deployment | `deploy_division` | `query_deployments` |
-| Monitoring | `monitor_division` | `query_monitors` |
-| Rescue | `rescue_division` | `query_rescues` |
+**Desks (10):**
 
-No `manage_` prefix. CMD supports a **process**, not data management.
+| Desk | Type | Purpose |
+|------|------|---------|
+| `initiate_planning` | lifecycle | Birth (auto via PM) |
+| `archive_planning` | lifecycle | Soft delete |
+| `open_planning` | lifecycle | Begin work |
+| `shelve_planning` | lifecycle | Pause with reason |
+| `resume_planning` | lifecycle | Resume from shelve |
+| `conclude_planning` | lifecycle | Complete, trigger crafting PM |
+| `design_aggregate` | domain | Define aggregate boundaries |
+| `design_event` | domain | Define domain events |
+| `plan_desk` | domain | Add desk to inventory |
+| `plan_dependency` | domain | Map desk dependencies |
+
+**Read model tables (PRJ):** `division_plannings`, `designed_aggregates`, `designed_events`, `planned_desks`, `planned_dependencies`
+
+**Query endpoints (QRY):**
+- `GET /api/plannings/:id`
+- `GET /api/ventures/:venture_id/plannings`
+- `GET /api/plannings`
 
 ---
 
-## Per-Process Detail Files
+## Crafting Dossier
 
-Each process has its own deep-dive guide:
+**Aggregate:** `division_crafting_aggregate` (stream: `division-crafting-{id}`)
 
-| Process | Guide |
-|---------|-------|
-| Design | [HECATE_ALC_DESIGN.md](HECATE_ALC_DESIGN.md) |
-| Planning | [HECATE_ALC_PLANNING.md](HECATE_ALC_PLANNING.md) |
-| Crafting | [HECATE_ALC_CRAFTING.md](HECATE_ALC_CRAFTING.md) |
-| Refactoring | [HECATE_ALC_REFACTORING.md](HECATE_ALC_REFACTORING.md) |
-| Debugging | [HECATE_ALC_DEBUGGING.md](HECATE_ALC_DEBUGGING.md) |
-| Deployment | [HECATE_ALC_DEPLOYMENT.md](HECATE_ALC_DEPLOYMENT.md) |
-| Monitoring | [HECATE_ALC_MONITORING.md](HECATE_ALC_MONITORING.md) |
-| Rescue | [HECATE_ALC_RESCUE.md](HECATE_ALC_RESCUE.md) |
+**Desks (12):**
 
-This file is the index. The detail files describe activities, outputs, and transition criteria.
+| Desk | Type | Purpose |
+|------|------|---------|
+| `initiate_crafting` | lifecycle | Birth (auto via PM) |
+| `archive_crafting` | lifecycle | Soft delete |
+| `open_crafting` | lifecycle | Begin work |
+| `shelve_crafting` | lifecycle | Pause with reason |
+| `resume_crafting` | lifecycle | Resume from shelve |
+| `conclude_crafting` | lifecycle | Complete |
+| `generate_module` | domain | Generate Erlang module from template |
+| `generate_test` | domain | Generate test module |
+| `run_test_suite` | domain | Execute test suite |
+| `record_test_result` | domain | Record test outcome |
+| `deliver_release` | domain | Deliver a versioned release |
+| `stage_delivery` | domain | Stage release for rollout |
+
+**Read model tables (PRJ):** `division_craftings`, `generated_modules`, `generated_tests`, `test_suites`, `test_results`, `releases`, `delivery_stages`
+
+**Query endpoints (QRY):**
+- `GET /api/craftings/:id`
+- `GET /api/ventures/:venture_id/craftings`
+- `GET /api/craftings`
+
+---
+
+## What This Replaced
+
+The previous 8-process ALC (design, planning, crafting, refactoring, debugging, deployment, monitoring, rescue) was consolidated into 2 focused processes. The rationale:
+
+1. **Planning** absorbs design -- aggregate design and desk planning are part of the same dossier
+2. **Crafting** absorbs implementation, testing, and delivery -- code generation through release is one continuous process
+3. Monitoring, rescue, debugging, and refactoring are operational concerns, not lifecycle phases -- they happen continuously, not sequentially
+
+### Superseded Files
+
+The following per-process detail files describe the old 8-process model and are **superseded** by this document:
+
+- `HECATE_ALC_DESIGN.md` — absorbed into Planning
+- `HECATE_ALC_PLANNING.md` — absorbed into Planning
+- `HECATE_ALC_CRAFTING.md` — absorbed into Crafting
+- `HECATE_ALC_DEBUGGING.md` — absorbed into Crafting
+- `HECATE_ALC_DEPLOYMENT.md` — absorbed into Crafting
+- `HECATE_ALC_MONITORING.md` — operational, not lifecycle
+- `HECATE_ALC_RESCUE.md` — operational, not lifecycle
+- `HECATE_ALC_REFACTORING.md` — operational, not lifecycle
+- `HECATE_DISCOVERY_N_ANALYSIS.md` — old 4-phase naming
+- `HECATE_ARCHITECTURE_N_PLANNING.md` — old 4-phase naming
+- `HECATE_TESTING_N_IMPLEMENTATION.md` — old 4-phase naming
+- `HECATE_DEPLOYMENT_N_OPERATIONS.md` — old 4-phase naming
 
 ---
 
@@ -128,7 +191,7 @@ The ALC is one of three lifecycle types in the Hecate ecosystem:
 | Lifecycle | Scope | Nature |
 |-----------|-------|--------|
 | **Venture Lifecycle** | The overall business endeavor | Setup, discovery, orchestration |
-| **Division ALC** | A single bounded context | The eight-process cycle described here |
+| **Division ALC** | A single bounded context | The two-process chain described here |
 | **Node Lifecycle** | Infrastructure | Continuous operation, no phases |
 
 See [HECATE_VENTURE_LIFECYCLE.md](HECATE_VENTURE_LIFECYCLE.md) for the venture-level view.
@@ -139,8 +202,8 @@ See [HECATE_VENTURE_LIFECYCLE.md](HECATE_VENTURE_LIFECYCLE.md) for the venture-l
 
 | Doctrine | Relevance | Description |
 |----------|-----------|-------------|
-| [Walking Skeleton](HECATE_WALKING_SKELETON.md) | Crafting, Debugging | Fully operational system from day one |
-| [Dossier Principle](DDD.md) | Design, Planning | Process-centric domain modeling |
+| [Walking Skeleton](HECATE_WALKING_SKELETON.md) | Crafting | Fully operational system from day one |
+| [Dossier Principle](DDD.md) | Planning | Process-centric domain modeling |
 | [Vertical Slicing](VERTICAL_SLICING.md) | Planning, Crafting | Features live together, no horizontal layers |
 | [Screaming Architecture](SCREAMING_ARCHITECTURE.md) | Planning, Crafting | Names reveal intent |
 | [Division Model](../guides/CARTWHEEL_COMPANY_MODEL.md) | All | CMD/PRJ/QRY department structure |
@@ -151,12 +214,10 @@ See [HECATE_VENTURE_LIFECYCLE.md](HECATE_VENTURE_LIFECYCLE.md) for the venture-l
 
 When working on a division:
 
-1. **Know which process is active.** Do not craft during design. Do not design during deployment. Each process has a purpose -- respect it.
-2. **Use the lifecycle verbs.** `open_design`, `conclude_planning`, `shelve_debugging` -- not `start`, `stop`, `pause`. The process screams its name.
-3. **Follow the cycle.** Design before planning. Plan before crafting. Debug before deploying. The order exists for a reason.
-4. **Refactoring is intentional.** It is never accidental cleanup buried in a feature branch. Open the refactoring process explicitly.
-5. **Rescue escalates.** When monitoring finds rot, rescue opens. When rescue finds architectural flaws, design reopens. The cycle feeds itself.
-6. **Cycle fast.** Small iterations. Conclude early. Open the next process. The goddess favors momentum over perfection.
+1. **Know which process is active.** Do not craft during planning. Each process has a purpose -- respect it.
+2. **Use the lifecycle verbs.** `open_planning`, `conclude_crafting`, `shelve_planning` -- not `start`, `stop`, `pause`. The process screams its name.
+3. **Follow the chain.** Plan before crafting. The order exists for a reason.
+4. **Conclude fast.** Small iterations. Conclude planning early, start crafting. The goddess favors momentum over perfection.
 
 ---
 
@@ -172,4 +233,4 @@ When working on a division:
 
 ---
 
-*The wheel turns. Eight spokes now, not four. Each process feeds the next. The goddess guides the cycle.*
+*Two processes. Planning feeds crafting. Each with its own dossier.*

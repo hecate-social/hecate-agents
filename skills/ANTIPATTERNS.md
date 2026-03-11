@@ -46,6 +46,9 @@
 | 36 | Hex Packages Without debug_info | `no_debug_info` breaks consumers' dialyzer | 2026-03-05 |
 | 37 | Flattening Event Envelopes Into Business Data | `maps:merge(Data, Envelope)` silently overwrites business fields | 2026-03-06 |
 | 38 | Emoji Literals in esqlite3 SQL Strings | 4-byte UTF-8 emojis in SQL cause `badarg` crash in esqlite3 NIF | 2026-03-06 |
+| 39 | Bypassing Evoq Behaviours with Raw gen_servers | Raw gen_server + evoq_subscriptions instead of evoq_event_handler/evoq_projection/evoq_process_manager | 2026-03-07 |
+| 40 | Reading Business Fields from Event Envelope | `get_field(license_id, Event)` in handler — silently returns `undefined`, business data is in `Event.data` | 2026-03-08 |
+| **41** | **🔥🔥🔥 Reading from Read Models During Event Flow** | **THE cardinal sin: PMs/projections/handlers reading from read models instead of using event data — causes race conditions, tight coupling, and silent failures** | **2026-03-08** |
 
 ---
 
@@ -77,7 +80,7 @@ Demons #2, #4, #5, #9. Errors in modeling aggregate lifecycles, parent-child rel
 
 ### [ANTIPATTERNS_EVENT_SOURCING.md](ANTIPATTERNS_EVENT_SOURCING.md) — Aggregates, Events, Envelopes
 
-Demons #10, #23, #33, #34, #37. Aggregate callback order, event record handling, evoq+reckondb requirements, map key types, and envelope flattening.
+Demons #10, #23, #33, #34, #37, #40, **#41**. Aggregate callback order, event record handling, evoq+reckondb requirements, map key types, envelope flattening, envelope field extraction, and **reading from read models during event flow (THE cardinal sin)**.
 
 ### [ANTIPATTERNS_PROJECTIONS.md](ANTIPATTERNS_PROJECTIONS.md) — Projections & Read Models
 
@@ -85,7 +88,7 @@ Demons #12, #22, #31, #32. Projection timing, manual event emission, inline proj
 
 ### [ANTIPATTERNS_INTEGRATION.md](ANTIPATTERNS_INTEGRATION.md) — Subscriptions, Messaging, Process Managers
 
-Demons #7, #11, #15, #24, #26. pg vs mesh, hope acknowledgments, command IDs, subscription pipeline failures, and emitter lifecycle.
+Demons #7, #11, #15, #24, #26, #39. pg vs mesh, hope acknowledgments, command IDs, subscription pipeline failures, emitter lifecycle, and bypassing evoq behaviours.
 
 ### [ANTIPATTERNS_ERLANG.md](ANTIPATTERNS_ERLANG.md) — Erlang/OTP Gotchas
 
