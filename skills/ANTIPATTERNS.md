@@ -49,6 +49,13 @@
 | 39 | Bypassing Evoq Behaviours with Raw gen_servers | Raw gen_server + evoq_subscriptions instead of evoq_event_handler/evoq_projection/evoq_process_manager | 2026-03-07 |
 | 40 | Reading Business Fields from Event Envelope | `get_field(license_id, Event)` in handler — silently returns `undefined`, business data is in `Event.data` | 2026-03-08 |
 | **41** | **🔥🔥🔥 Reading from Read Models During Event Flow** | **THE cardinal sin: PMs/projections/handlers reading from read models instead of using event data — causes race conditions, tight coupling, and silent failures** | **2026-03-08** |
+| 42 | Silent Catch-All in Message Handlers | Catch-all discards unknown actions without logging — hides payload mismatches | 2026-03-26 |
+| 43 | Dual Subscription Registries | Gateway streams and peer handlers are separate — delivery must check both | 2026-03-26 |
+| 44 | Callback Payload Format Assumptions | Library wraps payload in `#{topic, payload}` but consumer expected raw JSON | 2026-03-26 |
+| 45 | Fire-Once Publishing Over Unreliable Transport | Mesh announce fired once — lost on relay restart or late subscribers | 2026-03-26 |
+| 46 | No Subscription Replay on Reconnect | QUIC reconnect doesn't re-send SUBSCRIBE — gateway loses all subscriptions | 2026-03-26 |
+| 47 | Eager Peer Connection Explosion | Persistent peer_system per discovered peer → 692 handlers on 4 nodes | 2026-03-26 |
+| **48** | **DEBUG Logging on Critical Failure Paths** | **"Found 0 subscribers" at DEBUG level — failures invisible in production** | **2026-03-26** |
 
 ---
 
@@ -97,6 +104,10 @@ Demons #19, #20, #21, #35, #38. esqlite3 return types and argument order, eager 
 ### [ANTIPATTERNS_RELEASE.md](ANTIPATTERNS_RELEASE.md) — Release, Testing & Packaging
 
 Demons #27, #28, #29, #30, #36. Hardcoded IDs, missing tests, plugin discovery routes, version bumping, and hex packaging.
+
+### [ANTIPATTERNS_MESH_PUBSUB.md](ANTIPATTERNS_MESH_PUBSUB.md) — Mesh Pub/Sub: The 13-Bug Marathon
+
+Demons #42, #43, #44, #45, #46, #47, #48. Silent catch-alls, dual registries, payload wrapper assumptions, fire-once publishing, missing subscription replay, eager connection explosion, and invisible DEBUG logging. All from a single debugging session where one game announcement needed 13 fixes to cross the mesh.
 
 ---
 
