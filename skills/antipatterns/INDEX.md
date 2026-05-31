@@ -65,6 +65,8 @@ stage: reversed
 | **48** | **DEBUG Logging on Critical Failure Paths** | **"Found 0 subscribers" at DEBUG level — failures invisible in production** | **2026-03-26** |
 | **49** | **Discarding `evoq_dispatcher:dispatch/2`'s Return Value** | **`_ = dispatch(...)` throws away the only error channel — events vanish silently** | **2026-05-26** |
 | **50** | **Daemon-as-Mesh-Middleman** | **L2-shaped work bridged through `hecate-daemon`'s `/api/mesh/publish` — wrong identity, wrong layer dependency, defeats reckon-db** | **2026-05-28** |
+| **51** | **🔥🔥🔥 Human-Readable Aggregate IDs as Reckon Stream IDs** | **evoq AggregateId IS the reckon stream id (`^[a-z]{1,32}-[a-f0-9]{32}$`); a human slug fails the regex and a bare `catch` eats the rejection — empty store, no errors** | **2026-05-31** |
+| **52** | **Duplicate `{profiles}` Tuple in rebar.config** | **rebar3 keeps only the LAST top-level `{profiles}` — second one shadows `prod`, drops `include_erts` → ERTS-less release → exit-127 crash loop** | **2026-05-31** |
 
 ---
 
@@ -96,7 +98,7 @@ Demons #2, #4, #5, #9. Errors in modeling aggregate lifecycles, parent-child rel
 
 ### [antipatterns/event_sourcing.md](event_sourcing.md) — Aggregates, Events, Envelopes
 
-Demons #10, #23, #33, #34, #37, #40, **#41**, #49. Aggregate callback order, event record handling, evoq+reckondb requirements, map key types, envelope flattening, envelope field extraction, **reading from read models during event flow (THE cardinal sin)**, and discarding `evoq_dispatcher:dispatch/2`'s return value (the only error channel).
+Demons #10, #23, #33, #34, #37, #40, **#41**, #49, **#51**. Aggregate callback order, event record handling, evoq+reckondb requirements, map key types, envelope flattening, envelope field extraction, **reading from read models during event flow (THE cardinal sin)**, discarding `evoq_dispatcher:dispatch/2`'s return value (the only error channel), and **human-readable aggregate ids that fail the reckon stream-id regex while a bare `catch` hides the rejection**.
 
 ### [antipatterns/projections.md](projections.md) — Projections & Read Models
 
@@ -112,7 +114,7 @@ Demons #19, #20, #21, #35, #38. esqlite3 return types and argument order, eager 
 
 ### [antipatterns/release.md](release.md) — Release, Testing & Packaging
 
-Demons #27, #28, #29, #30, #36. Hardcoded IDs, missing tests, plugin discovery routes, version bumping, and hex packaging.
+Demons #27, #28, #29, #30, #36, #52. Hardcoded IDs, missing tests, plugin discovery routes, version bumping, hex packaging, the containerized-reckon_db dynamic-node-name 502, and the duplicate `{profiles}` rebar.config tuple that ships an ERTS-less release.
 
 ### [antipatterns/mesh_pubsub.md](mesh_pubsub.md) — Mesh Pub/Sub: The 13-Bug Marathon
 

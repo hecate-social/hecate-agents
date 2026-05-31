@@ -796,4 +796,60 @@ other "the result IS the answer" API across the family.
 
 ---
 
+## 🔥🔥🔥 Demon 51: Human-Readable Aggregate IDs as Reckon Stream IDs
+
+**Date:** 2026-05-31
+**Where it bit:** hecate-parksim ClankerCab fleet — trips=0, revenue=0, empty read model, no errors anywhere.
+
+### The Mistake
+
+The vehicle aggregate used its human id (`leuven-taxi-1`) directly as
+the evoq `AggregateId`. In the reckon family the `AggregateId` **is**
+the reckon-db stream id, and reckon-db enforces a strict shape:
+
+```
+^[a-z]{1,32}-[a-f0-9]{32}$        %% reckon_gater_stream_id
+```
+
+`leuven-taxi-1` fails the regex. Every dispatch returned
+`{error, {invalid_stream_id, malformed_user_id, _}}` — and that error
+was **silently swallowed** by the brain's `catch Mod:dispatch`. Zero
+fleet events persisted. Read model stayed empty. trips/revenue read 0.
+Nothing logged. The "bug" presented as a phantom projection or
+revenue-calculation fault — it was neither.
+
+This is the sibling of Demon 49: there the bad id was a UUID-v4 and the
+return value was discarded with `_ =`; here the bad id is a human slug
+and the error is eaten by a bare `catch`. Same outcome — a write path
+that returns "fine" while persisting nothing.
+
+### The Fix
+
+Derive a reckon-compliant stream id from the human id; never use the
+human id raw:
+
+```erlang
+%% vehicle_aggregate:stream_id/1 — applied at ALL 9 dispatch sites
+stream_id(VehicleId) when is_binary(VehicleId) ->
+    Hash = binary:encode_hex(erlang:md5(VehicleId), lowercase),
+    <<"veh-", Hash/binary>>.        %% veh-<md5 hex> matches the regex
+```
+
+The human id stays in the event payload for display; the stream id is a
+deterministic derived key. (Fixed in parksim `2b94ee2`.)
+
+### The Rule
+
+> **The evoq AggregateId IS the reckon stream id, and reckon-db enforces
+> `^[a-z]{1,32}-[a-f0-9]{32}$`.** Never feed a human-readable id in. Derive
+> a `<prefix>-<md5hex>` stream id and keep the human id in the payload.
+> Never wrap dispatch in a bare `catch` that hides the rejection.
+
+A test that catches this: `evoq_cmd_case:assert_valid_stream_id/1`
+(evoq-testkit) runs the reckon_gater guard against the id the aggregate
+would actually use. **mem-evoq does NOT enforce the regex**, so without
+this explicit assertion a Layer-B test passes while production rejects.
+
+---
+
 *We burned these demons so you don't have to. Keep the fire going.* 🔥🗝️🔥

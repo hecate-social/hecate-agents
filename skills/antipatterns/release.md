@@ -392,4 +392,69 @@ The dead node name is baked into the volume. Pin the node name AND wipe the stal
 
 ---
 
+## 🔥🔥 Demon 52: Duplicate `{profiles, ...}` Tuple in rebar.config
+
+**Date:** 2026-05-31
+**Origin:** hecate-parksim — adding an evoq-testkit `test` profile crash-looped every beam node (exec 127).
+
+### The Mistake
+
+To wire a new test-only dependency I added a **second** top-level
+`{profiles, ...}` tuple to `rebar.config` instead of merging into the
+existing one:
+
+```erlang
+%% WRONG — two top-level profiles tuples
+{profiles, [
+    {prod, [{relx, [{include_erts, true}, {dev_mode, false}]}]}
+]}.
+
+%% ...later in the same file...
+{profiles, [
+    {test, [{deps, [{evoq_testkit, "~> 0.1"}]}]}
+]}.
+```
+
+### Why It Bit Hard
+
+**rebar3 keeps only the LAST top-level `{profiles, ...}` tuple.** The
+second one shadowed the first entirely, so the `prod` profile vanished.
+CI built `:latest` without `prod`'s `include_erts` → an **ERTS-less
+release**. The alpine runtime has no system Erlang → the entrypoint
+`exec`'d a non-existent VM → **exit 127 crash-loop on every beam**. The
+fleet froze: dead store, frozen read model, trips/revenue stuck.
+
+The symptom is maximally misleading: zero BEAM logs (the VM never
+starts), just a container restarting forever. It looks like a bad
+entrypoint or a missing binary, not a build-config typo.
+
+### The Fix
+
+One `{profiles, ...}` tuple, all profiles inside it:
+
+```erlang
+{profiles, [
+    {prod, [{relx, [{include_erts, true}, {dev_mode, false}]}]},
+    {test, [{deps, [{evoq_testkit, "~> 0.1"}]}]}
+]}.
+```
+
+(Fixed in parksim `c329b6d`.)
+
+### The Tell
+
+> **exit 127 + zero BEAM logs + alpine runtime = ERTS-less release.**
+> Check the image for `/app/erts-*` and confirm `include_erts` survived.
+> If a release config seems to have "lost" a profile or term, grep for a
+> **duplicate top-level key** — rebar3 silently keeps the last.
+
+### The Rule
+
+> **Never add a second top-level `{profiles, ...}` (or any duplicate
+> top-level key) to rebar.config — merge into the existing tuple.**
+> rebar3 does not combine them; the last one wins and the rest vanish
+> with no warning.
+
+---
+
 *We burned these demons so you don't have to. Keep the fire going.* 🔥🗝️🔥

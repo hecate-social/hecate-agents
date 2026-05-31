@@ -243,6 +243,43 @@ The aggregate bug (2026-02-09) was caused by wrong argument order:
 
 This test catches the bug immediately. Without it, the bug only appeared at runtime when evoq dispatched a command and the aggregate returned `{error, unknown_command}`.
 
+### evoq-testkit — Sequence-Driven CMD Testing (2026-05-31)
+
+For aggregate/CMD testing, prefer **`evoq_testkit`** (hex `~> 0.1`,
+`reckon-db-org/evoq-testkit`) over hand-rolled `execute/2` calls. It is
+sequence-driven: inject a command sequence and after EACH command assert
+(1) expected events, (2) no unexpected events, (3) no failure / expected
+error, (4) correct state.
+
+Two layers:
+
+- **Layer A `evoq_aggregate_spec`** (pure, no store) — `run/3` drives
+  `execute/2` + folds `apply/2`. Exact ordered event-type match. The
+  command type is carried INSIDE the payload as `command_type` (matching
+  the runtime `Command#evoq_command.payload`).
+- **Layer B `evoq_cmd_case`** (persistence) — `with_mem_store/1` swaps in
+  `mem_evoq_adapter`, `dispatch_all/4` replays the scenario through
+  `evoq_dispatcher` asserting each `{ok, _, _}`, `assert_stream/3` reads
+  back and compares, and `assert_valid_stream_id/1` runs the reckon_gater
+  guard.
+
+> **Always include `evoq_cmd_case:assert_valid_stream_id/1`.** mem-evoq's
+> append does NOT enforce reckon-db's `^[a-z]{1,32}-[a-f0-9]{32}$` stream-id
+> regex, so a Layer-B test passes while production rejects every write
+> (antipatterns Demon 51). This assertion is the only thing that catches a
+> human-readable aggregate id in a test.
+
+### eunit Aggregate Gotchas
+
+- **Callbacks must be a separate module.** Put `init/execute/apply` in a
+  real aggregate module (e.g. `lamp_aggregate`), not inline in the
+  `_tests` module — inline callbacks aren't found and dispatch fails with
+  `undef`.
+- **`whereis(SomeAggregate)` is always `undefined`** for evoq
+  aggregates/projections started via `gen_server:start_link(?MODULE, ...)`
+  with no registered name. Don't read "the process is dead" into it — it
+  was never named. (Cost a whole wrong "keeper" fix once.)
+
 ---
 
 ## Common Test Fixtures
@@ -310,3 +347,4 @@ All tests must pass before the Docker image is built.
 | 2026-02-08 | Use `{module}_tests.erl` naming for auto-discovery |
 | 2026-02-08 | pg tests use scope `pg` (OTP default) |
 | 2026-02-08 | Use unique IDs to avoid test pollution |
+| 2026-05-31 | CMD/aggregate tests use `evoq_testkit` (Layer A pure + Layer B mem-evoq persistence); always assert `assert_valid_stream_id/1` |
