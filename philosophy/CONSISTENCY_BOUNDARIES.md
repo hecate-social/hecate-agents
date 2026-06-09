@@ -176,24 +176,34 @@ See [`../examples/DCB_COUNTER.md`](../examples/DCB_COUNTER.md) for the canonical
 
 | Repo | Version | What it ships |
 |------|---------|---------------|
-| reckon-gater | 2.3.1 | `tag_filter()` + `seq_cutoff()` types, `append_if_no_tag_matches/4` wire verb |
-| reckon-db | 3.1.1 | Khepri-transaction primitive + `/by_tag/{tag}/{seq}` tag index + gateway dispatch + HMAC chain on integrity-enabled stores |
-| reckon-evoq | 2.2.1 | Adapter passthrough |
-| evoq | 1.19.0 | `evoq_decision` behaviour + `evoq_decision_runtime:dispatch/3` + compound filter algebra |
+| reckon-gater | 3.2.0 | `tag_filter()` + `seq_cutoff()` types, `append_if_no_tag_matches/4` wire verb; `stream_id:parts/1`; `read_by_metadata/3` client API |
+| reckon-db | 5.0.0 | DCB Khepri-transaction primitive + `/by_tag/{tag}/{seq}` index + HMAC chain; **Model C** structural stream layout (`[streams, Type, Id, Version]`); generic **opt-in secondary index** (`{meta,K}` / `tags` / `event_type`) + `read_by_metadata/3`; transactional append |
+| reckon-evoq | 2.4.0 | Adapter passthrough (incl. `read_by_metadata/3`) |
+| evoq | 1.20.0 | `evoq_decision` behaviour + compound filter algebra; `evoq_lineage` (correlation/causation `get_effects`/`get_correlated`/`get_conversation` + auto-propagation) |
 
 **Polyglot layer** (Go, .NET, Rust, Python over gRPC):
 
 | Repo | Version | What it ships |
 |------|---------|---------------|
-| reckon-proto | 0.4.0 | `DcbService` proto + recursive `TagFilter` oneof |
-| reckon-gateway | 0.7.0 | `DcbService` handler — translates proto → `reckon_gater_api:append_if_no_tag_matches/4` |
-| reckon-go | (current main) | `dcb` package with `MatchAny` / `MatchAll` / `And` / `Or` filter constructors; `(committed, conflict, err)` return signature on `Append` |
+| reckon-proto | 0.6.1 | `DcbService` proto + recursive `TagFilter` oneof; `StreamService.ReadByMetadata` RPC; reserved metadata-key contract (`causation_id`/`correlation_id`/`conversation_id`) |
+| reckon-gateway | 0.9.0 | `DcbService` handler (→ `reckon_gater_api:append_if_no_tag_matches/4`); `ReadByMetadata` handler; `RECKON_GATEWAY_STORE_INDEXES` env for embedded-store index declaration |
+| reckon-go | 0.6.0 | `dcb` package (`MatchAny`/`MatchAll`/`And`/`Or`, `(committed, conflict, err)` on `Append`); `ReadByMetadata` + `lineage` convenience (`ReadEffects`/`ReadCorrelated`/`ReadConversation`, reserved-key constants) |
 
 **Operator tooling**:
 
 | Repo | Version | What it ships |
 |------|---------|---------------|
-| reckon-lazy | (current main) | `DCB` badge next to the `_dcb` pseudo-stream in the TUI's streams mode |
+| reckon-lazy | (current main) | `DCB` badge next to the `_dcb` pseudo-stream in the TUI's streams mode (unchanged — no lineage/index work; still tracks reckon-go v0.4.0) |
+
+> **Versions updated 2026-06-09.** The table advanced from the original DCB
+> stack (2026-05-27) to the current shipped stack. On top of DCB, reckon-db
+> 5.0.0 adds the Model C structural stream layout and a generic opt-in secondary
+> index, surfaced cross-language as `read_by_metadata` (reckon-proto 0.6.1 →
+> gateway 0.9.0 → reckon-go 0.6.0) and as the `evoq_lineage`
+> correlation/causation API on BEAM (evoq 1.20.0). The generic store carries
+> only the `read_by_metadata` filter primitive; intent (`get_effects` etc.) and
+> auto-propagation live in evoq. See
+> `reckon-db/plans/PLAN_5_0_PROPAGATION.md` for the full propagation record.
 
 ### Known v1 limitations
 
