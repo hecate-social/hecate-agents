@@ -2,7 +2,7 @@
 title: HECATE_DnA
 layer: philosophy
 audience: [agent, human]
-stage: stable
+stage: superseded
 ---
 
 # HECATE_DnA — Discovery & Analysis

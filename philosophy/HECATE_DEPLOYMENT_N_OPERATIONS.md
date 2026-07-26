@@ -2,7 +2,7 @@
 title: HECATE_DnO
 layer: philosophy
 audience: [agent, human]
-stage: stable
+stage: superseded
 ---
 
 # HECATE_DnO — Deployment & Operations

@@ -2,7 +2,7 @@
 title: "ALC: Refactoring -- Improve Existing Structure"
 layer: philosophy
 audience: [agent, human]
-stage: stable
+stage: superseded
 ---
 
 # ALC: Refactoring -- Improve Existing Structure

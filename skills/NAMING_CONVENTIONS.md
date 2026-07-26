@@ -10,6 +10,8 @@ stage: stable
 _Single-page reference for all naming conventions in the Domain/Division/Desk architecture._
 _An LLM doing TnI codegen reads ONLY this file + the relevant template._
 
+> **Authority on integration-actor names.** The actor forms below (emitters as `emit_{event}_to_{transport}`, listeners as `on_{fact}_from_{transport}_{command}`) follow the dated decision in [INTEGRATION_ACTORS.md](../guides/INTEGRATION_ACTORS.md) (2026-03-14). If the two files ever diverge on emitter/listener naming, INTEGRATION_ACTORS.md wins. Policy (`on_{event}_maybe_{command}`) is deliberately distinct from Listener and is **not** affected.
+
 ---
 
 ## Module Naming Rules (All Desk Types)
@@ -28,12 +30,12 @@ _An LLM doing TnI codegen reads ONLY this file + the relevant template._
 | **CMD Desk Supervisor** | `{command}_desk_sup` | `initiate_order_desk_sup` |
 | **PRJ Desk Supervisor** | `{event}_sup` | `order_initiated_sup` |
 | **Responder** | `{command}_responder_v1` | `initiate_order_responder_v1` |
-| **Emitter (mesh)** | `{event}_to_mesh` | `order_initiated_to_mesh` |
-| **Emitter (pg)** | `{event}_to_pg` | `order_initiated_to_pg` |
+| **Emitter (mesh)** | `emit_{event}_to_mesh` | `emit_order_initiated_to_mesh` |
+| **Emitter (pg)** | `emit_{event}_to_pg` | `emit_order_initiated_to_pg` |
 | **Aggregate** | `{noun}_aggregate` | `order_aggregate` |
 | **Projection** | `{event}_to_{read_store}` | `order_initiated_to_orders` |
 | **Policy** | `on_{event}_maybe_{command}` | `on_license_revoked_v1_maybe_remove_plugin` |
-| **Listener** | `on_{fact}_maybe_{command}` | `on_app_available_maybe_install_plugin` |
+| **Listener** | `on_{fact}_from_{transport}_{command}` | `on_app_available_from_mesh_install_plugin` |
 | **Query (by PK)** | `get_{aggregate}_by_id` | `get_order_by_id` |
 | **Query (by field)** | `get_{aggregate}_by_{field}` | `get_order_by_number` |
 | **Query (paged)** | `get_{aggregates}_page` | `get_orders_page` |
@@ -51,10 +53,10 @@ Every event stored in ReckonDB can trigger one of 5 flow types. Each has a disti
 | # | Flow | Module Pattern | Role |
 |---|------|---------------|------|
 | 1 | Event Store → Read Model | `on_{event}_to_sqlite_{table}` / `on_{event}_to_couchdb_{table}` | **Projection** |
-| 2 | Event Store → PubSub | `{event}_to_pg` | **Integration Emitter** |
-| 3 | Event Store → Mesh | `{event}_to_mesh` | **Mesh Emitter** |
+| 2 | Event Store → PubSub | `emit_{event}_to_pg` | **Integration Emitter** |
+| 3 | Event Store → Mesh | `emit_{event}_to_mesh` | **Mesh Emitter** |
 | 4 | Event Store → own Aggregate | `on_{event}_maybe_{command}` | **Policy** |
-| 5 | Other Domain/Mesh → own Aggregate | `on_{fact}_maybe_{command}` | **Listener** |
+| 5 | Other Domain/Mesh → own Aggregate | `on_{fact}_from_{transport}_{command}` | **Listener** |
 
 All 5 subscribe to events via `reckon_evoq_adapter:subscribe/5`. The difference is what they DO with the event:
 
@@ -62,7 +64,7 @@ All 5 subscribe to events via `reckon_evoq_adapter:subscribe/5`. The difference 
 - **Integration Emitter** (2): Broadcasts to OTP `pg` groups for inter-domain consumption. Lives in CMD desk.
 - **Mesh Emitter** (3): Publishes to Macula mesh for WAN/cross-network consumption. Lives in CMD desk.
 - **Policy** (4): Reacts to an internal domain event, dispatches a command to own aggregate. Lives as a sibling slice in the target CMD app under `apps/{cmd_app}/src/on_{event}_{action}_{target}/`.
-- **Listener** (5): Reacts to a FACT from outside (another domain via pg, or mesh), dispatches a local command. Lives as a sibling slice in the target CMD app under `apps/{cmd_app}/src/on_{fact}_{action}_{target}/`. (Reversed 2026-03-12 — was originally "inside the target desk"; see Demon 18.)
+- **Listener** (5): Reacts to a FACT from outside (another domain via pg, or mesh), dispatches a local command. Lives as a sibling slice in the target CMD app under `apps/{cmd_app}/src/on_{fact}_from_{transport}_{command}/`. (Reversed 2026-03-12 — was originally "inside the target desk"; see Demon 18.)
 
 ### Policy vs Listener
 
@@ -71,7 +73,7 @@ Both dispatch commands. The difference is the SOURCE of the trigger:
 | Name | Source | Example |
 |------|--------|---------|
 | **Policy** | Internal domain event (own event store) | `on_license_revoked_v1_maybe_remove_plugin` |
-| **Listener** | External fact (pg from another domain, or mesh) | `on_app_available_maybe_install_plugin` |
+| **Listener** | External fact (pg from another domain, or mesh) | `on_app_available_from_mesh_install_plugin` |
 
 ## Command Entry Points
 
@@ -81,7 +83,7 @@ A command is NOT always triggered by an API call. There are three entry points:
 |-------------|---------|------|--------|
 | API call (HOPE) | `{command}_api.erl` | **API Handler** | User/frontend via HTTP |
 | Internal domain event | `on_{event}_maybe_{command}.erl` | **Policy** | Own event store |
-| External fact | `on_{fact}_maybe_{command}.erl` | **Listener** | Another domain via pg/mesh |
+| External fact | `on_{fact}_from_{transport}_{command}.erl` | **Listener** | Another domain via pg/mesh |
 
 A command without an API handler is NOT dead code — it may only be triggered by policies or listeners. The audit question is: "does every command have at least one entry point?"
 
@@ -93,7 +95,7 @@ A command without an API handler is NOT dead code — it may only be triggered b
 | Integration Emitter | `apps/{cmd_app}/src/{desk}/` | CMD |
 | Mesh Emitter | `apps/{cmd_app}/src/{desk}/` | CMD |
 | Policy | `apps/{cmd_app}/src/on_{event}_{action}_{target}/` (sibling of desks) | CMD |
-| Listener | `apps/{cmd_app}/src/on_{fact}_{action}_{target}/` (sibling of desks) | CMD |
+| Listener | `apps/{cmd_app}/src/on_{fact}_from_{transport}_{command}/` (sibling of desks) | CMD |
 
 ---
 
@@ -133,8 +135,8 @@ Given a dossier/app name, all other names are **deterministic**:
 | `initiate_order` | `_api` suffix | API handler: `initiate_order_api` |
 | `initiate_order` | `_desk_sup` suffix | supervisor: `initiate_order_desk_sup` |
 | `initiate_order` | `_responder_v1` suffix | responder: `initiate_order_responder_v1` |
-| `initiate_order` | event `_to_mesh` | emitter: `order_initiated_to_mesh` |
-| `initiate_order` | event `_to_pg` | pg emitter: `order_initiated_to_pg` |
+| `initiate_order` | event `_to_mesh` | emitter: `emit_order_initiated_to_mesh` |
+| `initiate_order` | event `_to_pg` | pg emitter: `emit_order_initiated_to_pg` |
 
 ### From PRJ Desk Name (Event-Based)
 
@@ -308,8 +310,8 @@ Handler:         maybe_initiate_order
 API handler:     initiate_order_api
 Supervisor:      initiate_order_desk_sup
 Responder:       initiate_order_responder_v1
-Mesh emitter:    order_initiated_v1_to_mesh
-pg emitter:      order_initiated_v1_to_pg
+Mesh emitter:    emit_order_initiated_v1_to_mesh
+pg emitter:      emit_order_initiated_v1_to_pg
 PRJ desk dir:    src/order_initiated/                   (in PRJ app)
 PRJ desk sup:    order_initiated_sup                    (in PRJ app)
 Projection:      order_initiated_v1_to_sqlite_orders    (in PRJ app, inside order_initiated/)

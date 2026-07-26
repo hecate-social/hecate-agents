@@ -296,7 +296,7 @@ A CQRS role inside a Division. Exactly three Departments per Division: CMD, PRJ,
 
 | Department | Role | Naming |
 |------------|------|--------|
-| CMD | Receives intents, produces events | `{process_verb}_{subject}` (e.g., `manage_capabilities`, `design_division`) |
+| CMD | Receives intents, produces events | `{process_verb}_{subject}` (e.g., `design_division`, `plan_division`) |
 | PRJ | Subscribes to events, writes read models | `project_{read_model_plural}` (e.g., `project_capabilities`) |
 | QRY | Reads from read models, serves queries | `query_{read_model_plural}` (e.g., `query_capabilities`) |
 

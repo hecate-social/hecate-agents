@@ -65,7 +65,7 @@ apps/manage_capabilities/
 │   └── retract_capability/               # DESK
 │       └── ...
 │
-└── rebar.config                          # Include src_dirs for spokes
+└── rebar.config                          # Include src_dirs for desks
 ```
 
 ---
@@ -88,7 +88,7 @@ Every CMD desk contains:
 | File | Type | Purpose |
 |------|------|---------|
 | `on_{event}_maybe_*.erl` | Policy | Reacts to internal domain event, dispatches command |
-| `on_{fact}_maybe_*.erl` | Listener | Reacts to external fact (pg/mesh), dispatches command |
+| `on_{fact}_from_{transport}_*.erl` | Listener | Reacts to external fact (pg/mesh), dispatches command |
 
 ---
 
@@ -139,7 +139,7 @@ Normal CMD flow
 ```
 FACT from another domain (app_available)
     ↓ arrives via pg group or mesh
-Listener (on_app_available_maybe_install_plugin)
+Listener (on_app_available_from_mesh_install_plugin)
     ↓ dispatches command to local aggregate
 Command (install_plugin_v1)
     ↓
@@ -216,10 +216,10 @@ init([]) ->
 | Event | `{noun}_{past_verb}_v1.erl` | `capability_announced_v1.erl` |
 | Handler | `maybe_{verb}_{noun}.erl` | `maybe_announce_capability.erl` |
 | Responder | `{verb}_{noun}_responder_v1.erl` | `announce_capability_responder_v1.erl` |
-| Emitter (pg) | `{event}_to_pg.erl` | `capability_announced_v1_to_pg.erl` |
-| Emitter (mesh) | `{event}_to_mesh.erl` | `capability_announced_v1_to_mesh.erl` |
+| Emitter (pg) | `emit_{event}_to_pg.erl` | `emit_capability_announced_v1_to_pg.erl` |
+| Emitter (mesh) | `emit_{event}_to_mesh.erl` | `emit_capability_announced_v1_to_mesh.erl` |
 | Policy | `on_{event}_maybe_{verb}_{noun}.erl` | `on_license_revoked_v1_maybe_remove_plugin.erl` |
-| Listener | `on_{fact}_maybe_{verb}_{noun}.erl` | `on_app_available_maybe_install_plugin.erl` |
+| Listener | `on_{fact}_from_{transport}_{command}.erl` | `on_app_available_from_mesh_install_plugin.erl` |
 | HOPE struct | `{verb}_{noun}_hope_v1.erl` | `announce_capability_hope_v1.erl` |
 
 ---

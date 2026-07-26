@@ -2,7 +2,7 @@
 title: HECATE_TnI
 layer: philosophy
 audience: [agent, human]
-stage: stable
+stage: superseded
 ---
 
 # HECATE_TnI — Testing & Implementation

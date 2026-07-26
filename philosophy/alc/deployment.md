@@ -2,7 +2,7 @@
 title: "ALC: Deployment -- Ship to Environments"
 layer: philosophy
 audience: [agent, human]
-stage: stable
+stage: superseded
 ---
 
 # ALC: Deployment -- Ship to Environments

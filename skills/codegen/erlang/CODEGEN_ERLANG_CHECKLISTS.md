@@ -51,7 +51,7 @@ apps/{domain}/
 │   │   ├── {event}_v1.erl
 │   │   ├── maybe_{command}.erl
 │   │   ├── {command}_responder_v1.erl
-│   │   ├── {event}_to_mesh.erl
+│   │   ├── emit_{event}_to_mesh.erl
 │   │   └── {command}_api.erl
 │   │
 │   └── on_{src_event}_{action}_{target}/    # PM SIBLING SLICE (one per cross-domain integration)
@@ -176,9 +176,9 @@ Generate:
 - [ ] `src/announce_capability/maybe_announce_capability.erl`
 - [ ] `src/announce_capability/announce_capability_api.erl` — API handler (see CMD API Template)
 - [ ] `src/announce_capability/announce_capability_responder_v1.erl`
-- [ ] `src/announce_capability/capability_announced_to_mesh.erl`
-- [ ] `src/announce_capability/capability_announced_to_pg.erl` — internal emitter
-- [ ] `test/capability_announced_to_pg_tests.erl` — emitter test
+- [ ] `src/announce_capability/emit_capability_announced_to_mesh.erl`
+- [ ] `src/announce_capability/emit_capability_announced_to_pg.erl` — internal emitter
+- [ ] `test/emit_capability_announced_to_pg_tests.erl` — emitter test
 - [ ] Update `manage_capabilities_sup.erl` to include desk supervisor
 - [ ] Update `rebar.config` src_dirs
 - [ ] Add route to `hecate_api_routes.erl`

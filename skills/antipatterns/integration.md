@@ -70,8 +70,8 @@ setup_venture (CMD app)
 
 | Transport | Emitter | Listener |
 |-----------|---------|----------|
-| pg | `{event}_to_pg.erl` | `on_{event}_from_pg_*.erl` |
-| mesh | `{event}_to_mesh.erl` | `on_{event}_from_mesh_*.erl` |
+| pg | `emit_{event}_to_pg.erl` | `on_{event}_from_pg_*.erl` |
+| mesh | `emit_{event}_to_mesh.erl` | `on_{event}_from_mesh_*.erl` |
 
 See [INTEGRATION_TRANSPORTS.md](../../philosophy/INTEGRATION_TRANSPORTS.md) for full details.
 

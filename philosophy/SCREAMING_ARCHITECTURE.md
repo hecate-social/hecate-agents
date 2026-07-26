@@ -92,7 +92,7 @@ Files within a slice follow consistent patterns:
 | `{event}_v1.erl` | Event record | `capability_announced_v1.erl` |
 | `maybe_{command}.erl` | Handler | `maybe_announce_capability.erl` |
 | `{command}_responder_v1.erl` | HOPE receiver | `announce_capability_responder_v1.erl` |
-| `{event}_to_mesh.erl` | Emitter | `capability_announced_to_mesh.erl` |
+| `emit_{event}_to_mesh.erl` | Emitter | `emit_capability_announced_to_mesh.erl` |
 | `{command}_desk_sup.erl` | Supervisor | `announce_capability_desk_sup.erl` |
 
 ### 3. Events = Past Tense

@@ -2,7 +2,7 @@
 title: "ALC: Rescue -- Respond and Recover"
 layer: philosophy
 audience: [agent, human]
-stage: stable
+stage: superseded
 ---
 
 # ALC: Rescue -- Respond and Recover

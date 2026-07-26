@@ -24,9 +24,9 @@ For a new `hecate-<svc>` daemon, **DON'T hand-write the shell**.
 Use the canonical scaffolder in `hecate-om`:
 
 ```bash
-cd ~/work/codeberg.org/hecate-services/hecate-om
+cd ~/work/github.com/hecate-services/hecate-om
 ./scripts/scaffold-service.sh \
-    ~/work/codeberg.org/hecate-services/hecate-<svc> \
+    ~/work/github.com/hecate-services/hecate-<svc> \
     hecate-<svc> \
     "One-line description of <svc>"
 ```
@@ -130,8 +130,8 @@ init([]) ->
           type => worker},
 
         %% Backoffice: Emitter (PRJ filer to mesh)
-        #{id => {event}_to_mesh,
-          start => {{event}_to_mesh, start_link, []},
+        #{id => emit_{event}_to_mesh,
+          start => {emit_{event}_to_mesh, start_link, []},
           type => worker}
 
         %% NOTE: PMs are NOT children of desk sups.
@@ -386,7 +386,7 @@ hope_to_command(Hope) ->
 See [EVENT_SUBSCRIPTION_FLOW.md](../philosophy/EVENT_SUBSCRIPTION_FLOW.md).
 
 ```erlang
--module({event}_to_mesh).
+-module(emit_{event}_to_mesh).
 -behaviour(gen_server).
 
 -export([start_link/0]).
@@ -395,7 +395,7 @@ See [EVENT_SUBSCRIPTION_FLOW.md](../philosophy/EVENT_SUBSCRIPTION_FLOW.md).
 -include_lib("kernel/include/logger.hrl").
 
 -define(EVENT_TYPE, <<"{event}">>).
--define(SUB_NAME, <<"{event}_to_mesh">>).
+-define(SUB_NAME, <<"emit_{event}_to_mesh">>).
 -define(TOPIC, <<"hecate.{domain_noun}.{event}">>).
 
 %%====================================================================
@@ -1008,7 +1008,7 @@ pg emitters are **gen_servers** that subscribe to ReckonDB via evoq at startup.
 **They are NOT called manually from API handlers.** See [EVENT_SUBSCRIPTION_FLOW.md](../philosophy/EVENT_SUBSCRIPTION_FLOW.md).
 
 ```erlang
--module({event}_to_pg).
+-module(emit_{event}_to_pg).
 -behaviour(gen_server).
 
 -export([start_link/0]).
@@ -1016,7 +1016,7 @@ pg emitters are **gen_servers** that subscribe to ReckonDB via evoq at startup.
 
 -define(EVENT_TYPE, <<"{event}">>).
 -define(PG_GROUP, {event}).
--define(SUB_NAME, <<"{event}_to_pg">>).
+-define(SUB_NAME, <<"emit_{event}_to_pg">>).
 
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
@@ -1082,7 +1082,7 @@ terminate(_Reason, _State) -> ok.
 %% State Helpers
 %%====================================================================
 
-%% Build an initiated aggregate state for testing mid-lifecycle spokes
+%% Build an initiated aggregate state for testing mid-lifecycle desks
 initiated_state() ->
     Initial = {noun}_aggregate:initial_state(),
     {ok, [EventMap]} = {noun}_aggregate:execute(Initial, #{
@@ -1152,7 +1152,7 @@ archive_sets_flag_test() ->
 ### Emitter Tests
 
 ```erlang
--module({event}_to_pg_tests).
+-module(emit_{event}_to_pg_tests).
 -include_lib("eunit/include/eunit.hrl").
 
 -define(GROUP, {event}).
@@ -1162,7 +1162,7 @@ emit_test() ->
     ensure_pg(),
     ok = pg:join(?SCOPE, ?GROUP, self()),
     Event = #{id => <<"test">>},
-    ok = {event}_to_pg:emit(Event),
+    ok = emit_{event}_to_pg:emit(Event),
     receive
         {{event}, Received} -> ?assertEqual(Event, Received)
     after 1000 -> ?assert(false)

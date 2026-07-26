@@ -2,7 +2,7 @@
 title: "ALC: Debugging -- Test and Verify"
 layer: philosophy
 audience: [agent, human]
-stage: stable
+stage: superseded
 ---
 
 # ALC: Debugging -- Test and Verify

@@ -77,7 +77,7 @@ The emitter's ONLY job is to convert internal events into external facts.
 
 ## Emitter Code Example
 
-From `apps/discover_divisions/src/discover_division/division_discovered_v1_to_mesh.erl`:
+From `apps/discover_divisions/src/discover_division/emit_division_discovered_v1_to_mesh.erl`:
 
 ```erlang
 %%% @doc Emitter: Publish division_discovered_v1 events to mesh
@@ -90,7 +90,7 @@ From `apps/discover_divisions/src/discover_division/division_discovered_v1_to_me
 %%%
 %%% Flow: division_discovered_v1 (event) -> emitter -> mesh fact
 %%% @end
--module(division_discovered_v1_to_mesh).
+-module(emit_division_discovered_v1_to_mesh).
 -behaviour(gen_server).
 
 -export([start_link/0, emit/1]).
@@ -119,7 +119,7 @@ emit(Event) ->
 %%====================================================================
 
 init([]) ->
-    logger:info("[division_discovered_v1_to_mesh] Starting emitter for topic ~s", [?TOPIC]),
+    logger:info("[emit_division_discovered_v1_to_mesh] Starting emitter for topic ~s", [?TOPIC]),
     {ok, #state{}}.
 
 handle_cast({emit, EventData}, State) ->
@@ -320,7 +320,7 @@ Agent A (discover_divisions)                 Agent B (design_division)
    ↓
 5. Stored in Domain's event stream
    ↓
-6. division_discovered_v1_to_mesh:emit/1 (EMITTER)
+6. emit_division_discovered_v1_to_mesh:emit/1 (EMITTER)
    ↓
 ═══════════════════════════════════════════════════════════════
                       MESH (topic: hecate.domain.division_discovered)
@@ -353,7 +353,7 @@ discover_divisions/src/
     ├── discover_division_v1.erl             # Command
     ├── division_discovered_v1.erl           # Event
     ├── maybe_discover_division.erl          # Handler
-    └── division_discovered_v1_to_mesh.erl   # EMITTER
+    └── emit_division_discovered_v1_to_mesh.erl   # EMITTER
 
 design_division/src/
 └── initiate_division/                       # Desk owns listener
@@ -372,7 +372,7 @@ design_division/src/
 | Component | Pattern | Example |
 |-----------|---------|---------|
 | **Topic** | `{namespace}.{domain}.{fact_name}` | `hecate.domain.division_discovered` |
-| **Emitter** | `{event}_to_mesh` | `division_discovered_v1_to_mesh` |
+| **Emitter** | `emit_{event}_to_mesh` | `emit_division_discovered_v1_to_mesh` |
 | **Listener** | `subscribe_to_{fact}` | `subscribe_to_division_discovered` |
 | **Policy** | `on_{fact}_{action}_{target}` | `on_division_discovered_maybe_initiate_division` |
 

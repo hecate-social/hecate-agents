@@ -2,7 +2,7 @@
 title: The Task Model
 layer: philosophy
 audience: [agent, human]
-stage: draft
+stage: superseded
 ---
 
 # The Task Model — Work as First-Class Citizen
@@ -10,7 +10,7 @@ stage: draft
 _How Hecate surfaces software development as a list of actionable tasks with AI assistance._
 
 **Date:** 2026-02-11
-**Status:** Draft — proposed replacement for phase-centric navigation
+**Status:** Superseded — this draft is built on the retired 8/10-process, 4-phase (DnA / AnP / TnI / DnO) model. The canonical Division lifecycle is the **2-process ALC (Planning + Crafting)**; see [alc/README.md](alc/README.md) and [HECATE_DOMAIN_LIFECYCLE.md](HECATE_DOMAIN_LIFECYCLE.md). The task-centric UX idea is worth revisiting, but must be re-expressed atop the 2-process model before it can be canonical.
 **Origin:** Design conversation on task-centric vs phase-centric UX
 
 ---

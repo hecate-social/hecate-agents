@@ -9,7 +9,7 @@ stage: stable
 
 *Build the thinnest possible slice through all layers, deployed to all environments, before adding features.*
 
-**A doctrine for [HECATE_TnI](HECATE_TESTING_N_IMPLEMENTATION.md)**
+**A doctrine for the [Crafting process](alc/README.md)**
 
 ---
 
@@ -322,8 +322,7 @@ The Walking Skeleton is not optional. It is the **first task** of every project.
 
 ## See Also
 
-- [HECATE_TnI](HECATE_TESTING_N_IMPLEMENTATION.md) — Testing & Implementation phase
-- [HECATE_ALC](alc/README.md) — The full lifecycle
+- [HECATE_ALC](alc/README.md) — The full lifecycle (the walking skeleton lives in the Crafting process)
 - [CODEGEN_ERLANG_TEMPLATES.md](../skills/codegen/erlang/CODEGEN_ERLANG_TEMPLATES.md) — Templates for desks
 - [CODEGEN_ERLANG_CHECKLISTS.md](../skills/codegen/erlang/CODEGEN_ERLANG_CHECKLISTS.md) — Generation checklists
 

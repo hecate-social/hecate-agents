@@ -33,8 +33,8 @@ _Strict naming rules for all components in the Domain/Division/Desk architecture
 | Handler        | `maybe_{command}`            | `maybe_announce_capability`                 |
 | CMD API        | `{command}_api`              | `announce_capability_api`                   |
 | Responder      | `{command}_responder_v1`     | `announce_capability_responder_v1`          |
-| Emitter (mesh) | `{event}_to_mesh`            | `capability_announced_to_mesh`              |
-| Emitter (pg)   | `{event}_to_pg`              | `capability_announced_to_pg`                |
+| Emitter (mesh) | `emit_{event}_to_mesh`       | `emit_capability_announced_to_mesh`         |
+| Emitter (pg)   | `emit_{event}_to_pg`         | `emit_capability_announced_to_pg`           |
 | Aggregate      | `{noun}_aggregate`           | `capability_aggregate`                      |
 | Projection     | `{event}_to_{read_store}`    | `capability_announced_to_capabilities`      |
 | Policy/PM      | `on_{event}_maybe_{command}` | `on_llm_detected_maybe_announce_capability` |
@@ -147,8 +147,8 @@ These suffixes reveal implementation, not intent:
 - `*_desk_sup` (CMD desk supervisor)
 - `*_sup` (PRJ desk supervisor, e.g., `capability_announced_sup`)
 - `*_responder_v1` (HOPE receiver)
-- `*_to_mesh` (Emitter to mesh)
-- `*_to_pg` (Emitter to pg)
+- `emit_*_to_mesh` (Emitter to mesh)
+- `emit_*_to_pg` (Emitter to pg)
 - `*_to_{table}` (Projection)
 - `*_store` (Storage accessor)
 - `*_api` (API handler)

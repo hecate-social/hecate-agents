@@ -143,7 +143,7 @@ Each desk maintains specific filing cabinets:
 - `capability_announced_to_search` — files to FTS index
 
 **Emitter Filers** — file to external destinations (mesh)
-- `capability_announced_to_mesh` — "files" to mesh topic
+- `emit_capability_announced_to_mesh` — "files" to mesh topic
 - This is how our events become FACTs for other companies
 
 ```

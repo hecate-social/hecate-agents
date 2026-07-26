@@ -2,7 +2,7 @@
 title: "ALC: Design -- Discover and Model the Domain"
 layer: philosophy
 audience: [agent, human]
-stage: stable
+stage: superseded
 ---
 
 # ALC: Design -- Discover and Model the Domain

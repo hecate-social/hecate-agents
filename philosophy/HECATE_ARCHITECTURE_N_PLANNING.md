@@ -2,7 +2,7 @@
 title: HECATE_AnP
 layer: philosophy
 audience: [agent, human]
-stage: stable
+stage: superseded
 ---
 
 # HECATE_AnP — Architecture & Planning

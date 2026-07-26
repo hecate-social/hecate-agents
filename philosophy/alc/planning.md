@@ -136,8 +136,8 @@ What the desk announces after processing:
 
 | Target | Mechanism | Example |
 |--------|-----------|---------|
-| **pg** (internal) | Broadcast to local BEAM processes | `{event}_to_pg.erl` |
-| **mesh** (external) | Publish integration facts to mesh | `{event}_to_mesh.erl` |
+| **pg** (internal) | Broadcast to local BEAM processes | `emit_{event}_to_pg.erl` |
+| **mesh** (external) | Publish integration facts to mesh | `emit_{event}_to_mesh.erl` |
 
 Not every desk emits externally. Internal events stay in pg. Only explicitly chosen facts go to the mesh -- this is the domain events vs integration facts boundary.
 

@@ -115,7 +115,7 @@ Event handlers subscribe to event types (not streams) and process events as they
 **Example (pg emitter):**
 
 ```erlang
--module(franchise_territory_awarded_v1_to_pg).
+-module(emit_franchise_territory_awarded_v1_to_pg).
 -behaviour(evoq_event_handler).
 -export([interested_in/0, init/1, handle_event/4]).
 
@@ -299,7 +299,7 @@ Default: exponential backoff (100ms base, 30s max), 5 retries, then dead letter.
 
 ## Common Patterns in Our Codebase
 
-**Emitter (event handler → pg):** `{event}_to_pg.erl` — subscribes to event, publishes to pg group
-**Emitter (event handler → mesh):** `{event}_to_mesh.erl` — subscribes to event, publishes to mesh
+**Emitter (event handler → pg):** `emit_{event}_to_pg.erl` — subscribes to event, publishes to pg group
+**Emitter (event handler → mesh):** `emit_{event}_to_mesh.erl` — subscribes to event, publishes to mesh
 **Projection (event → SQLite):** `{event}_to_{table}.erl` — projects event to SQLite read model table
 **Process Manager:** `on_{event}_{verb}_{subject}.erl` — reacts to event, dispatches command to another aggregate
