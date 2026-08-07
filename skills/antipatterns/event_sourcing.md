@@ -99,7 +99,18 @@ execute_argument_order_test() ->
 
 ## 🔥 Demon 23: Raw #event{} Records Passed to Projections
 
-**Date exorcised:** 2026-02-13
+> ⚠⚠ **RECURRED IN FULL ON 2026-08-07, five months and three weeks after being
+> written down here.** `hecate-dronex/apps/hecate_dronex/src/breed_a_roster/roster_log.erl`
+> read events from the same library, called `maps:find/2` on the same record,
+> restored nothing and reported nothing. Every island in the archipelago had been
+> starting its population from seed on every deploy for weeks.
+>
+> The entry below was correct, numbered and dated the whole time. It changed
+> nothing. That is [Demon 55](verification.md), and the fix for this one is not a
+> better paragraph: it is a test built from `reckon_gater_types.hrl` itself, so
+> the shape cannot be guessed at again.
+
+**Date exorcised:** 2026-02-13 · **Recurred:** 2026-08-07
 **Where it appeared:** All 45 projection subscribers across `query_venture_lifecycle` and `query_division_alc`
 **Cost:** Every projection crashed on boot — read models permanently empty
 

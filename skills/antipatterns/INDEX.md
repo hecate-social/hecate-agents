@@ -67,6 +67,19 @@ stage: reversed
 | **50** | **Daemon-as-Mesh-Middleman** | **L2-shaped work bridged through `hecate-daemon`'s `/api/mesh/publish` — wrong identity, wrong layer dependency, defeats reckon-db** | **2026-05-28** |
 | **51** | **🔥🔥🔥 Human-Readable Aggregate IDs as Reckon Stream IDs** | **evoq AggregateId IS the reckon stream id (`^[a-z]{1,32}-[a-f0-9]{32}$`); a human slug fails the regex and a bare `catch` eats the rejection — empty store, no errors** | **2026-05-31** |
 | **52** | **Duplicate `{profiles}` Tuple in rebar.config** | **rebar3 keeps only the LAST top-level `{profiles}` — second one shadows `prod`, drops `include_erts` → ERTS-less release → exit-127 crash loop** | **2026-05-31** |
+| **53** | **🔥🔥🔥 Comments That State Intent as Fact** | **The comment records the design you meant to write; the code does something else; both land in the same commit. Four in one day.** | **2026-08-07** |
+| 54 | A Test for the Name and None for the Fold | The untested part is the part you were confident about — and every fault sits at a seam no test crosses | 2026-08-07 |
+| **55** | **🔥🔥🔥 Believing That Writing It Down Prevents It** | **Demon 23 was in this index, correctly described, and got repeated in full five months later. The index is prose too.** | **2026-08-07** |
+| 56 | Correct Behaviour With No Reporting | A graceful fallback that never says so, whose healthy and failed states publish identical numbers | 2026-08-07 |
+
+---
+
+## ⚠ Before You Add a Demon Here
+
+**Name the mechanism that will refuse it.** A type, a failing test, a lint rule.
+This index held Demon 23 for five months and the same bug was written again in
+another repository, because a line in a document does not bite. See
+[verification.md](verification.md), Demon 55.
 
 ---
 
@@ -115,6 +128,13 @@ Demons #19, #20, #21, #35, #38. esqlite3 return types and argument order, eager 
 ### [antipatterns/release.md](release.md) — Release, Testing & Packaging
 
 Demons #27, #28, #29, #30, #36, #52. Hardcoded IDs, missing tests, plugin discovery routes, version bumping, hex packaging, the containerized-reckon_db dynamic-node-name 502, and the duplicate `{profiles}` rebar.config tuple that ships an ERTS-less release.
+
+### [antipatterns/verification.md](verification.md) — What We Wrote Down vs What We Built
+
+Demons #53, #54, #55, #56. The gap between a repository's prose and its behaviour.
+Every other file here catalogues a technical mistake; this one catalogues the
+mistake of believing the technical mistakes were caught. **Read it before adding a
+demon to this index**, because it is about why adding one is not enough.
 
 ### [antipatterns/mesh_pubsub.md](mesh_pubsub.md) — Mesh Pub/Sub: The 13-Bug Marathon
 
