@@ -204,6 +204,57 @@ Two questions, both required, whenever a fallback is written:
 
 ---
 
+## 🔥🔥🔥 Demon 57: The Silent No-Op Edit
+
+**Date exorcised:** 2026-08-08
+**Where it appeared:** three times in one session, in three repositories
+**Cost:** a red-check that was never red, one broken build, and every chart on a
+live page drawing nothing
+
+### The Lie
+
+"The edit applied. The script did not error."
+
+### What Happened
+
+A scripted string replacement whose anchor does not match changes nothing and
+says nothing. `str.replace` returns the input unchanged, `sed` exits zero, the
+file is written, the command succeeds, and the next step proceeds on an
+assumption that is now false.
+
+1. **A red-check that was never red.** Verifying that a new test caught a bug
+   meant reintroducing the bug. The anchor had the wrong indentation, so nothing
+   was reintroduced, the suite passed, and the test appeared to have caught a bug
+   it had never seen. Only expecting a SPECIFIC failure and not getting it
+   revealed this.
+2. **A broken build.** An extraction cut one line further than intended and left
+   a closing brace behind.
+3. **Every chart blank on a live page.** An edit deleting one helper cut from a
+   comment that had drifted above a DIFFERENT helper and took it too. A later
+   edit meant to add a third anchored on the deleted one, matched nothing, and
+   said nothing. Two functions silently ceased to exist, the bundler left them as
+   undefined globals, and every chart threw a `ReferenceError` into a guard that
+   logged and drew an empty box.
+
+### The Rule
+
+**Assert the anchor before replacing, and assert the result after.**
+
+```python
+old = "..."
+assert old in s, "anchor moved"     # before
+s = s.replace(old, new, 1)          # count it: 1, never replace-all
+assert new in s                     # after
+```
+
+And when the point of an edit is to make something FAIL, expecting a specific
+failure is the only proof it applied. "The suite passed" after reintroducing a
+bug is not success; it is the edit having done nothing.
+
+⚠ The habit worth keeping: a tool that reports success on having done nothing
+needs its outcome checked separately from its exit code. True of `str.replace`,
+of `sed -i`, of `grep -c` on a minified file, and of every helpful default.
+
 ## The Session This File Came From
 
 2026-08-07, one working day, one author. Findings: an archipelago whose attack

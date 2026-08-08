@@ -71,6 +71,7 @@ stage: reversed
 | 54 | A Test for the Name and None for the Fold | The untested part is the part you were confident about — and every fault sits at a seam no test crosses | 2026-08-07 |
 | **55** | **🔥🔥🔥 Believing That Writing It Down Prevents It** | **Demon 23 was in this index, correctly described, and got repeated in full five months later. The index is prose too.** | **2026-08-07** |
 | 56 | Correct Behaviour With No Reporting | A graceful fallback that never says so, whose healthy and failed states publish identical numbers | 2026-08-07 |
+| **57** | **🔥🔥🔥 The Silent No-Op Edit** | **A scripted replacement whose anchor does not match changes nothing and reports success. Three times in one day: a red-check that was never red, a broken build, and every chart on a live page blank.** | **2026-08-08** |
 
 ---
 
@@ -131,7 +132,7 @@ Demons #27, #28, #29, #30, #36, #52. Hardcoded IDs, missing tests, plugin discov
 
 ### [antipatterns/verification.md](verification.md) — What We Wrote Down vs What We Built
 
-Demons #53, #54, #55, #56. The gap between a repository's prose and its behaviour.
+Demons #53, #54, #55, #56, #57. The gap between a repository's prose and its behaviour.
 Every other file here catalogues a technical mistake; this one catalogues the
 mistake of believing the technical mistakes were caught. **Read it before adding a
 demon to this index**, because it is about why adding one is not enough.
