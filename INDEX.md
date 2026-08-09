@@ -66,6 +66,7 @@ A linear reading path. Stop when you have enough to ship.
 21. [`guides/HECATE_PLUGIN_DIRECTORY_CONVENTION.md`](guides/HECATE_PLUGIN_DIRECTORY_CONVENTION.md) — plugin layout
 22. [`guides/MARTHA_PLUGIN_ARCHITECTURE.md`](guides/MARTHA_PLUGIN_ARCHITECTURE.md) — full CQRS plugin reference
 23. [`philosophy/HECATE_TIER_MODEL.md`](philosophy/HECATE_TIER_MODEL.md) — L0-L4 runtime layers
+24. [`skills/NEUROEVOLUTION_SERVICE_METHOD.md`](skills/NEUROEVOLUTION_SERVICE_METHOD.md) — turning an outside problem into an evolutionary mesh service, or refusing it with a reason
 
 ---
 
@@ -92,6 +93,7 @@ Skills are loaded contextually. The retrieval system should hold these always-on
 | "Naming" | `skills/NAMING_CONVENTIONS.md`, `skills/codegen/erlang/CODEGEN_ERLANG_NAMING.md` |
 | "Test something" | `skills/TESTING.md` |
 | "Plugin work" | `guides/HECATE_PLUGIN_DIRECTORY_CONVENTION.md`, `guides/MARTHA_PLUGIN_ARCHITECTURE.md` |
+| "Can we solve X by evolving controllers?" | `skills/NEUROEVOLUTION_SERVICE_METHOD.md` — read the intake gate FIRST, before designing anything |
 
 ---
 
