@@ -8,9 +8,18 @@ stage: stable
 # The Hecate four-tier model
 
 Adopted 2026-05-18. Codifies the cut between **per-user agent surface**
-and **always-on realm infrastructure** that the Hecate stack drew
+and **always-on realm services** that the Hecate stack drew
 when `serve_llm` migrated out of `hecate-daemon` into the new
 `hecate-services/*` family.
+
+Amended 2026-08-10. The original text said Layer-2 services run on
+realm infrastructure nodes and "NOT on user laptops", and hung a
+"lone-deployment exception" off that rule. That was backwards. Layer 2
+is **edge-first**: a service dials out to a `macula-station`, needs no
+inbound port and no public address, and is a first-class citizen of the
+mesh from behind a domestic NAT. The tiers cut by lifecycle and
+identity, never by hardware. See "Placement rules" below for what
+actually holds.
 
 This document is shaping material. Future Claude sessions, future
 contributors, and grant-reviewer audiences should be able to read it
@@ -33,10 +42,11 @@ Layer 3 — session     hecate-daemon
                       Runs on user laptops + MaculaOS edge devices.
 
 Layer 2 — services    hecate-services/hecate-{om, rag, dns, git, llm, …}
-                      Always-on, multi-tenant, realm-bound.
-                      Run on realm INFRASTRUCTURE NODES (BEAM cluster,
-                      dedicated relay boxes, cooperative-contributed
-                      service nodes). NOT on user laptops.
+                      Always-on, multi-tenant, realm-bound, each with
+                      its own SERVICE-PRINCIPAL identity.
+                      EDGE-FIRST: hosted wherever the operator puts
+                      them (BEAM cluster, relay box, lab machine,
+                      laptop, Cerbo) and DIALLING OUT to a station.
 
 Layer 1 — identity    hecate-realm / macula-realm
                       Issues human realm-membership certs AND service
@@ -48,9 +58,18 @@ Layer 0 — kernel      macula-station
 ```
 
 Every node runs Layer 0 (`macula-station`). Layer 1 (`hecate-realm`)
-runs where the realm's stewards put it. Layer 2 services run on
-infrastructure nodes. Layer 3 (`hecate-daemon`) runs per-user on
-laptops. Layer 4 plugins live inside the daemon.
+runs where the realm's stewards put it. Layer 2 services dial out to a
+station from wherever they are hosted. Layer 3 (`hecate-daemon`) runs
+per-user on laptops. Layer 4 plugins live inside the daemon.
+
+**The cut is lifecycle and identity, never hardware.** What makes
+something Layer 2 is that it runs without a logged-in user and answers
+as itself with its own service-principal credential. The box under it
+is not part of the definition, because a Layer-2 service needs no
+inbound port and no public address: it dials out over QUIC and the
+station does the peering, the DHT and the routing. That is what lets a
+service behind a domestic NAT be reachable by every other service in
+the realm.
 
 ## Why this cut
 
@@ -242,9 +261,14 @@ town/library walkthrough and the v1 / v2 trigger.
 
 Three things this model explicitly forbids:
 
-1. **No user-bound services.** A `hecate-rag` running on Alice's
-   laptop "for Alice" is wrong. Move it to a realm-owned
-   infrastructure node; let Alice reach it across the mesh.
+1. **No user-bound services.** A `hecate-rag` that exists "for
+   Alice", starts when Alice logs in and answers with Alice's
+   citizen cert is wrong. The fault is the binding, not the box.
+   That same service on that same laptop, running under a
+   lingering unit with its own service-principal credential and
+   serving whoever the realm says may reach it, is correct. Fix
+   the binding first; relocate the workload only if the box
+   genuinely cannot carry it.
 2. **No anonymity / self-rooted leaves.** Every service principal
    chains to a realm root. No Pubky-style ungoverned identities.
    (See `memory/feedback_no_anonymity_only_sovereignty`.)
@@ -261,14 +285,17 @@ Three things this model explicitly forbids:
    no HTTP middleman, no L3 dependency, correct identity. See
    `skills/antipatterns/integration.md` Demon 50.
 
-## Lone-deployment exception
+## Placement rules
 
-The default rule above ("NOT on user laptops") stands for every
-multi-user, federated, or community context. For **genuinely
-infrastructure-less** deployments — a boat at sea, an RV off-grid,
-a single-household pilot before a cooperative exists — a Layer-2
-service MAY be hosted on user-owned hardware (a laptop, a Cerbo, a
-home NUC) provided **all** of:
+Where a Layer-2 service is hosted is an operational decision, and the
+answer is frequently user-owned hardware. An ingestion adapter has to
+live where the thing it ingests is. A service that represents its
+operator to the rest of the realm is correctly hosted by that operator,
+on their laptop, and being hosted there is the entire point of it. None
+of this is an exception to anything.
+
+Four conditions hold wherever a Layer-2 service runs, and **all** of
+them are about identity and lifecycle rather than hardware:
 
 1. The service has its own **service-principal credential**, not
    borrowed from the user's citizen cert. Even a household realm
@@ -278,18 +305,30 @@ home NUC) provided **all** of:
    with linger-enabled, a Quadlet under root, or a Venus-OS runit
    slot all qualify; "starts when I open my laptop" does not.
 3. The service principal still **chains to a realm root** — no
-   self-rooted leaves, even in lone deployments. The realm may
-   be small (one household, one boat); it must exist.
-4. The manifest carries `deployment: lone` (or operational
-   equivalent) so future operators know to migrate the service
-   onto shared realm infrastructure when it becomes available.
+   self-rooted leaves, anywhere. The realm may be small (one
+   household, one boat); it must exist.
+4. The manifest **records the placement**, so an operator who
+   inherits the service knows whether it is deliberate.
+   `deployment: lone` (or operational equivalent) marks the case
+   that should migrate onto shared realm infrastructure once a
+   cooperative node exists.
 
-This exception exists so that ingestion adapters and similar L2
-services can run in scenarios that have **no community node yet**
-(the lone phase of a future cooperative). It is not a license to
-host community services on member laptops once a cooperative
-infrastructure node exists. When in doubt, move it to the shared
-node.
+The judgement that remains is about **who the service serves**, not
+about whose machine it is on. A capability the realm offers its members
+(the shared RAG, the shared LLM, DNS) belongs on a node the stewards
+keep up, because its availability is a promise made to other people and
+a laptop lid is not a promise. A service that serves its own operator,
+or that speaks for its operator to others, belongs with that operator.
+A shared service parked on a member's machine because nothing else
+exists yet is the lone phase of a future cooperative, and condition 4
+is how you remember to move it.
+
+Availability is the real variable, and it is worth being honest that
+it is bought rather than decreed. A service on a lingering unit on a
+box that stays up is more available than one on a laptop that closes at
+night. Where that matters, either put it somewhere that stays up or
+design the protocol so the offline case degrades into something
+useful.
 
 ## How callers reach services
 
@@ -314,9 +353,9 @@ a Layer-2 service via Macula RPC:
 ).
 ```
 
-The local `macula-station` routes the call to whichever
-infrastructure node is running the service. No HTTP, no DNS lookup,
-no API keys in the caller. The service answers as itself with its
+The local `macula-station` routes the call to wherever the service is
+running, which the caller neither knows nor needs to. No HTTP, no DNS
+lookup, no API keys in the caller. The service answers as itself with its
 own credential; the realm verifies both sides.
 
 ## Naming
