@@ -27,6 +27,7 @@ This directory contains well-documented examples of correct patterns used in the
 |---------|---------|--------------|
 | [VERTICAL_API_HANDLERS.md](VERTICAL_API_HANDLERS.md) | API in desks | Handlers in desks, shared utilities, dependency management |
 | [MESH_INTEGRATION.md](MESH_INTEGRATION.md) | Emitter/Listener | FACTS vs EVENTS, cross-agent communication, command layer |
+| [MESH_FACT_READ_MODELS.md](MESH_FACT_READ_MODELS.md) | Listener/Policy/Projection | Edge services with no aggregate, admit/supersede/expire, TTL-mirrored staleness at scale |
 | [PROJECTIONS.md](PROJECTIONS.md) | Read models | Event → read model, naming, SQLite patterns |
 | [BIT_FLAGS_STATUS.md](BIT_FLAGS_STATUS.md) | Aggregate status | Integer bit flags, evoq_bit_flags API, efficient queries |
 | [DCB_COUNTER.md](DCB_COUNTER.md) | Decision vs Aggregate | `evoq_decision` for cross-cutting checks (uniqueness, allocation, rate limits) |
