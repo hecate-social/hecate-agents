@@ -149,17 +149,23 @@ action allowed," and the two are never the same token.
 
 ## What's open
 
-- **The chain verifier needs to accept a human-membership-rooted chain**,
-  not just an org-rooted one. This is a real, scoped code change in
-  `hecate_om_capabilities` (the module backing `verify => true`), not
-  documentation-only.
+- **`macula-cli ucan mint`/`ucan inspect`/`call -ucan` already exist**
+  (verified against source, not assumed) — a human can mint a delegated
+  UCAN and attach it to a call today, by hand. What's missing is
+  integration, not the primitive: see
+  `macula-mcp/plans/PLAN_AGENT_IDENTITY_UCAN.md` for the scoped work to
+  make `macula-mcp` actually use one.
+- **`hecate_om_capabilities:call_capability/5,7`'s `verify => true` verifies
+  the *provider's* org-rooted service-cert chain** (`keep_chain_verified`
+  → `macula_record:verify_advertisement_cert_chain/3`), not a caller's
+  UCAN. It forwards a `ucan_token` opaquely to the provider it dials —
+  whether any gated hecate-service actually verifies an incoming
+  `ucan_token` resolves back to a human's realm membership is genuinely
+  unconfirmed, not just undecided. Real, unscoped investigation, not a
+  known code change.
 - **The pairing UX itself is undecided** — QR code, numeric code, and
   push-approval-from-a-paired-phone are all consistent with the design
   above; none is chosen yet.
-- **UCAN minting/refresh in `macula-cli` doesn't exist yet** — today it
-  only holds a bare peering keypair.
-- **No agent-identity flag is currently used by `macula-mcp`** — it
-  inherits whatever identity `macula-cli` defaults to.
 
 None of the four channels needs its own bespoke auth system to close
 these gaps — each is a delegation off the same root, at a different
