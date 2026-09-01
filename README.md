@@ -24,6 +24,7 @@ This repository is the corpus that shapes how Hecate agents think and work. It c
 | Tier-3 codegen LLM | [`INDEX.md`](INDEX.md) → Reading Path 3 (Codegen) |
 | Looking for a term | [`GLOSSARY.md`](GLOSSARY.md) |
 | Reviewing code | [`skills/antipatterns/INDEX.md`](skills/antipatterns/INDEX.md) |
+| "How do I actually run/build X?" (practical, not architectural) | [`guides/FAQ.md`](guides/FAQ.md) |
 | Want a narrative book version | [`CODEX.md`](CODEX.md) → The Hecate Codex (draft) |
 
 ---

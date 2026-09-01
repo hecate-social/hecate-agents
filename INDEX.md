@@ -11,6 +11,12 @@ stage: stable
 
 This index is the entry point. Three reading paths are defined below; each loads a different subset of the corpus for a different consumer.
 
+**Looking for a practical "how do I run/build X" answer, not architecture
+doctrine?** Skip straight to [`guides/FAQ.md`](guides/FAQ.md) — joining the
+mesh, running `macula-cli`/`macula-mcp`, developing an edge service in any
+of eight languages, deploying one to the fleet, and connecting a mobile
+app, a Phoenix LiveView site, or a Blazor site to it.
+
 ---
 
 ## What lives in this repo
