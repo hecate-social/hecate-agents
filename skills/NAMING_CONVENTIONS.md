@@ -173,6 +173,46 @@ Multiple versions and targets coexist in the same desk directory.
 
 ---
 
+## Mesh Procedure Prefix
+
+Every mesh capability advertises under `{service}.{verb}` — the same
+shape as a route, over the mesh instead of HTTP. `{service}` is the
+service's own Erlang app/module name, **underscored, never hyphenated**:
+`hecate_mail.reply_to_letter`, not `hecate-mail.reply_to_letter`, and
+not the GitHub repo's own hyphenated spelling.
+
+**Why underscore, not the repo's hyphenated name:** an Erlang atom can't
+contain a hyphen without quoting, and most deployed services already use
+their app name as the prefix (`hecate_mail`, `hecate_citizens`,
+`hecate_stations`) — matching that majority means one name to keep in
+your head, not two. `hecate-rag` is the one outlier that doesn't yet
+follow this.
+
+**A service's `capabilities/0` entry and its actual advertised procedure
+name must be the same name.** `hecate_embedder`'s own `capabilities/0`
+currently advertises `embed` (dropping "-er") while the real, callable
+procedure it registers separately is `io.hecate.embed` — a different
+namespace entirely. Two different names for the same one thing is
+exactly the failure mode this rule exists to prevent: a caller
+discovering `embed` via the DHT gets `unknown_next_peer` calling it by
+that name, because the working procedure was never that name at all.
+
+**A service with no procedures needs no prefix.** A pubsub-only
+participant (e.g. `hecate_whiteboard`, which publishes to topics but
+advertises no callable procedures) has nothing to prefix — this rule
+governs procedure names, not every service in the fleet.
+
+### What this doesn't do
+
+This is the standard for **new** procedures. It does not rename anything
+already deployed — `hecate-rag`'s hyphenated prefix, `hecate_embedder`'s
+two-different-names problem, and the unprefixed services (`tube`,
+`warden`, `sentinel`) are each a live procedure name existing callers
+depend on. Migrating any of them is a deliberate, scoped, per-service
+decision, not a side effect of this rule existing.
+
+---
+
 ## Event Naming Rules
 
 1. **Past tense**: Events describe what happened: `order_initiated`, not `initiate_order`
@@ -321,68 +361,6 @@ Route (QRY):     GET /api/orders
 Test:            order_aggregate_tests
 Status header:   order_status.hrl
 ```
-
----
-
-## [PROPOSED] Plugin App Naming Template
-
-> **Status: PROPOSED — discuss before adopting universally.**
-> This template emerged from the appstore plugin and fits lifecycle-centric domains well.
-> Not all plugin apps may fit this paradigm — evaluate case by case.
-
-### The Template
-
-For plugin daemons (`hecate-app-{name}d`) that manage an aggregate through a lifecycle:
-
-```
-hecate-app-{name}d/
-├── apps/
-│   ├── guide_{aggregate}_lifecycle/   ← CMD department
-│   ├── project_{aggregate}/           ← PRJ department
-│   └── query_{aggregate_plural}/      ← QRY department
-```
-
-| Department | Pattern | Intent | Example |
-|-----------|---------|--------|---------|
-| **CMD** | `guide_{aggregate}_lifecycle` | Shepherds the aggregate through its business process | `guide_license_lifecycle` |
-| **PRJ** | `project_{aggregate}` | Projects domain events into read models | `project_appstore` |
-| **QRY** | `query_{aggregate_plural}` | Serves read models via API | `query_appstore` |
-
-### Why `guide_`?
-
-- "Guide" screams intent — the app **guides** something through a process
-- Plugin domains are inherently lifecycle managers (initiate → use → archive)
-- The `_lifecycle` suffix distinguishes from hecate core `guide_*` orchestrators (e.g., `guide_venture`)
-
-### When This Template Fits
-
-- The plugin manages a **single aggregate** through a defined lifecycle
-- The lifecycle has clear phases (buy, install, upgrade, remove, archive)
-- Commands map to lifecycle transitions
-
-### When It Might NOT Fit
-
-- The plugin has **multiple independent aggregates** with separate lifecycles
-- The domain is not lifecycle-centric (e.g., a real-time data stream processor)
-- The CMD app is better described by a specific process verb (e.g., `trade_assets`)
-
-### Derivation Example
-
-Given: plugin `appstore`, aggregate `license`
-
-```
-CMD app:    guide_license_lifecycle
-PRJ app:    project_appstore           (domain-oriented — acceptable when PRJ serves
-                                        multiple read models like catalog + licenses)
-QRY app:    query_appstore             (same reasoning)
-Aggregate:  license_aggregate
-```
-
-Note: PRJ/QRY apps may use the **domain name** instead of the aggregate name
-when the bounded context has multiple read models (e.g., `plugin_catalog` +
-`licenses` tables both served by `query_appstore`). The aggregate-oriented
-naming (`project_licenses` / `query_licenses`) is preferred when the domain
-has a single aggregate with a single read model.
 
 ---
 
