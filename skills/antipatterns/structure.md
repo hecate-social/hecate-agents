@@ -377,4 +377,67 @@ Adding a new API endpoint requires touching exactly ONE file — the handler its
 > The handler IS the route. The handler declares its path.
 > The aggregator discovers — it never enumerates.
 
+---
+
+## 🔥 Demon 59: Hand-Rolled Mesh Capability Advertising
+
+**Date exorcised:** 2026-09-01 (partially — see Status)
+**Where it appeared:** `hecate-services/hecate-tube`'s `tube_mesh_providers.erl`
+**Cost:** Two live bugs on the same duplicated code, five months apart — a `reuse_sup` factory-supervisor leak, then a silent ~48h DHT TTL default that every other hecate-service didn't have.
+
+### The Demon
+
+A service implements `-behaviour(hecate_om_service)` (the six-callback contract `hecate_om:boot/1` drives) but, instead of declaring its RPC capabilities through `capabilities/0`, hand-rolls its own `gen_server` that calls `macula_response:advertise_direct/7` directly:
+
+```erlang
+❌ WRONG: bespoke advertise loop, duplicating hecate_om_capabilities' job
+-module(tube_mesh_providers).
+-behaviour(gen_server).
+
+try_advertise({ok, Pool, Realm}, {ok, KeyPair}, State) ->
+    {ok, ChannelSup} = macula_response:advertise_direct(
+        Pool, Realm, <<"tube.lookup_channel">>, advertise_channel_lookup, [],
+        KeyPair, Opts(channel_sup)),
+    %% ...own retry timer, own reuse_sup bookkeeping, own (missing) ttl_ms...
+```
+
+`hecate_om_capabilities.erl` already exists in `hecate-om` and does exactly this job — TTL, `reuse_sup`, cert-chain, org-qualified double-registration — for every other hecate-service, in one place. The duplicate doesn't get a library fix for free; it has to be independently rediscovered and independently patched. It was: `hecate_om_capabilities.erl`'s own moduledoc names `tube_mesh_providers.erl` as having hit the `reuse_sup` leak "live before this option existed." Five months later the same file was still on the SDK's raw ~48h envelope TTL default — every other service advertising through `hecate_om_capabilities` gets a curated 2-minute one — because nobody re-applies a library-level correctness fix to a hand-rolled copy of the library's own job.
+
+### Why It's Wrong
+
+- **Not vertical slicing — it's accidental horizontal reimplementation.** The service isn't grouping by technical layer on purpose; it just built its own copy of a cross-cutting concern (`capabilities()` `handler => {Mod, Args}`) that hecate-om already generalizes.
+- **Fixes don't propagate.** A correctness fix landed in `hecate_om_capabilities` (TTL, `reuse_sup`) helps every service using it, automatically, on the next deploy. A service with its own copy gets nothing until someone notices the copy exists and ports the fix by hand.
+- **Silent drift is invisible from the DHT.** The two paths look identical on the wire (same `procedure_advertisement` shape) — nothing about a `mesh_find_records_by_type` dump flags one entry as hand-rolled and another as library-managed. It surfaces only as a live behavioral difference (a stale record surviving 1440x longer than its siblings).
+
+### The Correct Pattern
+
+Declare the capability; let `hecate_om:boot/1` advertise it:
+
+```erlang
+✅ CORRECT: declared capability, advertised generically
+-module(hecate_tube_service).
+-behaviour(hecate_om_service).
+
+capabilities() ->
+    [#{name    => <<"tube.lookup_channel">>,
+       version => 1,
+       handler => {advertise_channel_lookup, []}}].
+```
+
+### Status: Fully Reversed for `hecate-tube`, Not Structurally Prevented Fleet-Wide
+
+`tube_mesh_providers.erl` is deleted. All four of `hecate-tube`'s capabilities (`lookup_channel`, `lookup_video_clip`, `lookup_content`, and `watch_video_clip`) now go through `capabilities/0`. The blocker for the fourth was real, not a workaround: `hecate_om_capabilities:advertise_one/6` only ever called `macula_response:advertise_direct/7`, and `tube.watch_video_clip` is `macula_streamer`-backed. Closed in `hecate_om` 0.18.0 by adding `kind => streamer` (default `response`) to `hecate_om_service:capability()` — `advertise_one/6` now dispatches through `provider_module(Cap)`, `macula_streamer` only when a capability opts in. Both provider modules publish the identical `procedure_advertisement` DHT record and read the same `Opts` keys, so this was a one-function dispatch change, not new plumbing — `call_capability/5,7` (the direct-dial CALL path) deliberately stays response-only, since a streamer capability is consumed via `macula_stream_sink:start_link_direct/5,6`, a genuinely different client-side API.
+
+**No lint rule or type refuses a NEW instance of this demon today.** The nearest thing to a mechanism: `hecate_tube_service_tests.erl` (and every sibling `*_service_tests.erl`) pins the exact `#{name, version, handler}` shape `capabilities/0` returns, so a service that has capabilities but declares `[]` fails its own test suite — but nothing stops a service from ALSO running a parallel `macula_response:advertise_direct` or `macula_streamer:advertise_direct` call elsewhere, the way `hecate-tube` did (twice — a `reuse_sup` leak, then the TTL default), and the way `hecate-rag` independently did too (15 capabilities' worth, `hecate_om` 0.17.0's own changelog). Two independent services hit the same demon before either fix existed to copy. A real mechanism would be a repo-sweep (`grep -rL` for `macula_response:advertise_direct(\|macula_streamer:advertise_direct(` outside `hecate_om_capabilities.erl` itself, across `hecate-services/*`) run in CI or on a schedule — not yet built.
+
+### The Test
+
+> "Does this service call `macula_response:advertise_direct` or `macula_streamer:advertise_direct` from anywhere other than `hecate_om_capabilities.erl`?"
+>
+> If yes and the capability is response-shaped (not streaming) — it should be in `capabilities/0` instead.
+
+### The Lesson
+
+> **A hand-rolled copy of shared infrastructure doesn't inherit the shared infrastructure's future fixes.** Duplication meant the `reuse_sup` fix had to be adopted independently in both `hecate_om_capabilities` and tube's own copy when it landed — twice the work for one bug. Five months later, the TTL fix landed only in `hecate_om_capabilities`; tube's copy still existed to NOT have it, and nobody was assigned to notice the gap. Every fix to shared infrastructure is a fix you have to remember to re-apply to every place that opted out of sharing it.
+
 *Add more demons as we exorcise them.* 🔥🗝️🔥

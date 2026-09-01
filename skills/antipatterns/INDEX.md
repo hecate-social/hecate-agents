@@ -73,6 +73,7 @@ stage: reversed
 | 56 | Correct Behaviour With No Reporting | A graceful fallback that never says so, whose healthy and failed states publish identical numbers | 2026-08-07 |
 | **57** | **🔥🔥🔥 The Silent No-Op Edit** | **A scripted replacement whose anchor does not match changes nothing and reports success. Three times in one day: a red-check that was never red, a broken build, and every chart on a live page blank.** | **2026-08-08** |
 | 58 | History Narration in Operational Docs | A PLAN/guide/role file says "corrected 2026-09-01, first pass said X, second pass says Y" instead of just stating Y — and the moment a third pass happens, the narration is stale too, on top of being noise a RAG-fed reader never needed | 2026-09-01 |
+| 59 | Hand-Rolled Mesh Capability Advertising | A service calls `macula_response:advertise_direct` itself instead of declaring the capability in `hecate_om_service:capabilities/0` — library fixes (TTL, `reuse_sup`) never reach the duplicate; hit twice, five months apart, on the same file | 2026-09-01 |
 
 ---
 
@@ -105,7 +106,7 @@ Demons #1, #13, #16, #17. Naming violations where module, event, or command name
 
 ### [antipatterns/structure.md](structure.md) — Code Organization Violations
 
-Demons #3, #6, #8, #14, #18, #25. Structural mistakes where code is organized by technical concern instead of business capability.
+Demons #3, #6, #8, #14, #18, #25, **#59**. Structural mistakes where code is organized by technical concern instead of business capability, and **a service hand-rolling shared mesh-advertising infrastructure instead of declaring it through `hecate_om_service:capabilities/0`**.
 
 ### [antipatterns/domain.md](domain.md) — Domain Modeling Mistakes
 
