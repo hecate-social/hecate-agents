@@ -21,6 +21,18 @@ mesh from behind a domestic NAT. The tiers cut by lifecycle and
 identity, never by hardware. See "Placement rules" below for what
 actually holds.
 
+Amended 2026-09-01. Layers 3 (session: `hecate-daemon`) and 4 (apps:
+in-VM plugins) below are now **obsolete** — `hecate-daemon`, `hecate-web`,
+and `hecate-gitops` are declared dead now that mobile-app tooling exists.
+User interaction moves to (a) the terminal, (b) a coding agent, (c) an
+"operator website" hosted by an edge service, or (d) a mobile app /
+classic public website for the general public. Layers 0-2 (kernel,
+identity, services) are unaffected and remain current — this is exactly
+the boundary the amendment above already drew, and it holds. The
+identity/auth design for the four channels is drafted in
+[HECATE_AUTH_MODEL.md](HECATE_AUTH_MODEL.md); no replacement for the rest
+of what Layers 3-4 covered exists yet.
+
 This document is shaping material. Future Claude sessions, future
 contributors, and grant-reviewer audiences should be able to read it
 in five minutes and answer "where does X belong?" without asking

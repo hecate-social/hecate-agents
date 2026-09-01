@@ -10,7 +10,7 @@ stage: stable
 _Single-page reference for all naming conventions in the Domain/Division/Desk architecture._
 _An LLM doing TnI codegen reads ONLY this file + the relevant template._
 
-> **Authority on integration-actor names.** The actor forms below (emitters as `emit_{event}_to_{transport}`, listeners as `on_{fact}_from_{transport}_{command}`) follow the dated decision in [INTEGRATION_ACTORS.md](../guides/INTEGRATION_ACTORS.md) (2026-03-14). If the two files ever diverge on emitter/listener naming, INTEGRATION_ACTORS.md wins. Policy (`on_{event}_maybe_{command}`) is deliberately distinct from Listener and is **not** affected.
+> **Authority on integration-actor names.** The actor forms below (emitters as `emit_{event}_to_{transport}`, listeners as `on_{fact}_from_{transport}_{command}`) follow the dated decision in [INTEGRATION_ACTORS.md](INTEGRATION_ACTORS.md) (2026-03-14). If the two files ever diverge on emitter/listener naming, INTEGRATION_ACTORS.md wins. Policy (`on_{event}_maybe_{command}`) is deliberately distinct from Listener and is **not** affected.
 
 ---
 

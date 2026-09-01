@@ -72,6 +72,7 @@ stage: reversed
 | **55** | **🔥🔥🔥 Believing That Writing It Down Prevents It** | **Demon 23 was in this index, correctly described, and got repeated in full five months later. The index is prose too.** | **2026-08-07** |
 | 56 | Correct Behaviour With No Reporting | A graceful fallback that never says so, whose healthy and failed states publish identical numbers | 2026-08-07 |
 | **57** | **🔥🔥🔥 The Silent No-Op Edit** | **A scripted replacement whose anchor does not match changes nothing and reports success. Three times in one day: a red-check that was never red, a broken build, and every chart on a live page blank.** | **2026-08-08** |
+| 58 | History Narration in Operational Docs | A PLAN/guide/role file says "corrected 2026-09-01, first pass said X, second pass says Y" instead of just stating Y — and the moment a third pass happens, the narration is stale too, on top of being noise a RAG-fed reader never needed | 2026-09-01 |
 
 ---
 
@@ -140,6 +141,10 @@ demon to this index**, because it is about why adding one is not enough.
 ### [antipatterns/mesh_pubsub.md](mesh_pubsub.md) — Mesh Pub/Sub: The 13-Bug Marathon
 
 Demons #42, #43, #44, #45, #46, #47, #48. Silent catch-alls, dual registries, payload wrapper assumptions, fire-once publishing, missing subscription replay, eager connection explosion, and invisible DEBUG logging. All from a single debugging session where one game announcement needed 13 fixes to cross the mesh.
+
+### [antipatterns/documentation.md](documentation.md) — History Narration in Operational Docs
+
+Demon #58. PLANs, guides, and role files that narrate their own revision history — "corrected on this date, here's what changed and why" — instead of stating current fact. The CHANGELOG is the only place for history.
 
 ---
 

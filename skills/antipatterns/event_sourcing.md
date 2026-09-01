@@ -795,7 +795,7 @@ condition" or a "delivery bug" — but the bug is upstream in a
 discarded return value.
 
 This is the application-side mirror of the Feedback pattern (see
-`../guides/INTEGRATION_ACTORS.md` § Session-Level Consistency). The same
+`../INTEGRATION_ACTORS.md` § Session-Level Consistency). The same
 return shape that carries `{ok, Version, Events}` (or
 `{ok, Version, Events, State}` from `dispatch_with_state/1`) is also
 the error channel. Throwing it away means throwing away both the

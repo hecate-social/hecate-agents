@@ -189,11 +189,9 @@ shows the gen_server mailbox becoming a bottleneck.
 The erpc observer pattern requires BEAM clustering (shared cookie,
 `net_adm:ping/1`). This places the plugin in the **trusted** tier.
 
-When the session-scoped cookie system is implemented, untrusted plugins
-will poll via HTTP instead of erpc. The observer gen_server pattern still
-applies -- only the transport changes from `erpc:call/4` to an HTTP GET.
-
-See [PLUGIN_SECURITY_MODEL.md](../philosophy/PLUGIN_SECURITY_MODEL.md).
+If the caller isn't BEAM-clustered with the observed node, the same
+observer gen_server pattern still applies -- only the transport changes
+from `erpc:call/4` to an HTTP GET.
 
 ---
 

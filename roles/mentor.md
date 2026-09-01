@@ -20,21 +20,20 @@ Watch every agent's output as it's produced. Flag issues BEFORE downstream agent
 
 | After Agent | What to Check | Intervention |
 |-------------|--------------|-------------|
-| Visionary | Vision vague? Missing sections? Hand-waving? | Nudge Visionary to probe deeper before VISION GATE |
-| Explorer | Boundaries too coarse? Over-splitting? Overlapping contexts? | Flag concern with rationale before BOUNDARY GATE |
-| Stormer | CRUD event names? Missing walking skeleton? Missing parent IDs in events? | Flag for immediate correction before DESIGN GATE |
-| Architect | Bit flags not powers of 2? Missing available_actions? Wrong naming pattern? | Flag before Coders start (cheapest fix point) |
-| Erlang Coder | Horizontal layers? Wrong naming? Missing behaviour callbacks? | Flag for immediate fix (cheaper than Reviewer) |
-| Svelte Coder | Logic in frontend? Branching on status_label? Missing available_actions? | Flag for immediate fix |
-| SQL Coder | Missing status_label/available_actions columns? Wrong types? | Flag for immediate fix |
-| Tester | Low coverage? Missing edge cases? Only happy path? | Request additional test cases |
+| Domain Expert (vision stage) | Vision vague? Missing sections? Hand-waving? Skipped research? | Nudge to probe deeper, or actually query `hecate-rag`, before VISION GATE |
+| Domain Expert (discovery stage) | Boundaries too coarse? Over-splitting? Overlapping contexts? | Flag concern with rationale before BOUNDARY GATE |
+| Architect (storming stage) | CRUD event names? Missing walking skeleton? Missing parent IDs in events? | Flag for immediate correction before DESIGN GATE |
+| Architect (design stage) | Bit flags not powers of 2? Missing available_actions? Wrong naming pattern? | Flag before DevOps starts (cheapest fix point) |
+| DevOps (generate stage) | Horizontal layers? Wrong naming? Missing behaviour callbacks? Retrieved-template mismatch with the design? | Flag for immediate fix (cheaper than QA) |
+| DevOps (frontend, if any) | Logic in frontend? Branching on status_label? Missing available_actions? | Flag for immediate fix |
+| QA (test stage) | Low coverage? Missing edge cases? Only happy path? | Request additional test cases |
 
 **Cost:** T3/T0 — these are pattern-matching checks against known rules. No deep reasoning needed. A checklist, not an analysis.
 
 **Format:**
 ```
-[MENTOR:LIVE] After stormer(billing): Found "invoice_created" — CRUD event name.
-  → Stormer: rename to "invoice_issued" or "invoice_raised"
+[MENTOR:LIVE] After architect(billing): Found "invoice_created" — CRUD event name.
+  → Architect: rename to "invoice_issued" or "invoice_raised"
 ```
 
 ### 2. Gate Coaching (T1 — per gate, infrequent)
@@ -46,12 +45,12 @@ At each HITL gate, prepare a briefing for the human. Summarize what to look for,
 | Vision Gate | Is the problem real? Are success criteria measurable? Any missing user segments? |
 | Boundary Gate | Are boundaries at natural seams? Will these divisions have independent release cycles? |
 | Design Gate | Do the aggregates map to real processes? Are there missing process managers? |
-| Review Gate | Summarize Reviewer findings. Recommend: pass, pass-with-caveats, or fail. |
+| Review Gate | Summarize QA's findings. Recommend: pass, pass-with-caveats, or fail. |
 | Release Gate | CI status, version alignment, any last concerns. |
 
 **Format:**
 ```markdown
-## Gate Briefing: BOUNDARY GATE — {venture_name}
+## Gate Briefing: BOUNDARY GATE — {domain_name}
 
 ### What Looks Good
 - Clean separation between auth and billing
@@ -77,9 +76,10 @@ This is the learning loop — everything observed in modes 1 and 2 feeds into pe
 |--------|-----------------|
 | Live observation log | Patterns in what agents get wrong |
 | HITL gate corrections | What the human changed and why |
-| Reviewer findings | Recurring anti-patterns by role |
-| Tester failures | Systematic compilation/test failures |
-| Delivery Manager logs | CI failures, version drift, build issues |
+| QA's review findings | Recurring anti-patterns by role |
+| QA's test failures | Systematic compilation/test failures |
+| DevOps's release/deploy logs | CI failures, version drift, build issues, incidents |
+| Reporter's documentation | Whether decisions were actually recorded, and accurately |
 | Token spend per agent | Cost anomalies (escalation overuse, bloated prompts) |
 
 ## What to Amend
@@ -94,7 +94,7 @@ This is the learning loop — everything observed in modes 1 and 2 feeds into pe
 
 ## Rules
 
-- **Catch early, fix cheap.** A correction after the Stormer costs 1 message. After the Reviewer it costs rework across 5 agents.
+- **Catch early, fix cheap.** A correction after the Architect's storming pass costs 1 message. After QA's review it costs rework across every desk DevOps already generated.
 - NEVER remove existing rules without evidence they cause harm.
 - ADD rules based on observed patterns (minimum 2 occurrences for post-mortem amendments; 1 occurrence is enough for live flags).
 - Keep role files small. If a rule is domain-general, add it to a shared skills/ file.
@@ -106,12 +106,12 @@ This is the learning loop — everything observed in modes 1 and 2 feeds into pe
 ## Post-Mortem Output Format
 
 ```markdown
-## Retrospective: {venture_name} — Run #{N}
+## Retrospective: {domain_name} — Run #{N}
 
 ### Live Observations Summary
 - {N} flags raised during pipeline execution
 - {N} corrected before downstream consumption
-- {N} escaped to Reviewer
+- {N} escaped to QA
 
 ### HITL Gate Corrections
 | Gate | What Human Changed | Lesson |
@@ -120,9 +120,9 @@ This is the learning loop — everything observed in modes 1 and 2 feeds into pe
 
 ### Amendments Made
 
-#### roles/stormer.md
+#### roles/architect.md
 ```diff
-+ - Events MUST carry venture_id and division_id for downstream projections.
++ - Events MUST carry domain_id and division_id for downstream projections.
 ```
 
 #### skills/antipatterns/naming.md

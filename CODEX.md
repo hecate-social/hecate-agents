@@ -77,7 +77,6 @@ Each chapter follows the same shape:
 - **Chapter 15.** Integration Transports: HOPE / FACT / FEEDBACK (`philosophy/INTEGRATION_TRANSPORTS.md`)
 - **Chapter 16.** Parent-Child Coordination (`philosophy/PARENT_CHILD_AGGREGATES.md`)
 - **Chapter 17.** The Tier Model (L0-L4) (`philosophy/HECATE_TIER_MODEL.md`)
-- **Chapter 18.** Plugin Architecture (`guides/MARTHA_PLUGIN_ARCHITECTURE.md`, `guides/HECATE_PLUGIN_DIRECTORY_CONVENTION.md`)
 
 ### Part IV — Process
 

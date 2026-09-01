@@ -215,14 +215,17 @@ Hecate's runtime is organized in tiers. (See `philosophy/HECATE_TIER_MODEL.md`.)
 
 ### ALC (Application Lifecycle)
 
-The 2-process Division lifecycle: **Planning** + **Crafting**. Replaces the older 8-process model.
+The 2-process Division lifecycle: **Planning** + **Crafting**. Not event
+sourced -- see `philosophy/alc/README.md`.
 
-| Phase | Dossier | Apps |
-|-------|---------|------|
-| Planning | `division_planning` | `guide_division_planning`, `project_division_plannings`, `query_division_plannings` |
-| Crafting | `division_crafting` | `guide_division_crafting`, `project_division_craftings`, `query_division_craftings` |
+| Phase | Artifact |
+|-------|----------|
+| Planning | `plans/PLAN_{DIVISION}.md`, in the division's own repo |
+| Crafting | The division's own codebase + `CHANGELOG.md` |
 
-PMs chain them: `planning_concluded_v1 → initiate_crafting_v1`.
+A gate crossing (Design, Review, Release) is a git commit or merged PR,
+announced over mesh (`hecate.gate_passed`), not dispatched via a process
+manager.
 
 ### Walking Skeleton
 

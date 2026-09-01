@@ -9,9 +9,17 @@ stage: stable
 
 _How Hecate models software development as a set of first-class processes._
 
-**Date:** 2026-02-10 (updated 2026-03-10)
-**Status:** Active — supersedes parent-child aggregate pattern
-**Origin:** DnA conversation on process-centric vs data-centric architecture
+**Development-process tracking (Domain Lifecycle, Division ALC) is not
+event sourced.** Software development is chaotic and non-linear — a plan
+gets reopened after being concluded, a design gets revisited mid-build —
+which doesn't fit a single-current-state aggregate. Each process's output
+is instead a git-tracked artifact, and the human-approval gates that
+matter are git commits (or merged PRs): genuinely append-only,
+audit-worthy facts, with git log supplying the history for free. This is
+scoped to *tracking the building of a domain*; a domain's own production
+business logic, once built, stays event sourced by default. **Node
+Continuous** (below) was never part of this — a node has no development
+process to track, it's just alive.
 
 ---
 
@@ -19,7 +27,7 @@ _How Hecate models software development as a set of first-class processes._
 
 Traditional software tools model development as **data management**: you create projects, update records, delete tasks. The verbs are CRUD, the nouns are passive containers.
 
-Hecate models development as a **set of processes**: each phase of building software is its own first-class citizen with its own lifecycle, its own state, and its own dossier. The verbs are business actions, the nouns are active processes.
+Hecate models development as a **set of processes**: each phase of building software is its own first-class citizen with its own current state and its own artifact. The verbs are business actions, the nouns are active processes.
 
 **The test:** imagine a human sitting at a desk. What lands on their desk? What do they do with it? What do they pass to the next desk?
 
@@ -45,15 +53,15 @@ Domain (1)
 |------|-----------|----------|
 | **Domain** | The overall business endeavor — a conglomerate of divisions | Venture, Torch |
 | **Division** | A specialist firm within the domain, responsible for one bounded context | Cartwheel / Company |
-| **Department** | CMD, PRJ, or QRY within a division | Department |
+| **Department** | CMD, PRJ, or QRY within a division's own production codebase | Department |
 | **Desk** | A single capability within a department (where work gets done) | Spoke |
-| **Dossier** | The aggregate — the folder of event slips passing through desks | Dossier |
+| **Dossier** | The aggregate — the folder of event slips passing through desks. Applies to a division's own production business logic once built, not to tracking the build itself. | Dossier |
 
 ### Divisions Are Virtual
 
 A division is a **virtual umbrella** — a logical grouping of apps that share a business context. In practice, it maps to either:
 
-1. **Multiple apps within a shared umbrella** (e.g. hecate-daemon)
+1. **Multiple apps within a shared umbrella**
 2. **A separate repo** within the organization
 
 Each division produces N apps following the department pattern:
@@ -68,57 +76,36 @@ Each division produces N apps following the department pattern:
 
 ## Three Lifecycle Types
 
-Hecate manages three fundamentally different lifecycle types. Each has its own guide process and its own rhythm.
+Hecate manages three fundamentally different lifecycle types.
 
-### 1. Domain Lifecycle (`guide_venture_lifecycle`)
+### 1. Domain Lifecycle
 
 **Scope:** Per domain. **Duration:** Short inception, long-lived discovery.
 
-The domain has two processes:
-- `setup_venture` — short-lived, fire-and-done. Birth of the endeavor.
-- `discover_divisions` — long-lived, with `open/shelve/resume/conclude` lifecycle. Identifies bounded contexts.
+A domain's birth and division discovery are tracked as a git-tracked
+document — `plans/PLAN_{DOMAIN}_VISION.md`, following this workspace's
+established `plans/PLAN_*.md` convention — not as CMD/PRJ/QRY apps:
 
-The domain orchestrates divisions. Once divisions are discovered, each follows its own ALC independently.
+- **Vision** — Domain Expert drafts, refines, and finalizes a domain
+  brief in the plan document. The Vision Gate is the commit (or merged
+  PR) that marks it approved.
+- **Division Discovery** — Domain Expert identifies bounded contexts and
+  records them, with boundary rationale, in the same document. The
+  Boundary Gate is the commit that marks the division list approved.
 
-**Apps:**
-- CMD: `guide_venture_lifecycle`
-- PRJ: `project_ventures`
-- QRY: `query_ventures`
+Once divisions are discovered, each follows its own ALC independently
+(see `alc/README.md`).
 
 ### 2. Division ALC — 2 Processes
 
 **Scope:** Per division. **Duration:** Long-lived, sequential.
 
-The Application Lifecycle has **2 process-centric phases**, each with its own dossier (aggregate), its own event stream, and its own CMD/PRJ/QRY app trio:
-
-| # | Process | Dossier | Purpose |
-|---|---------|---------|---------|
-| 1 | **Planning** | `division_planning` | Event storming, aggregate design, desk inventory, dependencies |
-| 2 | **Crafting** | `division_crafting` | Code generation, testing, release delivery |
-
-Each process is a first-class aggregate with its own event stream, its own desks, and its own read models. Process managers chain them: when planning concludes, crafting initiates automatically.
-
-**Apps per process:**
-
-| Process | CMD App | PRJ App | QRY App |
-|---------|---------|---------|---------|
-| Planning | `guide_division_planning` | `project_division_plannings` | `query_division_plannings` |
-| Crafting | `guide_division_crafting` | `project_division_craftings` | `query_division_craftings` |
-
-**Planning dossier desks:**
-- `initiate_planning` — birth (auto-triggered by PM on `division_identified_v1`)
-- `archive_planning` — soft delete
-- `open_planning` / `shelve_planning` / `resume_planning` / `conclude_planning` — lifecycle
-- `design_aggregate` / `design_event` — architecture
-- `plan_desk` / `plan_dependency` — desk inventory
-
-**Crafting dossier desks:**
-- `initiate_crafting` — birth (auto-triggered by PM on `planning_concluded_v1`)
-- `archive_crafting` — soft delete
-- `open_crafting` / `shelve_crafting` / `resume_crafting` / `conclude_crafting` — lifecycle
-- `generate_module` / `generate_test` — code generation
-- `run_test_suite` / `record_test_result` — testing
-- `deliver_release` / `stage_delivery` — release management
+Full model in `alc/README.md`. In short: **Planning** produces a plan
+document (`plans/PLAN_{DIVISION}.md` in the division's own repo) covering
+aggregate design, event list, and desk inventory; **Crafting** produces
+the division's own codebase plus its `CHANGELOG.md`. Neither is an
+aggregate — each gate (Design, Review, Release) is a git commit or merged
+PR, and git log is the audit trail.
 
 ### 3. Node Continuous (`guide_node_lifecycle`)
 
@@ -132,103 +119,25 @@ The node lifecycle has no phases and no sub-processes. A node registers, operate
 - `manage_capabilities` — announce what this node can do
 - ...
 
-There is no lifecycle protocol — the node is simply alive and responding to commands.
+There is no lifecycle protocol — the node is simply alive and responding to commands. This is the one lifecycle type that was never a candidate for event sourcing in the first place: it isn't tracking a development process, it's a running service.
 
 ---
 
-## Lifecycle Protocol
+## Coordination
 
-Long-lived processes (domain discovery + planning + crafting) implement:
+A gate crossing is announced, not orchestrated. Whichever harness makes
+the gate-approving commit is responsible for publishing a mesh fact
+(e.g. `hecate.gate_passed`, with the domain/division id and which gate in
+the payload, never the topic). Interested harnesses `mesh_watch` for it
+and self-select to pick up the next stage. If two harnesses both act on
+the same document, resolution is git's own: whichever pushes or merges
+first wins, and the second hits a conflict and backs off. No aggregate,
+no process manager, no lock service — the mesh carries the "something
+changed, go look" signal, and git carries the state.
 
-```
-Command:  initiate_{process}_v1   →  Event: {process}_initiated_v1
-Command:  open_{process}_v1       →  Event: {process}_opened_v1
-Command:  shelve_{process}_v1     →  Event: {process}_shelved_v1
-Command:  resume_{process}_v1     →  Event: {process}_resumed_v1
-Command:  conclude_{process}_v1   →  Event: {process}_concluded_v1
-Command:  archive_{process}_v1    →  Event: {process}_archived_v1
-```
-
-**Status bit flags** (powers of 2):
-
-```
-INITIATED = 1
-ARCHIVED  = 2
-OPEN      = 4
-SHELVED   = 8
-CONCLUDED = 16
-```
-
-**State transitions:**
-
-```
-             initiate
-  (none) ──────────► initiated
-                        │
-                   open │
-                        ▼
-                      open
-                        │ ▲
-                 shelve │ │ resume
-                        ▼ │
-                      shelved
-                        │
-               conclude │
-                        ▼
-                    concluded
-
-  (any state) ──archive──► archived
-```
-
-**Rules:**
-- Domain-specific commands only work when state is `open`
-- `shelve` records a reason (blocked, waiting, break)
-- `resume` clears the shelve
-- `conclude` is the hand-off — triggers the next process via PM
-
----
-
-## Process Manager Chain
-
-```
-guide_venture_lifecycle              guide_division_planning           guide_division_crafting
-        │                                      │                                │
-  division_identified_v1  ──PM──►  initiate_planning_v1                         │
-                                               │                                │
-                                   planning_concluded_v1  ──PM──►  initiate_crafting_v1
-```
-
-Each PM is a gen_server that subscribes to the source event and dispatches the target command:
-
-| PM | Subscribes To | Dispatches |
-|----|--------------|------------|
-| `on_division_identified_initiate_planning` | `division_identified_v1` | `initiate_planning_v1` |
-| `on_planning_concluded_initiate_crafting` | `planning_concluded_v1` | `initiate_crafting_v1` |
-
----
-
-## Fact Flow Diagram
-
-```
-                        guide_venture_lifecycle
-                        (orchestrator)
-                             │
-          ┌──────────────────┼────────────────┐
-          │                  │                │
-   setup_venture    discover_divisions        │
-          │                  │                │
-          └────fact──────────┤                │
-                             │                │
-                    ┌────────▼─────────┐      │
-                    │ planning         │──────┤
-                    │ (design + plan)  │      │
-                    └────────┬─────────┘      │
-                             │ PM             │
-                    ┌────────▼─────────┐      │
-                    │ crafting         │──────┘
-                    │ (build + deliver)│
-                    └──────────────────┘
-```
+See `macula-mcp/plans/PLAN_MARTHA_MULTI_AGENT_MCP.md` for the full
+multi-agent design this feeds — there is no backend service that owns
+domain/division lifecycle tracking; it's a git-and-mesh convention.
 
 ---
 
@@ -239,25 +148,25 @@ Each PM is a gen_server that subscribes to the source event and dispatches the t
 1. **Frame a decision** — Ask a clear, bounded question with no ambiguity
 2. **Present options** — Show tradeoffs as a table, not opinions. Include pros AND cons.
 3. **User decides** — They own the choice. Never decide for them.
-4. **Record the decision** — It becomes a constraint on all future decisions.
+4. **Record the decision** — Write it into the plan document. It becomes a constraint on all future decisions.
 5. **Build forward** — Each decision narrows the next decision's option space.
-6. **Produce an artifact** — The conversation output is structured data, not prose.
+6. **Produce an artifact** — The conversation output is a commit to the plan document, not prose left only in the chat transcript.
 
 ### Phase-Specific Conversations
 
 | Phase | Guided Conversation Produces |
 |-------|------------------------------|
-| `setup_venture` | Domain name + brief |
-| `discover_divisions` | Division list with names, descriptions, boundary rationale |
-| `planning` | Aggregates, events, desk inventory, dependencies, sprint sequence |
-| `crafting` | Module generation, test strategy, release manifest |
+| Vision | Domain name + brief, written into `plans/PLAN_{DOMAIN}_VISION.md` |
+| Division Discovery | Division list with names, descriptions, boundary rationale, in the same document |
+| Planning | Aggregates, events, desk inventory, dependencies, in `plans/PLAN_{DIVISION}.md` |
+| Crafting | Module generation, test strategy, release manifest — reflected in the codebase and `CHANGELOG.md` |
 
 ### The Decision Cascade
 
 Decisions made in earlier phases constrain later phases:
 
 ```
-setup: name = "my-saas-app"
+vision: name = "my-saas-app"
   └─ constrains discovery scope
 
 discover: divisions = [auth, billing, notify]
@@ -270,32 +179,8 @@ planning(auth): aggregates = [user, session, credential]
 crafting(auth): modules generated, tests passed, release delivered
 ```
 
-Each phase's output is the next phase's input. The conversation at each phase only needs to cover that phase's decisions — everything else is already settled.
+Each phase's output is the next phase's input, written into the plan document — not held only in an agent's context window. The conversation at each phase only needs to cover that phase's decisions — everything else is already settled and already written down.
 
 ---
 
-## What This Replaces
-
-| Old Concept | Replaced By | Why |
-|------------|-------------|-----|
-| `manage_torches` | `setup_venture` + `guide_venture` | Process, not data management |
-| `guide_division_alc` (8 processes) | `guide_division_planning` + `guide_division_crafting` | 2 focused dossiers |
-| `query_division_alc` (monolithic) | `project_division_plannings/craftings` + `query_division_plannings/craftings` | Proper PRJ/QRY split per dossier |
-| Parent-child aggregates | Orchestrator + PM chain | No hierarchy, just coordination |
-| `torch_aggregate` | `setup` aggregate | Scoped to inception only |
-| `cartwheel_aggregate` | `division_planning_aggregate` + `division_crafting_aggregate` | Each process owns its state |
-| 8-process ALC | 2-process ALC (planning + crafting) | Simpler, focused dossiers |
-| 4 frontend phases (DnA/AnP/TnI/DnO) | 2 frontend phases (Planning/Crafting) | Matches backend structure |
-| `dna_status/anp_status/tni_status/dno_status` | `planning_status/crafting_status` | One status per dossier |
-| start/pause/resume/complete | initiate/open/shelve/resume/conclude/archive | Full lifecycle protocol |
-| spoke | desk | Work lands on a desk |
-
----
-
-## Fact Transport
-
-Inter-process communication uses **facts on the mesh** (external) or **pg groups** (internal to same BEAM VM). Processes never call each other directly.
-
----
-
-*Process-centric architecture. Each phase is a first-class citizen.*
+*Process-centric architecture. Each phase is a first-class citizen, tracked in git, not event sourced.*

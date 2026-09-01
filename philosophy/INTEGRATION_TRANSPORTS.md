@@ -9,6 +9,17 @@ stage: stable
 
 How umbrella apps communicate within hecate-daemon, with hecate-web, and across the network.
 
+> ⚠ **PARTIALLY OBSOLETE (2026-09-01).** The **Internal** and **Local**
+> layers below (`pg` within hecate-daemon, `hecate://` to hecate-web)
+> describe the now-dead per-user BEAM-VM plugin-host architecture —
+> `hecate-daemon`, `hecate-web`, and `hecate-gitops` are declared obsolete
+> now that mobile-app tooling exists (interaction moves to the terminal, a
+> coding agent, an "operator website" hosted by an edge service, or a
+> mobile/public web app). The **External/mesh** layer remains the relevant
+> pattern for service-to-service and edge-service communication going
+> forward. See [HECATE_AUTH_MODEL.md](HECATE_AUTH_MODEL.md) for how the
+> four channels identify themselves over that layer.
+
 ---
 
 ## The Three Integration Layers

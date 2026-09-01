@@ -19,7 +19,7 @@ stage: stable
 Agents communicate using a line-oriented structured notation instead of verbose prose. This:
 1. **Saves tokens** — ~50% smaller than markdown descriptions
 2. **Eliminates ambiguity** — one construct per line, keyword first
-3. **Enables parsing** — the Coordinator extracts structure without LLM calls (zero tokens)
+3. **Enables parsing** — any consumer extracts structure without LLM calls (zero tokens), whether that's a harness's own tooling or a human skimming it
 4. **Is human-readable** — technical humans read it directly at HITL gates
 
 ---
@@ -31,11 +31,11 @@ Agents communicate using a line-oriented structured notation instead of verbose 
 - Indentation = nesting (2 spaces per level).
 - Field lists in square brackets: `[field1 field2 field3]`
 - Strings with spaces in double quotes: `"Invoice processing"`
-- Agents produce notation for inter-agent output. Prose only for human-facing interaction (Visionary ↔ human, Mentor gate briefings).
+- Agents produce notation for inter-agent output. Prose only for human-facing interaction (Domain Expert ↔ human, Mentor gate briefings).
 
 ---
 
-## Division Spec (Explorer → Stormer)
+## Division Spec (Domain Expert → Architect)
 
 ```
 DIV {context_name} "{description}"
@@ -54,7 +54,7 @@ DIV billing "Invoice and payment processing"
 
 ---
 
-## EventStorm Output (Stormer → Architect)
+## EventStorm Output (Architect Stage 1 → Architect Stage 2)
 
 ```
 AGG {name} {stream_pattern}
@@ -69,7 +69,7 @@ Example:
 AGG invoice invoice-{invoice_id}
   FLAGS INITIATED=1 ARCHIVED=2 ISSUED=4 PAID=8 VOIDED=16
   WALK initiate_invoice archive_invoice
-  DESK issue_invoice -> invoice_issued_v1 [invoice_id venture_id division_id amount currency issued_by issued_at]
+  DESK issue_invoice -> invoice_issued_v1 [invoice_id domain_id division_id amount currency issued_by issued_at]
   DESK pay_invoice -> invoice_paid_v1 [invoice_id paid_by paid_at amount method]
   DESK void_invoice -> invoice_voided_v1 [invoice_id voided_by reason]
   DESK archive_invoice -> invoice_archived_v1 [invoice_id]
@@ -78,7 +78,7 @@ AGG invoice invoice-{invoice_id}
 
 ---
 
-## Technical Spec (Architect → Coders)
+## Technical Spec (Architect → DevOps)
 
 ```
 APP {app_name} {CMD|PRJ|QRY}
@@ -103,7 +103,7 @@ APP guide_billing CMD
 
 APP project_billings PRJ
   STORE project_billings_store
-    TABLE billings [division_id:pk venture_id:text status:int status_label:text available_actions:text]
+    TABLE billings [division_id:pk domain_id:text status:int status_label:text available_actions:text]
     TABLE invoices [invoice_id:pk division_id:text amount:int status:int status_label:text]
   PROJ invoice_issued_v1 -> invoices INSERT
   PROJ invoice_paid_v1 -> invoices UPDATE [status status_label available_actions]
@@ -155,9 +155,9 @@ AMEND {file} -"{rule to remove}"
 
 Example:
 ```
-FLAG stormer MAJOR "invoice_created is CRUD — rename to invoice_issued"
-FLAG erlang_coder MINOR "missing @doc on maybe_issue_invoice"
-AMEND roles/stormer.md +"Financial events: issued/voided/settled, never created/updated"
+FLAG architect MAJOR "invoice_created is CRUD — rename to invoice_issued"
+FLAG devops MINOR "missing @doc on maybe_issue_invoice"
+AMEND roles/architect.md +"Financial events: issued/voided/settled, never created/updated"
 ```
 
 ---
@@ -185,15 +185,20 @@ TOTAL {tokens}K ${amount}
 
 Example:
 ```
-COST stormer 4.2K $0.03
-COST erlang_coder 12.1K $0.02
-COST reviewer 8.5K $0.12
+COST architect 4.2K $0.03
+COST devops 12.1K $0.02
+COST qa 8.5K $0.12
 TOTAL 38.2K $0.24
 ```
 
 ---
 
-## Status Updates (Coordinator)
+## Status Updates
+
+Self-reported by whichever agent completes a unit of work. There is no
+backend service that tracks pipeline state — see `philosophy/alc/README.md`
+"Coordination": a gate crossing is a git commit, announced over mesh by
+the agent that made it, not dispatched by a process manager.
 
 ```
 STATUS {division} {agent} {message}
@@ -201,9 +206,9 @@ STATUS {division} {agent} {message}
 
 Example:
 ```
-STATUS billing stormer COMPLETE
-STATUS billing architect STARTED
-STATUS auth erlang_coder 3/5
+STATUS billing architect COMPLETE
+STATUS billing devops STARTED
+STATUS auth devops 3/5
 ```
 
 ---
@@ -212,22 +217,22 @@ STATUS auth erlang_coder 3/5
 
 | Keyword | Producer | Consumer | Purpose |
 |---------|----------|----------|---------|
-| `DIV` | Explorer | Stormer | Division boundary |
-| `AGG` | Stormer | Architect | Aggregate definition |
-| `DESK` | Stormer | Architect, Coordinator | Desk → event mapping |
-| `FLAGS` | Stormer/Architect | Erlang Coder | Bit flag definitions |
-| `WALK` | Stormer | Architect, Reviewer | Walking skeleton check |
-| `PM` | Stormer | Architect, Erlang Coder | Process manager |
-| `APP` | Architect | Coders | App scaffold |
-| `SUP` | Architect | Erlang Coder | Supervision tree |
-| `STORE` | Architect | SQL Coder | Store + tables |
-| `TABLE` | Architect | SQL Coder | Schema definition |
-| `PROJ` | Architect | Erlang Coder | Projection mapping |
-| `QUERY` | Architect | Erlang Coder, SQL Coder | API endpoint |
-| `PHASE` | Coordinator | All | Current lifecycle state |
-| `ITEM` | Coordinator | Coders, Tester | Kanban item |
+| `DIV` | Domain Expert | Architect | Division boundary |
+| `AGG` | Architect (Stage 1) | Architect (Stage 2) | Aggregate definition |
+| `DESK` | Architect (Stage 1) | Architect (Stage 2) | Desk → event mapping |
+| `FLAGS` | Architect | DevOps | Bit flag definitions |
+| `WALK` | Architect (Stage 1) | Architect (Stage 2), QA | Walking skeleton check |
+| `PM` | Architect (Stage 1) | Architect (Stage 2), DevOps | Process manager |
+| `APP` | Architect (Stage 2) | DevOps | App scaffold |
+| `SUP` | Architect (Stage 2) | DevOps | Supervision tree |
+| `STORE` | Architect (Stage 2) | DevOps | Store + tables |
+| `TABLE` | Architect (Stage 2) | DevOps | Schema definition |
+| `PROJ` | Architect (Stage 2) | DevOps | Projection mapping |
+| `QUERY` | Architect (Stage 2) | DevOps | API endpoint |
+| `PHASE` | Whichever agent reports it | All | Current lifecycle state |
+| `ITEM` | Whichever agent reports it | DevOps, QA | Kanban item |
 | `FLAG` | Mentor | Target agent | Live correction |
 | `AMEND` | Mentor | (role files) | Post-mortem improvement |
-| `GATE` | Coordinator | Human, Mentor | HITL checkpoint |
-| `COST` | Coordinator | Mentor | Token spend tracking |
-| `STATUS` | Coordinator | All | Pipeline progress |
+| `GATE` | The agent making the gate commit | Human, Mentor | HITL checkpoint |
+| `COST` | Each agent, self-reported | Mentor | Token spend tracking |
+| `STATUS` | Whichever agent completes the work | All | Pipeline progress |

@@ -63,10 +63,8 @@ A linear reading path. Stop when you have enough to ship.
 21. [`philosophy/INTEGRATION_TRANSPORTS.md`](philosophy/INTEGRATION_TRANSPORTS.md) — HOPE / FACT / FEEDBACK
 
 ### Production (read when relevant)
-21. [`guides/HECATE_PLUGIN_DIRECTORY_CONVENTION.md`](guides/HECATE_PLUGIN_DIRECTORY_CONVENTION.md) — plugin layout
-22. [`guides/MARTHA_PLUGIN_ARCHITECTURE.md`](guides/MARTHA_PLUGIN_ARCHITECTURE.md) — full CQRS plugin reference
-23. [`philosophy/HECATE_TIER_MODEL.md`](philosophy/HECATE_TIER_MODEL.md) — L0-L4 runtime layers
-24. [`skills/NEUROEVOLUTION_SERVICE_METHOD.md`](skills/NEUROEVOLUTION_SERVICE_METHOD.md) — turning an outside problem into an evolutionary mesh service, or refusing it with a reason
+21. [`philosophy/HECATE_TIER_MODEL.md`](philosophy/HECATE_TIER_MODEL.md) — L0-L4 runtime layers
+22. [`skills/NEUROEVOLUTION_SERVICE_METHOD.md`](skills/NEUROEVOLUTION_SERVICE_METHOD.md) — turning an outside problem into an evolutionary mesh service, or refusing it with a reason
 
 ---
 
@@ -92,7 +90,6 @@ Skills are loaded contextually. The retrieval system should hold these always-on
 | "Code review" | `skills/antipatterns/INDEX.md` + relevant `skills/antipatterns/*.md` |
 | "Naming" | `skills/NAMING_CONVENTIONS.md`, `skills/codegen/erlang/CODEGEN_ERLANG_NAMING.md` |
 | "Test something" | `skills/TESTING.md` |
-| "Plugin work" | `guides/HECATE_PLUGIN_DIRECTORY_CONVENTION.md`, `guides/MARTHA_PLUGIN_ARCHITECTURE.md` |
 | "Can we solve X by evolving controllers?" | `skills/NEUROEVOLUTION_SERVICE_METHOD.md` — read the intake gate FIRST, before designing anything |
 
 ---
@@ -106,7 +103,6 @@ The Tier 3 LLM reads **only** these. No creativity required.
 | Naming derivation | [`skills/codegen/erlang/CODEGEN_ERLANG_NAMING.md`](skills/codegen/erlang/CODEGEN_ERLANG_NAMING.md) |
 | Generation checklist | [`skills/codegen/erlang/CODEGEN_ERLANG_CHECKLISTS.md`](skills/codegen/erlang/CODEGEN_ERLANG_CHECKLISTS.md) |
 | Templates | [`skills/codegen/erlang/CODEGEN_ERLANG_TEMPLATES.md`](skills/codegen/erlang/CODEGEN_ERLANG_TEMPLATES.md) |
-| Scaffolding | [`skills/codegen/erlang/CODEGEN_PLUGIN_SCAFFOLD.md`](skills/codegen/erlang/CODEGEN_PLUGIN_SCAFFOLD.md) |
 | Templates source | `templates/erlang/*.tmpl`, `templates/routes/*.tmpl` |
 
 The Tier 3 path is intentionally bare. Philosophy is not needed for mechanical code generation.

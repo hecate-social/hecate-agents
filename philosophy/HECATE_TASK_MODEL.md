@@ -2,22 +2,37 @@
 title: The Task Model
 layer: philosophy
 audience: [agent, human]
-stage: superseded
+stage: draft
 ---
 
 # The Task Model — Work as First-Class Citizen
 
 _How Hecate surfaces software development as a list of actionable tasks with AI assistance._
 
-**Date:** 2026-02-11
-**Status:** Superseded — this draft is built on the retired 8/10-process, 4-phase (DnA / AnP / TnI / DnO) model. The canonical Division lifecycle is the **2-process ALC (Planning + Crafting)**; see [alc/README.md](alc/README.md) and [HECATE_DOMAIN_LIFECYCLE.md](HECATE_DOMAIN_LIFECYCLE.md). The task-centric UX idea is worth revisiting, but must be re-expressed atop the 2-process model before it can be canonical.
+Uses `domain`/`domain_id`/`domain_initiated_v1` terminology throughout,
+consistent with the Domain/Division/Department/Desk/Dossier model (see
+`GLOSSARY.md`). Reconciled against the current 6-role roster
+(`roles/AGENT_ARCHITECTURE.md`: Domain Expert, Architect, DevOps, QA,
+Reporter, Mentor) and the current 2-process Division ALC
+(`alc/README.md`: Planning, Crafting) — see below.
+**Status:** Not superseded. This draft's own Insight section already says
+it: "The domain model doesn't change... What changes is how the Dev
+Studio presents work to the user" — task-centric UX (a task as the
+first-class unit, phase as metadata on it) is a still-live idea,
+independent of how many phases, processes, or roles exist underneath it.
+The Division-Scoped task catalog treats Monitor Division and Rescue
+Division as continuous, always-available operational concerns, not
+sequential, prerequisite-gated tasks downstream of Deploy Division —
+matching `alc/README.md`'s own doctrine that "monitoring, rescue,
+debugging, and refactoring are operational concerns, not lifecycle
+phases — they happen continuously, not sequentially."
 **Origin:** Design conversation on task-centric vs phase-centric UX
 
 ---
 
 ## The Insight
 
-The Domain Lifecycle (HECATE_DOMAIN_LIFECYCLE.md) defines **10 processes** organized by phase. This is the correct domain model — processes are real, phases are real, divisions are real.
+The Domain Lifecycle (HECATE_DOMAIN_LIFECYCLE.md) defines the domain-level processes (setup, discovery), and the Division ALC (`alc/README.md`) defines two division-level processes, Planning and Crafting. This is the correct domain model — processes are real, phases are real, divisions are real.
 
 But in the **user experience**, phases are not what the user works with. The user works with **tasks**. A task is a concrete action: "Refine the vision," "Design the Auth Service," "Generate code for the Payment Gateway." The phase is just a property of the task — metadata that determines which AI role assists.
 
@@ -47,8 +62,8 @@ Every task has:
 │ verb        : "design"                          │
 │ scope       : domain | division                │
 │ subject     : "Auth Service" (division name)    │
-│ phase       : AnP                               │
-│ ai_role     : AnP                               │
+│ phase       : division-alc-planning             │
+│ ai_role     : Architect                         │
 │ state       : pending | active | paused | running | done │
 │ blocked_by  : ["submit-vision"]                          │
 │ has_chat    : true                                       │
@@ -137,17 +152,17 @@ These tasks exist once per domain.
 | Task | Verb | AI Role | Prerequisites | Ongoing? |
 |------|------|---------|---------------|----------|
 | **Initiate Domain** | `initiate-domain` | — | None | No |
-| **Refine Vision** | `refine-vision` | DnA | Domain initiated | Yes |
+| **Refine Vision** | `refine-vision` | Domain Expert | Domain initiated | Yes |
 | **Submit Vision** | `submit-vision` | — | Vision refined | No |
-| **Refine Divisions** | `refine-divisions` | DnA | Vision submitted | Yes |
+| **Refine Divisions** | `refine-divisions` | Domain Expert | Vision submitted | Yes |
 
 **Initiate Domain** — Creates the domain. Name, brief description, scaffolding. This is the birth event. No AI needed — it's a form.
 
-**Refine Vision** — The user and AI (DnA role) collaborate to shape the domain's vision. What are we building? Why? For whom? What are the constraints? The chat IS the work — the AI asks questions, challenges assumptions, helps crystallize the vision. This task is **ongoing**: the user can return to refine further.
+**Refine Vision** — The user and Domain Expert collaborate to shape the domain's vision. What are we building? Why? For whom? What are the constraints? Domain Expert researches first — prior art, similar systems, existing patterns via `hecate-rag`/web search — before opining, then the chat is the work: asking questions, challenging assumptions, helping crystallize the vision. This task is **ongoing**: the user can return to refine further.
 
 **Submit Vision** — Locks the vision. An explicit confirmation action (button, not a task UI). After submission, the vision document becomes the foundation for division discovery.
 
-**Refine Divisions** — The user and AI (DnA role) explore the business domain together. Through conversation, the AI gradually proposes divisions (bounded contexts). Each proposed division appears with a **[Confirm]** action. Confirming a division spawns its sub-tasks. This task is **ongoing**: the user can always come back to discover more divisions or rethink existing ones.
+**Refine Divisions** — The user and Domain Expert explore the business domain together. Through conversation, the AI gradually proposes divisions (bounded contexts). Each proposed division appears with a **[Confirm]** action. Confirming a division spawns its sub-tasks. This task is **ongoing**: the user can always come back to discover more divisions or rethink existing ones.
 
 ### Division-Scoped Tasks
 
@@ -155,27 +170,27 @@ These tasks are created when a division is **confirmed** during "Refine Division
 
 | Task | Verb | AI Role | Prerequisites | Ongoing? |
 |------|------|---------|---------------|----------|
-| **Design Division** | `design-division` | AnP | Division confirmed | Yes |
-| **Plan Division** | `plan-division` | AnP | Design reviewed | Yes |
-| **Generate Division** | `generate-division` | TnI | Plan approved | No (background) |
-| **Test Division** | `test-division` | TnI | Code generated | No (background) |
-| **Deploy Division** | `deploy-division` | DnO | Tests passing | No |
-| **Monitor Division** | `monitor-division` | DnO | Deployed | Yes |
-| **Rescue Division** | `rescue-division` | DnO | Issue detected | Yes |
+| **Design Division** | `design-division` | Architect | Division confirmed | Yes |
+| **Plan Division** | `plan-division` | Architect | Design reviewed | Yes |
+| **Generate Division** | `generate-division` | DevOps | Plan approved | No (background) |
+| **Test Division** | `test-division` | QA | Code generated | No (background) |
+| **Deploy Division** | `deploy-division` | DevOps | Tests passing | No |
+| **Monitor Division** | `monitor-division` | Mentor | *(none — opens automatically once deployed)* | Yes, always available |
+| **Rescue Division** | `rescue-division` | DevOps | *(none — opens on incident, from any state)* | Yes, always available |
 
-**Design Division** — The user and AI (AnP role) collaborate on event storming, aggregate design, desk inventory. The task UI shows the emerging domain model alongside the chat. Ongoing — design evolves.
+**Design Division** — The user and Architect collaborate on event storming, aggregate design, desk inventory. The task UI shows the emerging domain model alongside the chat. Ongoing — design evolves. (Both Design and Plan sit on Architect's single Planning dossier — kept as two tasks here because the task list is deliberately finer-grained than the underlying process, not because they're separate processes.)
 
-**Plan Division** — The user and AI (AnP role) break down the design into an implementation plan. Sequencing, priorities, dependencies between desks. Ongoing — plans adapt.
+**Plan Division** — The user and Architect break down the design into an implementation plan. Sequencing, priorities, dependencies between desks. Ongoing — plans adapt.
 
-**Generate Division** — AI (TnI role) generates skeleton code from templates. This runs in the **background** — the user can work on other tasks while code is being generated. The task shows progress and generated files.
+**Generate Division** — DevOps generates skeleton code — retrieving the matching corpus template and antipattern list from `hecate-rag` first, then filling it in, per the "coding should be almost mechanical" principle in `roles/AGENT_ARCHITECTURE.md`. This runs in the **background** — the user can work on other tasks while code is being generated. The task shows progress and generated files.
 
-**Test Division** — AI (TnI role) runs tests and verifies the generated code. Also background. Shows test results, coverage, issues found.
+**Test Division** — QA runs tests and verifies the generated code against the same corpus DevOps retrieved from — the interesting failure mode is "wrong template" or "filled in wrong," which is exactly what this catches. Also background. Shows test results, coverage, issues found.
 
-**Deploy Division** — Ship it. The user reviews and confirms deployment. Could show deployment status, canary results.
+**Deploy Division** — Ship it. DevOps version-bumps, confirms CI is green, and deploys — same role that generated the code, consistent with "you build it, you run it." The user reviews and confirms. Could show deployment status, canary results.
 
-**Monitor Division** — Observe production health. Ongoing — this task stays open as long as the division is deployed. Shows metrics, logs, alerts.
+**Monitor Division** — **Not gated by Deploy Division completing, and never blocks anything.** Per `alc/README.md`: "monitoring... [is an] operational concern, not a lifecycle phase — it happens continuously, not sequentially." This task opens automatically the moment a division is first deployed and simply stays open — Mentor's live-observation mode, extended from watching agent output during Crafting to watching the running system afterward. Shows metrics, logs, alerts.
 
-**Rescue Division** — Something broke. Diagnose, intervene, fix. Opens when an issue is detected. The AI (DnO role) helps diagnose. Can escalate back to Design if the fix requires architectural changes.
+**Rescue Division** — Something broke. **Not downstream of Monitor Division in any DAG sense** — it can open from any state, triggered by an incident, not by another task completing. DevOps is first responder (it owns deployment — "you get paged"), QA verifies the fix, Domain Expert joins if the root cause is a domain-modeling gap rather than a bug. Can escalate back to Design Division if the fix requires architectural changes.
 
 ---
 
@@ -189,18 +204,19 @@ The Dev Studio's primary view is the task list. It's a single, scrollable list w
 Domain: MyProject
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  ✓  Initiate Domain
- ✓  Refine Vision                 🤖 DnA
+ ✓  Refine Vision                 🤖 Domain Expert
  ✓  Submit Vision
- ●  Refine Divisions              🤖 DnA
+ ●  Refine Divisions              🤖 Domain Expert
 ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
  ▸ Auth Service
-    ✓  Design                     🤖 AnP
-    ✓  Plan                       🤖 AnP
-    ◐  Generate                   🤖 TnI
-    ○  Test
-    ○  Deploy
+    ✓  Design                     🤖 Architect
+    ✓  Plan                       🤖 Architect
+    ◐  Generate                   🤖 DevOps
+    ○  Test                       🤖 QA
+    ○  Deploy                     🤖 DevOps
+    ●  Monitor                    🤖 Mentor      (always open once deployed)
  ▸ Payment Gateway
-    ●  Design                     🤖 AnP
+    ●  Design                     🤖 Architect
     ○  Plan
     ○  Generate
     ○  Test
@@ -225,14 +241,15 @@ Domain: MyProject
 
 The task list grows as the user works:
 
-1. **`venture_initiated_v1`** → "Initiate Domain" completes, "Refine Vision" unlocks
-2. **`refine_vision_started_v1`** → task becomes active, AI greets with DnA role
+1. **`domain_initiated_v1`** → "Initiate Domain" completes, "Refine Vision" unlocks
+2. **`refine_vision_started_v1`** → task becomes active, Domain Expert greets, research already under way
 3. **`vision_submitted_v1`** → "Refine Divisions" unlocks
-4. **`refine_divisions_started_v1`** → user and AI explore the domain
-5. **`division_confirmed_v1`** → Division group appears with 7 sub-tasks
-6. **`design_division_started_v1`** → user opens a division task, AI assists with AnP role
+4. **`refine_divisions_started_v1`** → user and Domain Expert explore the domain
+5. **`division_confirmed_v1`** → Division group appears with its sub-tasks, plus Monitor Division (dormant until deploy) and Rescue Division (dormant until an incident)
+6. **`design_division_started_v1`** → user opens a division task, Architect assists
 7. **`design_division_paused_v1`** → user steps away, timestamp recorded
 8. **`design_division_resumed_v1`** → user returns, picks up where they left off
+9. **`deploy_division_completed_v1`** → Monitor Division opens automatically, stays open indefinitely
 
 ---
 
@@ -244,7 +261,7 @@ Each task type has a dedicated UI. Most AI-assisted tasks share a common layout:
 
 ```
 ┌─────────────────────────────────────────────────┐
-│ Design Division: Auth Service          🤖 AnP   │
+│ Design Division: Auth Service     🤖 Architect  │
 ├─────────────────────────────────────────────────┤
 │                                                 │
 │  [Task-specific content panel]                  │
@@ -338,16 +355,23 @@ generate-division
 deploy-division
        │
        ▼
-monitor-division
-       │
-       ├──── (issue detected) ────▶ rescue-division
-       │                                   │
-       │                                   ▼
-       │                           (may escalate to design)
-       │
-       ▼
-    (ongoing)
+  (deployed) ────────────────────▶ monitor-division
+       .                           (opens automatically,
+       .                            stays open, blocks nothing,
+       .                            not blocked by anything)
+       .
+       └──── (incident, any time) ─▶ rescue-division
+                                            │
+                                            ▼
+                                    (may escalate to design-division)
 ```
+
+Monitor and Rescue are deliberately **not** drawn as sequential nodes
+downstream of Deploy. They're triggered (by a deploy event, or by an
+incident) rather than unlocked by a prerequisite, and neither blocks
+anything else — matching `alc/README.md`'s doctrine that monitoring and
+rescue are continuous operational concerns, not lifecycle phases. The
+dotted line is deliberate: it's a trigger, not a DAG edge.
 
 ### Cross-Division Independence
 
@@ -382,37 +406,37 @@ POST /api/{task}/:id/{action}      → (task-specific event)
 # Initiate (no lifecycle — it's the birth event)
 POST   /api/initiate-domain
   Body: { name, brief, path }
-  Returns: { venture_id, tasks: [...] }
-  Event: venture_initiated_v1
+  Returns: { domain_id, tasks: [...] }
+  Event: domain_initiated_v1
 
 # Refine Vision
-POST   /api/start-refine-vision/:venture_id      → refine_vision_started_v1
-POST   /api/pause-refine-vision/:venture_id       → refine_vision_paused_v1
-POST   /api/resume-refine-vision/:venture_id      → refine_vision_resumed_v1
-POST   /api/complete-refine-vision/:venture_id    → refine_vision_completed_v1
+POST   /api/start-refine-vision/:domain_id      → refine_vision_started_v1
+POST   /api/pause-refine-vision/:domain_id       → refine_vision_paused_v1
+POST   /api/resume-refine-vision/:domain_id      → refine_vision_resumed_v1
+POST   /api/complete-refine-vision/:domain_id    → refine_vision_completed_v1
 
 # Refine Vision actions (only when active):
-POST   /api/refine-vision/:venture_id/chat
+POST   /api/refine-vision/:domain_id/chat
   Body: { message }
   Returns: { response, vision_snapshot }
 
 # Submit Vision (confirmation action, not a lifecycle task)
-POST   /api/submit-vision/:venture_id
+POST   /api/submit-vision/:domain_id
   Returns: { ok, tasks_unlocked: ["refine-divisions"] }
   Event: vision_submitted_v1
 
 # Refine Divisions
-POST   /api/start-refine-divisions/:venture_id    → refine_divisions_started_v1
-POST   /api/pause-refine-divisions/:venture_id     → refine_divisions_paused_v1
-POST   /api/resume-refine-divisions/:venture_id    → refine_divisions_resumed_v1
-POST   /api/complete-refine-divisions/:venture_id  → refine_divisions_completed_v1
+POST   /api/start-refine-divisions/:domain_id    → refine_divisions_started_v1
+POST   /api/pause-refine-divisions/:domain_id     → refine_divisions_paused_v1
+POST   /api/resume-refine-divisions/:domain_id    → refine_divisions_resumed_v1
+POST   /api/complete-refine-divisions/:domain_id  → refine_divisions_completed_v1
 
 # Refine Divisions actions (only when active):
-POST   /api/refine-divisions/:venture_id/chat
+POST   /api/refine-divisions/:domain_id/chat
   Body: { message }
   Returns: { response, proposed_divisions: [...] }
 
-POST   /api/refine-divisions/:venture_id/confirm
+POST   /api/refine-divisions/:domain_id/confirm
   Body: { division_name, division_brief }
   Returns: { division_id, tasks_created: [...] }
   Event: division_confirmed_v1
@@ -483,7 +507,7 @@ POST   /api/rescue-division/:id/chat               (only when active)
 ### Task List
 
 ```
-GET    /api/domain/:venture_id/tasks
+GET    /api/domain/:domain_id/tasks
   Returns: {
     domain: { id, name, vision_status },
     tasks: [
@@ -514,22 +538,27 @@ Each task type knows which AI role it needs. The Dev Studio doesn't ask the user
 
 | Task Type | AI Role | Personality Aspect |
 |-----------|---------|-------------------|
-| Refine Vision | DnA | Curious, probing, analytical |
-| Refine Divisions | DnA | Domain explorer, boundary finder |
-| Design Division | AnP | Architect, pattern matcher |
-| Plan Division | AnP | Planner, sequencer, prioritizer |
-| Generate Division | TnI | Code generator, template engine |
-| Test Division | TnI | Quality verifier, edge case finder |
-| Deploy Division | DnO | Ops engineer, safety checker |
-| Monitor Division | DnO | Observer, metric interpreter |
-| Rescue Division | DnO | Diagnostician, firefighter |
+| Refine Vision | Domain Expert | Curious, research-first, probing |
+| Refine Divisions | Domain Expert | Boundary finder, grounded in prior art |
+| Design Division | Architect | Pattern matcher, systems thinker |
+| Plan Division | Architect | Sequencer, prioritizer |
+| Generate Division | DevOps | Mechanical by design — retrieve the template, fill it in |
+| Test Division | QA | Skeptical, meticulous, checks against the same corpus DevOps retrieved from |
+| Deploy Division | DevOps | Ships what it built — same role, same ownership |
+| Monitor Division | Mentor | Continuous, low-cost, watching |
+| Rescue Division | DevOps | First responder — "you built it, you run it" |
+
+Cutting across every row above: **Reporter** documents continuously
+(not tied to any one task type), and **Mentor** also observes live
+during every task, not just Monitor Division — the table above names
+which role a task is *for*, not the only role ever present.
 
 The system prompt for each AI interaction is:
 
 ```
 [PERSONALITY.md]   — Hecate's core personality
 ---
-[role file]        — The phase-specific role (DnA, AnP, TnI, DnO)
+[role file]        — roles/{domain_expert,architect,devops,qa,reporter,mentor}.md
 ---
 [task context]     — Domain name, division name, current state, history
 ---
@@ -607,7 +636,7 @@ apps/design_division/src/
 - **Event sourcing** — Still the foundation. Lifecycle transitions ARE events.
 - **CMD/QRY/PRJ departments** — Still the internal architecture.
 - **Vertical slicing** — Each desk owns its command, event, and handler.
-- **10 processes** — Still the domain model. Tasks map 1:1 to processes.
+- **The domain/division process model** — Still the foundation (domain-level setup + discovery; division-level Planning + Crafting). Tasks are now deliberately *finer-grained* than processes, not 1:1 with them — e.g. Design Division and Plan Division are two tasks on Architect's one Planning dossier, and Generate/Test/Deploy Division are three tasks on DevOps/QA's one Crafting dossier.
 - **Aggregate pattern** — The aggregate enforces the state machine (can't pause a pending task, can't chat on a paused task).
 
 ---
@@ -644,8 +673,9 @@ The Dev Studio does NOT share the LLM Studio's chat. Each AI-assisted task has i
 
 | Document | Relationship |
 |----------|-------------|
-| `HECATE_DOMAIN_LIFECYCLE.md` | **Foundation** — The 10 processes and domain hierarchy are unchanged. This document adds the UX layer on top. |
-| `alc/README.md` | **Evolves** — ALC phases become AI role selectors, not navigation contexts. The four phases (DnA, AnP, TnI, DnO) map to task groups. |
+| `HECATE_DOMAIN_LIFECYCLE.md` | **Foundation** — The domain hierarchy and domain-level processes are unchanged. This document adds the UX layer on top. |
+| `alc/README.md` | **Foundation** — the two Division ALC processes (Planning, Crafting) are the basis for the division-scoped task catalog above; its doctrine that monitoring/rescue/debugging/refactoring are continuous, not sequential operational concerns, is why they appear as always-available branches in the DAG above, not gated phases. |
+| `roles/AGENT_ARCHITECTURE.md` | **Foundation** — the `ai_role` column above names roles from its current 6-role roster (Domain Expert, Architect, DevOps, QA, Reporter, Mentor), not the retired DnA/AnP/TnI/DnO scheme. |
 | `DDD.md` | **Unchanged** — The Dossier Principle still applies. Each task works on a dossier. |
 | `CARTWHEEL.md` | **Unchanged** — CMD/QRY/PRJ departments are internal architecture, not user-facing. |
 
