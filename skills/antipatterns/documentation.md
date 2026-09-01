@@ -71,7 +71,7 @@ mistake above:
 # From a repo root. Excludes CHANGELOG.md; everything else that matches
 # is a document narrating its own history instead of stating fact.
 grep -rniE \
-  '(corrected|revised|fixed) 20[0-9]{2}-[0-9]{2}-[0-9]{2}|first pass|second pass|absorbed 20[0-9]{2}|what changed \(20|used to (say|be)|previously (said|read)' \
+  '(corrected|revised|fixed|reworked|added) 20[0-9]{2}-[0-9]{2}-[0-9]{2}|as of 20[0-9]{2}-[0-9]{2}-[0-9]{2}|added 20[0-9]{2}-[0-9]{2}-[0-9]{2} because|later the same (day|week)|this reverses|first pass|second pass|absorbed 20[0-9]{2}|what changed \(20|used to (say|be)|previously (said|read)' \
   --include='*.md' \
   --exclude='CHANGELOG.md' \
   .
@@ -82,3 +82,22 @@ to `CHANGELOG.md`, or drop it if it was never more than "we changed our
 mind." `PLAN_*.md` files with a `Status:` line tracking phase progress
 (e.g. `PLAN_MACULA_MCP.md`'s "Phase 1 + 2 landed; Phase 3 spec'd") are
 not a violation — that's current state, not a narrated correction.
+
+### A README's own "Status"/"Changelog" section is the same demon at scale
+
+`macula-mcp/README.md` had a `## Status` section that was, functionally,
+a second changelog: version-by-version prose ("v0.5.0 — mesh_hello...,
+2026-08-30", "Dropped in this rework, not carried over...") duplicating
+`CHANGELOG.md` almost line for line, plus inline instances scattered
+through the operational sections above it ("As of 2026-08-31, `mesh_hello`
+already starts...", "Added 2026-08-31 because...", "Later the same day:
+presence stopped requiring `mesh_hello` at all.", "This reverses
+`mesh_watch`'s own earlier design note..."). None of the regex above
+caught it — the mistake didn't repeat its exact phrasing, it repeated
+the *shape*: a dated claim about when/why something changed, sitting in
+a doc a reader consults for current behavior. Grep now covers `reworked
+DATE`, `as of DATE`, `added DATE because`, `later the same day/week`,
+and `this reverses`, but treat that list as a floor, not a ceiling — a
+README `Status` section is worth a manual skim for this shape even when
+the automated check is clean, since a `Status`/`Changelog` heading is
+exactly where a rewritten history feels most natural to leave in place.
