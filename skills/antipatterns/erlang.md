@@ -283,13 +283,13 @@ For SQL DDL (CREATE TABLE), use empty string defaults — the actual emoji value
 
 ---
 
-## 🔥 Demon 60: Hard Binary-Key Matching on Mesh RPC Payloads
+## 🔥 Demon 60: Mesh RPC Payloads Arrive Atom-Keyed AND CBOR-Value-Wrapped
 
-**Date exorcised:** 2026-09-01
-**Where it appeared:** 12+ entry points across `hecate-rag` (`route/2` clauses, every `*_v1.erl` command's `from_map/1`, `search_chunks_semantic`, `list_chunks_by_source`, `list_sources_page`, `maybe_classify_topics`) — `hecate_om_wire.erl`'s own moduledoc names `hecate-dns`/`-git`/`-llm`/`-rag` as the same "zero tolerance" victims
-**Cost:** Most of `hecate-rag`'s mesh RPC surface silently broken for real callers — three failure shapes depending on where the mismatch landed, none of them looking like "this request was well-formed and still failed"
+**Date exorcised:** 2026-09-01 (two-part fix: keys in `hecate_om` 0.19.0, values in 0.20.0 — see "Part 2" below, found live only after the key fix alone still didn't resolve the symptom)
+**Where it appeared:** 12+ entry points across `hecate-rag` (`route/2` clauses, every `*_v1.erl` command's `from_map/1`, `search_chunks_semantic`, `list_chunks_by_source`, `list_sources_page`, `maybe_classify_topics`) — `hecate_om_wire.erl`'s own moduledoc names `hecate-dns`/`-git`/`-llm`/`-rag` as the same "zero tolerance" victims for the key half; the value half lived inside `hecate_om_wire.erl` itself, so it affects every consumer of `field/2,3` project-wide, not just the services named there
+**Cost:** Most of `hecate-rag`'s mesh RPC surface silently broken for real callers, for BOTH reasons simultaneously — three failure shapes for the key mismatch, and a fourth (a correctly-found field that's still the wrong Erlang shape) for the value one — none of them looking like "this request was well-formed and still failed"
 
-### The Lie
+## Part 1: The Key Lie
 
 "The caller sent JSON with string keys, so the payload map I receive will have binary keys — I can pattern-match `#{<<"field">> := V}` directly."
 
@@ -367,18 +367,53 @@ from_map_(Id, Map) ->
     }}.
 ```
 
-A payload's own nested VALUES (e.g. a list of hit-maps the caller round-trips back from a prior response, or a stored chunk's own metadata map read back from the store) are a different, unconfirmed hazard — they weren't touched by this fix. Only TOP-LEVEL keys of the payload macula's decoder itself atomizes are the confirmed, in-scope mechanism here.
+Deploying this fix alone did NOT resolve the live symptom — see Part 2. The reason turned out to be that fixing the key half only gets a caller's field FOUND; it says nothing about what SHAPE the found value is in.
+
+## Part 2: The Value Lie
+
+"Now that `hecate_om_wire:field/2` finds the right key, the value it returns is the plain Erlang term I asked for."
+
+### What Happened
+
+After Part 1 shipped, `get_document_verbatim`/`get_source_by_id`/`get_chunk_by_id` stopped returning `unknown_method` — progress — but started returning `missing_source_path`/`missing_id` instead, even for a real, present field. A temporary diagnostic log (`logger:warning` on the raw payload, then removed once the answer was in hand) showed the actual value:
+
+```erlang
+#{source_path => {text, <<"hecate-corpus/CODEX.md">>}}
+```
+
+The key was exactly right. The VALUE was wrapped in a 2-tuple. Per `macula_record_cbor`'s own documented value representation, a JSON string sent as an RPC arg is encoded as a CBOR text string (major type 3), which decodes to `{text, binary()}` in Erlang — a bare `binary()` is reserved for a CBOR BYTE string (major type 2), a genuinely different wire type CBOR itself distinguishes and Erlang binaries alone cannot. `hecate_om_wire:field/2,3` found the key correctly and returned the tuple unchanged, so every `is_binary/1` guard downstream kept failing — indistinguishable, again, from a missing field. This recurses: a `topics :: [binary()]` field decodes to a list of `{text, _}` tuples, and a `hits :: [map()]` field (a caller round-tripping a prior response's hits back in) decodes to a list of maps whose OWN values need the identical unwrap.
+
+### The Correct Pattern (Part 2)
+
+Fixed inside `hecate_om_wire.erl` itself (`hecate_om` 0.20.0), so every existing `field/2,3` call site gets it automatically — no changes needed at any of the Part 1 call sites:
+
+```erlang
+-spec unwrap(term()) -> term().
+unwrap({text, Bin}) when is_binary(Bin) -> Bin;
+unwrap(null) -> undefined;
+unwrap(List) when is_list(List) -> [unwrap(V) || V <- List];
+unwrap(Map) when is_map(Map) -> maps:map(fun(_K, V) -> unwrap(V) end, Map);
+unwrap(Other) -> Other.
+
+lookup(AtomKey, BinKey, Payload, Default) ->
+    case maps:find(AtomKey, Payload) of
+        {ok, Value} -> unwrap(Value);
+        error -> unwrap(maps:get(BinKey, Payload, Default))
+    end.
+```
 
 ### Why This Happens
 
 1. `from_map/1` *reads* as "decode this map from the wire," so writing it as "the wire always sends binary keys" feels self-evidently true — it's exactly backwards for macula specifically.
-2. The three failure shapes above (`unknown_method`, a believable domain error, a believable "you forgot a field" error) are all indistinguishable from a genuinely different, unrelated bug — none of them look like an argument-decoding problem, so debugging effort gets spent everywhere except the actual mechanism.
-3. `hecate_om_wire.erl` — the fix already existed, ships with `hecate_om`, and its own moduledoc names this exact codebase as a known victim — but nothing forced any of the affected `route/2`/`from_map/1` call sites to actually adopt it. A correct library sitting unused fixes nothing.
-4. A test that reaches a downstream, domain-shaped error looks like a passing test at a glance. `detect_corpus_change_from_map_does_not_silently_lose_a_real_corpus_id_test` — asserting the result is NOT `{error, missing_aggregate_id}` given a real corpus_id — is the shape of test this bug needs; a test that only checks "does this return an error tuple of SOME kind" would pass on both the broken and fixed code.
+2. The four failure shapes across both parts (`unknown_method`, a believable domain error, a believable "you forgot a field" error, and Part 2's "found the key, still says missing") are all indistinguishable from a genuinely different, unrelated bug — none of them look like an argument-decoding problem, so debugging effort gets spent everywhere except the actual mechanism. A multi-hour investigation chased tombstone races, gossip propagation lag, and ADVERTISE-burst rate limits before Part 1 was even found — all plausible, all wrong.
+3. `hecate_om_wire.erl` — the Part 1 fix already existed, shipped with `hecate_om`, and its own moduledoc names this exact codebase as a known victim — but nothing forced any of the affected `route/2`/`from_map/1` call sites to actually adopt it. A correct library sitting unused fixes nothing.
+4. A test that reaches a downstream, domain-shaped error looks like a passing test at a glance. `detect_corpus_change_from_map_does_not_silently_lose_a_real_corpus_id_test` — asserting the result is NOT `{error, missing_aggregate_id}` given a real corpus_id — is the shape of test Part 1 needed; a test that only checks "does this return an error tuple of SOME kind" would pass on both the broken and fixed code.
+5. Verifying Part 1's fix worked "in isolation" (a direct `erl -pa` call, or a unit test hand-constructing an atom-keyed map with plain binary values) proved the LOGIC was correct for the shape it was tested against — but that hand-built shape wasn't the real wire shape. Only a live diagnostic against the actual running system surfaced the `{text, _}` wrapping; no amount of reasoning about the fix from first principles found it, because the fix was reasoning about a payload shape that didn't match what was actually on the wire.
 
 ### The Lesson
 
-> **Any function reading a field out of a payload that arrived over the mesh — `route/2` clauses, every `from_map/1`, every `handle/1` — must use `hecate_om_wire:field/2,3`, never a hard `#{<<"key">> := V}` pattern or `maps:get(<<"key">>, Map, Default)` literal. If `hecate_om_wire.erl`'s own moduledoc names your service, grep your `route/2` and every `from_map/1` for `#{<<"` in a function head — don't wait to find each one live.**
+> **Any function reading a field out of a payload that arrived over the mesh — `route/2` clauses, every `from_map/1`, every `handle/1` — must use `hecate_om_wire:field/2,3` (>= 0.20.0), never a hard `#{<<"key">> := V}` pattern or `maps:get(<<"key">>, Map, Default)` literal. If `hecate_om_wire.erl`'s own moduledoc names your service, grep your `route/2` and every `from_map/1` for `#{<<"` in a function head — don't wait to find each one live.**
+> **A fix that's correct against a hand-constructed test payload is not yet confirmed correct against the real wire shape — when a fix doesn't resolve the live symptom, get a live diagnostic of the ACTUAL payload before revising the theory further. Guessing from documentation and source code alone found Part 1; only reading real bytes off the wire found Part 2.**
 > **When a fresh finding overturns your own recent conclusion mid-investigation, say so plainly and explain the mechanism precisely, rather than quietly folding it in as if it were expected.**
 
 ---

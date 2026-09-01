@@ -74,7 +74,7 @@ stage: reversed
 | **57** | **🔥🔥🔥 The Silent No-Op Edit** | **A scripted replacement whose anchor does not match changes nothing and reports success. Three times in one day: a red-check that was never red, a broken build, and every chart on a live page blank.** | **2026-08-08** |
 | 58 | History Narration in Operational Docs | A PLAN/guide/role file says "corrected 2026-09-01, first pass said X, second pass says Y" instead of just stating Y — and the moment a third pass happens, the narration is stale too, on top of being noise a RAG-fed reader never needed | 2026-09-01 |
 | 59 | Hand-Rolled Mesh Capability Advertising | A service calls `macula_response:advertise_direct` itself instead of declaring the capability in `hecate_om_service:capabilities/0` — library fixes (TTL, `reuse_sup`) never reach the duplicate; hit twice, five months apart, on the same file | 2026-09-01 |
-| 60 | Hard Binary-Key Matching on Mesh RPC Payloads | macula's frame decoder atomizes an inbound payload's keys, so a hard `#{<<"key">> := V}` match or `maps:get(<<"key">>, ...)` literal silently never matches a real caller's payload — 12+ entry points across hecate-rag, three different-looking failure shapes, none of them looking like an argument-decoding bug | 2026-09-01 |
+| 60 | Mesh RPC Payloads Arrive Atom-Keyed AND CBOR-Value-Wrapped | Two compounding hazards, fixed a day apart: macula's frame decoder atomizes an inbound payload's keys (a hard `#{<<"key">> := V}` match silently never matches), AND a CBOR text-string value decodes to `{text, binary()}`, not a bare binary — fixing the keys alone still didn't resolve the live symptom until a diagnostic log found the second one | 2026-09-01 |
 
 ---
 
@@ -127,7 +127,7 @@ Demons #7, #11, #15, #24, #26, #39, **#50**. pg vs mesh, hope acknowledgments, c
 
 ### [antipatterns/erlang.md](erlang.md) — Erlang/OTP Gotchas
 
-Demons #19, #20, #21, #35, #38, **#60**. esqlite3 return types and argument order, eager map defaults, gen_server self-call deadlocks, emoji literals in SQL, and **hard binary-key matching on a mesh RPC payload whose keys arrive as atoms**.
+Demons #19, #20, #21, #35, #38, **#60**. esqlite3 return types and argument order, eager map defaults, gen_server self-call deadlocks, emoji literals in SQL, and **a mesh RPC payload whose keys arrive as atoms AND whose CBOR text-string values arrive wrapped in a `{text, Bin}` tuple**.
 
 ### [antipatterns/release.md](release.md) — Release, Testing & Packaging
 
