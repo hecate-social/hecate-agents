@@ -283,4 +283,104 @@ For SQL DDL (CREATE TABLE), use empty string defaults — the actual emoji value
 
 ---
 
+## 🔥 Demon 60: Hard Binary-Key Matching on Mesh RPC Payloads
+
+**Date exorcised:** 2026-09-01
+**Where it appeared:** 12+ entry points across `hecate-rag` (`route/2` clauses, every `*_v1.erl` command's `from_map/1`, `search_chunks_semantic`, `list_chunks_by_source`, `list_sources_page`, `maybe_classify_topics`) — `hecate_om_wire.erl`'s own moduledoc names `hecate-dns`/`-git`/`-llm`/`-rag` as the same "zero tolerance" victims
+**Cost:** Most of `hecate-rag`'s mesh RPC surface silently broken for real callers — three failure shapes depending on where the mismatch landed, none of them looking like "this request was well-formed and still failed"
+
+### The Lie
+
+"The caller sent JSON with string keys, so the payload map I receive will have binary keys — I can pattern-match `#{<<"field">> := V}` directly."
+
+### What Happened
+
+macula's frame decoder round-trips an inbound RPC payload's keys through `binary_to_existing_atom/1` on the way in. A caller that sends `{"corpus_id": "x"}` over the wire gets it delivered server-side as `#{corpus_id => <<"x">>}` — an **atom**-keyed map — not `#{<<"corpus_id">> => <<"x">>}`. Every handler in `hecate-rag` was written assuming the opposite, and this produced three different-looking failures depending on exactly where the assumption lived:
+
+```erlang
+%% route/2 destructuring the key directly (get_document_verbatim,
+%% get_chunk_by_id, get_source_by_id) -- the clause's OWN pattern fails
+%% to match, Erlang falls through every other clause, and lands on the
+%% generic catch-all:
+route(<<"hecate-rag.get_document_verbatim">>, #{<<"source_path">> := Path}) ->
+    get_document_verbatim:handle(Path);
+...
+route(Other, _P) ->
+    {error, {unknown_method, Other}}.
+%% Result: a real, deployed, correctly-advertised procedure comes back
+%% "unknown_method" -- indistinguishable from a typo'd procedure name
+%% or a station that never learned the route. A multi-hour investigation
+%% chased tombstone races, gossip propagation lag, and ADVERTISE-burst
+%% rate limits before finding this -- all plausible, all wrong, because
+%% the actual symptom (unknown_method) looks EXACTLY like a routing
+%% failure, not an argument-shape failure.
+
+%% A command's from_map/1 destructuring the key one level down
+%% (detect_corpus_change_v1, schedule_reembed_v1, and 7 others) --
+%% route/2 itself matches fine (it just passes the whole map through),
+%% but the command's own hard pattern fails and falls through to ITS
+%% catch-all:
+from_map(#{<<"corpus_id">> := Id} = Map) -> {ok, #detect_corpus_change_v1{...}};
+from_map(_) -> {error, missing_aggregate_id}.
+%% Result: a call with a genuinely present, correctly-typed corpus_id
+%% comes back "missing_aggregate_id" -- a BELIEVABLE, domain-sounding
+%% validation error that is not what actually happened. This is the
+%% dangerous one: it doesn't crash, doesn't route-fail, just quietly
+%% tells the caller they forgot a field they didn't forget. A live test
+%% that "successfully" reached this exact error was wrongly read as
+%% proof the call worked, sending the same investigation down a wrong
+%% path for over an hour before the real mechanism was found.
+
+%% search_chunks_semantic's dual-shape dispatch -- neither shape
+%% matches, falls through to the map-shaped catch-all:
+handle(#{<<"query_vector">> := V} = P) when is_list(V) -> ...;
+handle(#{<<"query_text">> := T} = P) when is_binary(T) -> ...;
+handle(Params) when is_map(Params) -> {error, query_text_or_vector_required}.
+%% Result: a caller who DID supply query_text gets told they supplied
+%% neither query_text nor query_vector.
+```
+
+### The Correct Pattern
+
+Use `hecate_om_wire:field/2,3` (ships with `hecate_om`) everywhere a payload's own field is read — it tries the atom form first, then the binary form, so it's correct for BOTH a mesh-delivered (atom-keyed) payload and an HTTP/jsx-decoded (binary-keyed only) payload hitting the same code path:
+
+```erlang
+%% route/2 -- pass the whole map through instead of destructuring in
+%% the clause head, and look the field up where it's actually needed:
+route(<<"hecate-rag.get_document_verbatim">>, P) ->
+    get_document_verbatim:handle(hecate_om_wire:field(<<"source_path">>, P));
+
+%% from_map/1 -- dispatch on the field's presence via a second function
+%% clause (idiomatic, no case/if) instead of pattern-matching it in the
+%% head:
+from_map(Map) when is_map(Map) ->
+    from_map_(hecate_om_wire:field(<<"corpus_id">>, Map), Map);
+from_map(_) ->
+    {error, missing_aggregate_id}.
+
+from_map_(undefined, _Map) -> {error, missing_aggregate_id};
+from_map_(Id, Map) ->
+    {ok, #detect_corpus_change_v1{
+        corpus_id = Id,
+        source_path = hecate_om_wire:field(<<"source_path">>, Map),
+        ...
+    }}.
+```
+
+A payload's own nested VALUES (e.g. a list of hit-maps the caller round-trips back from a prior response, or a stored chunk's own metadata map read back from the store) are a different, unconfirmed hazard — they weren't touched by this fix. Only TOP-LEVEL keys of the payload macula's decoder itself atomizes are the confirmed, in-scope mechanism here.
+
+### Why This Happens
+
+1. `from_map/1` *reads* as "decode this map from the wire," so writing it as "the wire always sends binary keys" feels self-evidently true — it's exactly backwards for macula specifically.
+2. The three failure shapes above (`unknown_method`, a believable domain error, a believable "you forgot a field" error) are all indistinguishable from a genuinely different, unrelated bug — none of them look like an argument-decoding problem, so debugging effort gets spent everywhere except the actual mechanism.
+3. `hecate_om_wire.erl` — the fix already existed, ships with `hecate_om`, and its own moduledoc names this exact codebase as a known victim — but nothing forced any of the affected `route/2`/`from_map/1` call sites to actually adopt it. A correct library sitting unused fixes nothing.
+4. A test that reaches a downstream, domain-shaped error looks like a passing test at a glance. `detect_corpus_change_from_map_does_not_silently_lose_a_real_corpus_id_test` — asserting the result is NOT `{error, missing_aggregate_id}` given a real corpus_id — is the shape of test this bug needs; a test that only checks "does this return an error tuple of SOME kind" would pass on both the broken and fixed code.
+
+### The Lesson
+
+> **Any function reading a field out of a payload that arrived over the mesh — `route/2` clauses, every `from_map/1`, every `handle/1` — must use `hecate_om_wire:field/2,3`, never a hard `#{<<"key">> := V}` pattern or `maps:get(<<"key">>, Map, Default)` literal. If `hecate_om_wire.erl`'s own moduledoc names your service, grep your `route/2` and every `from_map/1` for `#{<<"` in a function head — don't wait to find each one live.**
+> **When a fresh finding overturns your own recent conclusion mid-investigation, say so plainly and explain the mechanism precisely, rather than quietly folding it in as if it were expected.**
+
+---
+
 *We burned these demons so you don't have to. Keep the fire going.*
