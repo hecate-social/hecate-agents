@@ -213,12 +213,11 @@ to_map(#capability_announced_v1{} = E) ->
 Events are persisted to the event log:
 
 ```erlang
-%% Persisting events (handled by reckon_evoq)
-persist_events(StreamId, Events) ->
-    lists:foreach(fun(Event) ->
-        EventMap = event_module(Event):to_map(Event),
-        reckon_evoq:append(StreamId, EventMap)
-    end, Events).
+%% Persisting events is evoq's job, not the handler's: evoq_router runs the
+%% aggregate's execute/2 and appends the returned events through the
+%% configured adapter (evoq_event_store:append/4 -> reckon_evoq_adapter:append/4).
+{ok, Version, Events} = evoq_router:dispatch(
+    evoq_command:new(CommandType, AggregateMod, StreamId, Payload)).
 ```
 
 The event log is:

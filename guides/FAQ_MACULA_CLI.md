@@ -273,4 +273,10 @@ you can reproduce it reliably enough to isolate.
   the complete command/flag reference this FAQ entry summarizes, with
   example output for every command
 - [FAQ: How do I run macula-mcp?](FAQ_MACULA_MCP.md) — the MCP server built on this CLI
+- [FAQ: How do I debug a service that won't show up on the mesh?](FAQ_DEBUG_MESH_DISCOVERY.md) —
+  the `unknown_next_peer` question this page's worked example runs into, covered in depth
+- [FAQ: How do I authorize a procedure or topic with UCAN?](FAQ_AUTHORIZE_WITH_UCAN.md) —
+  the fuller walkthrough behind `ucan mint`/`ucan inspect`
+- [FAQ: How do I share content (files/blobs) over the mesh?](FAQ_SHARE_CONTENT.md) —
+  the fuller walkthrough behind `content put`/`get`/`probe`
 - [FAQ: How do I join the Mesh?](FAQ_JOIN_THE_MESH.md) — running your own station, not just a client

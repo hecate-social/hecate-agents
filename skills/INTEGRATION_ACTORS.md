@@ -183,7 +183,7 @@ request(Hope, Opts) ->
     Payload = discover_venture_hope_v1:to_payload(Hope),
     case hecate_mesh:call(<<"hecate.domain.discover">>, Payload, Opts) of
         {ok, FeedbackPayload} ->
-            evoq_feedback:from_payload(FeedbackPayload);
+            discover_venture_feedback_v1:to_result(FeedbackPayload);   %% the evoq_feedback module
         {error, Reason} ->
             {error, Reason}
     end.
@@ -208,7 +208,7 @@ handle_hope(HopeType, Payload, Metadata) ->
     case discover_venture_hope_v1:from_payload(Payload) of
         {ok, Hope} ->
             Cmd = build_command(Hope),
-            case evoq_dispatcher:dispatch_with_state(Cmd) of
+            case evoq_command_router:dispatch_with_state(Cmd, #{}) of
                 {ok, _Version, _Events, State} ->
                     {ok, State};
                 {error, Reason} ->
@@ -261,7 +261,7 @@ Use State directly
 
 ### Implementation in evoq
 
-Session-level consistency requires `evoq_dispatcher:dispatch_with_state/1` -- an additive API that returns `{ok, Version, Events, State}` instead of just `{ok, Version, Events}`. The aggregate state after applying all new events is included in the response.
+Session-level consistency requires `evoq_command_router:dispatch_with_state/2` -- an additive API that returns `{ok, Version, Events, State}` instead of `evoq_router:dispatch/1,2`'s `{ok, Version, Events}`. The aggregate state after applying all new events is included in the response.
 
 ---
 

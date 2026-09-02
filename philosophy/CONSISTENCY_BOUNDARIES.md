@@ -174,7 +174,7 @@ See [`../examples/DCB_COUNTER.md`](../examples/DCB_COUNTER.md) for the canonical
 
 **BEAM layer** (Erlang/Elixir callers):
 
-| Repo | Version | What it ships |
+| Repo | Shipped in | What it ships |
 |------|---------|---------------|
 | reckon-gater | 3.2.0 | `tag_filter()` + `seq_cutoff()` types, `append_if_no_tag_matches/4` wire verb; `stream_id:parts/1`; `read_by_metadata/3` client API |
 | reckon-db | 5.0.0 | DCB Khepri-transaction primitive + `/by_tag/{tag}/{seq}` index + HMAC chain; **Model C** structural stream layout (`[streams, Type, Id, Version]`); generic **opt-in secondary index** (`{meta,K}` / `tags` / `event_type`) + `read_by_metadata/3`; transactional append |
@@ -183,7 +183,7 @@ See [`../examples/DCB_COUNTER.md`](../examples/DCB_COUNTER.md) for the canonical
 
 **Polyglot layer** (Go, .NET, Rust, Python over gRPC):
 
-| Repo | Version | What it ships |
+| Repo | Shipped in | What it ships |
 |------|---------|---------------|
 | reckon-proto | 0.6.1 | `DcbService` proto + recursive `TagFilter` oneof; `StreamService.ReadByMetadata` RPC; reserved metadata-key contract (`causation_id`/`correlation_id`/`conversation_id`) |
 | reckon-gateway | 0.9.0 | `DcbService` handler (→ `reckon_gater_api:append_if_no_tag_matches/4`); `ReadByMetadata` handler; `RECKON_GATEWAY_STORE_INDEXES` env for embedded-store index declaration |
@@ -191,12 +191,13 @@ See [`../examples/DCB_COUNTER.md`](../examples/DCB_COUNTER.md) for the canonical
 
 **Operator tooling**:
 
-| Repo | Version | What it ships |
+| Repo | Shipped in | What it ships |
 |------|---------|---------------|
 | reckon-lazy | (current main) | `DCB` badge next to the `_dcb` pseudo-stream in the TUI's streams mode (unchanged — no lineage/index work; still tracks reckon-go v0.4.0) |
 
-> **Versions updated 2026-06-09.** The table advanced from the original DCB
-> stack (2026-05-27) to the current shipped stack. On top of DCB, reckon-db
+> **"Shipped in" is the release each capability first appeared in**, not the
+> newest release — hex.pm and each repo's git tags are the authority for
+> current versions. On top of DCB, reckon-db
 > 5.0.0 adds the Model C structural stream layout and a generic opt-in secondary
 > index, surfaced cross-language as `read_by_metadata` (reckon-proto 0.6.1 →
 > gateway 0.9.0 → reckon-go 0.6.0) and as the `evoq_lineage`
@@ -234,7 +235,7 @@ None of these block normal Decision use — they're flagged so callers know the 
 - [HECATE_DOMAIN_LIFECYCLE.md](HECATE_DOMAIN_LIFECYCLE.md) — the venture-level process model.
 - [COMMAND_PIPELINES.md](COMMAND_PIPELINES.md) — the structural cure for Demon 41; the mechanism that handles cross-entity decisions without leaving the Dossier model.
 - [../skills/antipatterns/event_sourcing.md](../skills/antipatterns/event_sourcing.md) — Demon 41 (reading from read models during event flow).
-- External: [PLAN_FUTURE_RESEARCH.md in reckon-db](https://codeberg.org/reckon-db-org/reckon-db/src/branch/main/plans/PLAN_FUTURE_RESEARCH.md) — the technical research that grounds this doctrine.
+- External: [PLAN_FUTURE_RESEARCH.md in reckon-db](https://github.com/reckon-db-org/reckon-db/blob/main/plans/PLAN_FUTURE_RESEARCH.md) — the technical research that grounds this doctrine.
 - External: Rico Fritzsche, [Aggregateless Event Sourcing](https://ricofritzsche.me/aggregateless-event-sourcing/) and [FACTSTR](https://factstr.com/).
 - External: Sara Pellegrini, [dcb.events](https://dcb.events/), [event-thinking.io](https://sara.event-thinking.io/).
 

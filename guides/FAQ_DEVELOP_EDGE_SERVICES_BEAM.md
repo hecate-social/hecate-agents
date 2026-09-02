@@ -20,7 +20,7 @@ There are two starting points, and which one you want depends on what
 you're building:
 
 - **Raw `macula` SDK** ([`macula-io/macula`](https://github.com/macula-io/macula),
-  Erlang, 64 modules) — the low-level primitives: connect, publish,
+  Erlang, 96 modules at 10.17.0) — the low-level primitives: connect, publish,
   subscribe, advertise, call. Use this for a standalone tool or a small
   daemon that only needs one or two mesh operations.
 - **`hecate_om_service` behaviour** (`hecate-services/hecate-om`) — the
@@ -41,6 +41,35 @@ design (see this workspace's own "no Elixir wrappers" rule: call Erlang
 directly with `:module.function()` / `module:function()` syntax).
 
 ---
+
+## Install: `macula` is a real, published Hex package
+
+**`macula`** is published on [hex.pm](https://hex.pm/packages/macula) —
+current version **10.17.0** — not something you pull via a git
+dependency. Depend on it with a loose `~>` constraint (this workspace's
+own convention — exact pins block coordinated library updates), the same
+shape every real consumer in this workspace uses:
+
+```erlang
+%% rebar.config
+{deps, [
+    {macula, "~> 10.0"}
+]}.
+```
+
+```elixir
+# mix.exs
+defp deps do
+  [
+    {:macula, "~> 10.1"}
+  ]
+end
+```
+
+Docs: [`macula.hexdocs.pm`](https://macula.hexdocs.pm/). The polyglot
+ports (`macula-go`, `macula-rust`, `macula-dotnet`, `macula-php`) are
+separate, much younger packages on their own 0.x version lines — don't
+confuse this Erlang package's 10.x maturity with theirs.
 
 ## Erlang — raw SDK
 
@@ -236,4 +265,6 @@ with.
 - [FAQ: Developing Edge Services in C#/F# (.NET)](FAQ_DEVELOP_EDGE_SERVICES_DOTNET.md)
 - [FAQ: Developing Edge Services in PHP](FAQ_DEVELOP_EDGE_SERVICES_PHP.md)
 - [FAQ: How do I deploy my own hecate service?](FAQ_DEPLOY_HECATE_SERVICES.md)
+- [FAQ: How do I add event sourcing to a new hecate service?](FAQ_ADD_EVENT_SOURCING.md) — the CMD department, once a raw `hecate_om_service` scaffold isn't enough
+- [FAQ: How do I authorize a procedure or topic with UCAN?](FAQ_AUTHORIZE_WITH_UCAN.md) — gating a served procedure, including the Erlang reference implementation
 - [`skills/antipatterns/structure.md`, Demon 59](../skills/antipatterns/structure.md) — why `hecate_om_service.capabilities/0` beats hand-rolling mesh advertisement

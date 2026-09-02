@@ -113,8 +113,8 @@ To understand current state, read the dossier front-to-back:
 
 ```erlang
 %% Not "applying mutations" — just reading slips
-get_current_status(DossierId) ->
-    Slips = reckon_evoq:read_stream(DossierId),
+get_current_status(StoreId, DossierId) ->
+    {ok, Slips} = evoq_event_store:read_all(StoreId, DossierId, forward),
     lists:foldl(fun interpret_slip/2, #{}, Slips).
 
 interpret_slip(#capability_announced_v1{}, Acc) ->

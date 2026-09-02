@@ -44,7 +44,7 @@ PMs are sibling slices in the target CMD app (see [PROCESS_MANAGERS.md](../../..
 apps/{cmd_app}/src/
 └── on_{src_event}_{action}_{target}/
     ├── on_{src_event}_{action}_{target}_sup.erl
-    ├── on_{src_event}_{action}_{target}.erl           # gen_server: pg + dispatch
+    ├── on_{src_event}_{action}_{target}.erl           # evoq_event_handler: pipeline + dispatch
     ├── on_{src_event}_{action}_{target}_pipeline.erl  # ← PIPELINE
     └── steps/
         └── ...
@@ -74,7 +74,9 @@ A step belongs in a shared lib once at least two slices use it without modificat
 %%% provenance to ctx metadata.
 %%% @end
 -module(enrich_with_permit_status).
--behaviour(evoq_pipeline_step).
+%% Implements the step contract (name/0, apply/2, failure_mode/0). An
+%% `evoq_pipeline_step' behaviour is proposed, not shipped -- declaring
+%% declaring it as a behaviour today only earns a compiler warning.
 
 -export([name/0, apply/2, failure_mode/0]).
 
@@ -129,7 +131,8 @@ put_meta(Ctx, Key, Value) ->
 %%% Enrichment runs before validation that depends on it.
 %%% @end
 -module(record_exit_pipeline).
--behaviour(evoq_pipeline).
+%% Implements the pipeline contract (steps/0). `evoq_pipeline' is
+%% proposed, not shipped -- see "Bootstrap Helpers" below.
 
 -export([steps/0]).
 
@@ -160,7 +163,7 @@ handle_call({record_exit, Payload}, _From, State) ->
                 command_id  => maps:get(command_id, Payload),
                 received_at => erlang:system_time(millisecond)
             },
-            case evoq_pipeline:run(record_exit_pipeline, Cmd, InitCtx) of
+            case pipeline_runner:run(record_exit_pipeline, Cmd, InitCtx) of
                 {ok, EnrichedCmd, FinalCtx} ->
                     Reply = maybe_record_exit:dispatch(EnrichedCmd, FinalCtx),
                     {reply, Reply, State};
@@ -183,30 +186,41 @@ handle_call({record_exit, Payload}, _From, State) ->
 
 ```erlang
 %%% on_parking_card_read_authorize_egress.erl
+-module(on_parking_card_read_authorize_egress).
+-behaviour(evoq_event_handler).
+-export([interested_in/0, init/1, handle_event/4]).
 
-handle_info({evoq_event, #{event_data := EventData, event_id := EventId}}, State) ->
-    spawn(fun() -> run_pipeline_and_dispatch(EventData, EventId) end),
-    {noreply, State}.
+interested_in() -> [<<"parking_card_read_v1">>].
 
-run_pipeline_and_dispatch(EventData, TriggerEventId) ->
+init(_Config) -> {ok, #{}}.
+
+%% The stored envelope is #{event_type, data, metadata, ...}; business
+%% fields live under `data' (Demon 40).
+handle_event(_EventType, #{data := EventData} = Event, _Metadata, State) ->
     Cmd = derive_command_from_event(EventData),
     InitCtx = #{
-        triggered_by => TriggerEventId,
-        source       => pg,
+        triggered_by => maps:get(event_id, Event, undefined),
+        source       => evoq,
         received_at  => erlang:system_time(millisecond)
     },
-    case evoq_pipeline:run(authorize_egress_pipeline, Cmd, InitCtx) of
+    case pipeline_runner:run(authorize_egress_pipeline, Cmd, InitCtx) of
         {ok, EnrichedCmd, _Ctx} ->
-            maybe_authorize_egress:dispatch(EnrichedCmd);
+            dispatched(maybe_authorize_egress:dispatch(EnrichedCmd));
         {halt, _} ->
             ok;   %% already processed, drop
         {error, Reason, FailedStep} ->
             ?LOG_INFO("[on_card_read] pipeline failed at ~s: ~p",
                       [FailedStep, Reason])
-    end.
+    end,
+    {ok, State}.
+
+%% Never discard a dispatch result -- it is the only error channel (Demon 49).
+dispatched({ok, _Version, _Events}) -> ok;
+dispatched({error, Reason}) ->
+    ?LOG_WARNING("[on_card_read] dispatch failed: ~p", [Reason]).
 ```
 
-The PM gen_server stays small — it `pg:join`s in `init/1` and spawns a worker per event. The worker runs the pipeline so the gen_server mailbox keeps draining under load.
+The PM module stays small — `evoq_event_handler:start_link/2` in the slice's supervisor does the subscription, and the pipeline does the work. (`pg:join` plus a hand-rolled gen_server is the older shape; every shipped PM in this workspace is an `evoq_event_handler` — see `guides/FAQ_WIRE_A_PROCESS_MANAGER.md`.)
 
 ---
 

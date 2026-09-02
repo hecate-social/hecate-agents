@@ -18,13 +18,13 @@ beside the engineering.
 
 | layer | thing | version | what it actually gives |
 |---|---|---|---|
-| substrate | `macula` SDK | 7.1.0 | realm-scoped pub/sub, unary RPC, streaming RPC, signed DHT records, content blobs, OTP dist over the mesh |
-| substrate | `macula-station` | 0.1.0, 9-station fleet | routing, SWIM, Kademlia, bloom-filter fan-out, single advertiser per `(realm, procedure)` |
-| substrate | `macula-realm` | 0.4.0 | realm authority, certs, membership endorsement |
-| scaffold | `hecate_om` | 0.9.0 | one behaviour, one `boot/1`, identity, capabilities, `/health`, reckon-db store wiring, `rebar3 new hecate_service` |
-| engine | `faber_tweann` | 2.0.1 | `network_evaluator` (the useful part), `sep_cma_es`, `mu_lambda_es`, CfC, plasticity, Rust NIFs, `network_onnx` |
-| store | reckon-db + evoq + reckon-evoq | 5.9 / 1.23 / 2.7 | per-service local event store, streams, snapshots |
-| worked example | `hecate-dronex` | 5 islands live | the whole method, running |
+| substrate | `macula` SDK | 10.17.0 | realm-scoped pub/sub, unary RPC, streaming RPC, signed DHT records, content blobs, OTP dist over the mesh |
+| substrate | `macula-station` | `:main` image (no version tag published yet), 7-station fleet | routing, SWIM, Kademlia, bloom-filter fan-out, single advertiser per `(realm, procedure)` |
+| substrate | `macula-portal` (the repo formerly named `macula-realm`) | 0.4.0 | realm authority, certs, membership endorsement |
+| scaffold | `hecate_om` | 0.23.0 | one behaviour, one `boot/1`, identity, capabilities, `/health`, reckon-db store wiring, `rebar3 new hecate_service` |
+| engine | `faber_tweann` | 2.4.0 | `network_evaluator` (the useful part), `sep_cma_es`, `mu_lambda_es`, CfC, plasticity, Rust NIFs, `network_onnx` |
+| store | reckon-db + evoq + reckon-evoq | 5.11 / 1.23 / 2.7 | per-service local event store, streams, snapshots |
+| worked example | `hecate-dronex` | paused fleet-wide (it starved the resident minds sharing its boxes); code intact | the whole method, as run |
 | exhibit | `beam-campus-net` | live | read models, `/research/workbench/dronex` |
 
 **Two corrections to what people believe about this stack, both load-bearing.**

@@ -55,38 +55,36 @@ Stream: reputation-did:macula:agent123
 The Projector subscribes to event streams and receives events in order:
 
 ```erlang
-%% query_capabilities_subscriber.erl
+%% query_capabilities_subscriber.erl -- an evoq_event_handler; evoq does
+%% the subscribing and the checkpointing, this module only names the
+%% event types and processes them. Started by the owning supervisor as
+%% {evoq_event_handler, start_link, [query_capabilities_subscriber, #{}]}.
 -module(query_capabilities_subscriber).
--behaviour(gen_server).
+-behaviour(evoq_event_handler).
 
-start_link() ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+-export([interested_in/0, init/1, handle_event/4]).
 
-init([]) ->
-    %% Subscribe to all capability events
-    {ok, Subscription} = reckon_evoq:subscribe(
-        #{stream_prefix => <<"capability-">>}
-    ),
-    {ok, #{subscription => Subscription, position => 0}}.
+interested_in() ->
+    [<<"capability_announced_v1">>, <<"capability_revoked_v1">>].
 
-handle_info({event, Event, Position}, State) ->
-    %% Process event
+init(_Config) ->
+    {ok, #{}}.
+
+handle_event(_EventType, Event, _Metadata, State) ->
     ok = process_event(Event),
-
-    %% Checkpoint position (for restart recovery)
-    ok = checkpoint(Position),
-
-    {noreply, State#{position => Position}}.
+    %% Returning {ok, State} IS the checkpoint -- no manual ack.
+    {ok, State}.
 ```
 
-**Key Pattern**: Projectors track their position in the event stream. If they crash and restart, they resume from the last checkpoint.
+**Key Pattern**: the handler's checkpoint advances only when `handle_event/4` returns `{ok, State}`. If it crashes and restarts, evoq resumes it from the last checkpointed event.
 
 ### 3. Projector
 
 The Projector receives events and routes them to appropriate handlers:
 
 ```erlang
-process_event(#evoq_event{event_type = Type, data = Data} = Event) ->
+%% The stored envelope is a map: #{event_type, data, metadata, ...}
+process_event(#{event_type := Type} = Event) ->
     case Type of
         <<"capability_announced_v1">> ->
             capability_announced_v1_to_capabilities:project(Event);
@@ -215,29 +213,31 @@ Emitter:            EVENT → transform → MESH/NATS/KAFKA
 The pattern is identical — the only difference is the destination:
 
 ```erlang
-%% capability_announced_v1_emitter.erl
+%% capability_announced_v1_to_mesh.erl
 %% This IS a projection — it just writes to the mesh instead of SQLite
--module(capability_announced_v1_emitter).
--behaviour(gen_server).
+-module(capability_announced_v1_to_mesh).
+-behaviour(evoq_event_handler).
 
-init([]) ->
-    %% Subscribe to event stream (same as any projection)
-    {ok, Sub} = reckon_evoq:subscribe(#{
-        stream_prefix => <<"capability-">>,
-        event_types => [<<"capability_announced_v1">>]
-    }),
-    {ok, #{subscription => Sub}}.
+-export([interested_in/0, init/1, handle_event/4]).
 
-handle_info({event, #evoq_event{data = EventData} = Event}, State) ->
+interested_in() -> [<<"capability_announced_v1">>].
+
+init(_Config) -> {ok, #{}}.
+
+%% Business fields live under `data' in the stored envelope (Demon 40).
+handle_event(_EventType, #{data := EventData}, _Metadata, State) ->
     %% Transform EVENT to FACT (different structure!)
     Fact = event_to_fact(EventData),
 
-    %% "Project" to mesh instead of database
-    hecate_mesh:publish(<<"hecate.capability.available">>, Fact),
+    %% "Project" to mesh instead of database -- hecate_om owns the pool
+    %% and realm, macula_publisher supervises the publish (see
+    %% skills/codegen/erlang/CODEGEN_ERLANG_TEMPLATES.md, {event}_to_mesh).
+    {ok, Pool, Realm} = hecate_om:mesh_handles(),
+    {ok, _} = macula_publisher:start_link(?MODULE, Pool, Realm,
+                                          <<"capability/available">>, Fact),
 
-    %% Acknowledge (same as any projection)
-    reckon_evoq:ack(Event),
-    {noreply, State}.
+    %% No manual ack: returning {ok, State} checkpoints the event.
+    {ok, State}.
 
 %% The FACT is a PUBLIC CONTRACT, different from internal EVENT
 event_to_fact(#{capability_mri := MRI, agent_identity := Agent, description := Desc}) ->
@@ -468,16 +468,9 @@ rebuild() ->
     %% 1. Clear the read model table
     query_capabilities_store:truncate(),
 
-    %% 2. Reset checkpoint to beginning
-    checkpoint:reset(capabilities_projector),
-
-    %% 3. Replay all events
-    reckon_evoq:replay(
-        #{stream_prefix => <<"capability-">>},
-        fun(Event) ->
-            query_capabilities_subscriber:process_event(Event)
-        end
-    ).
+    %% 2+3. Reset the checkpoint and replay every event through the
+    %%      projection -- evoq_projection:rebuild/1 does both
+    ok = evoq_projection:rebuild(capabilities_projector).
 ```
 
 **When to rebuild**:

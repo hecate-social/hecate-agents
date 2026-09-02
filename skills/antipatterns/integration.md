@@ -622,7 +622,7 @@ It looks reasonable until you list what's wrong with it.
        │                        async, retries forever)
        │                                    │
        ▼                                    ▼
-  macula-station (local)  ◄────────── macula:publish/3
+  macula-station (local)  ◄────────── macula:publish/4
        │
        ▼
   Macula relay mesh
@@ -640,10 +640,10 @@ It looks reasonable until you list what's wrong with it.
 
 ### Worked Example: venus-macula → hecate-victron (2026-05-28)
 
-A first-draft `codeberg.org/macula-io/venus-macula` repo
+A first-draft `venus-macula` repo (since deleted)
 followed the wrong pattern: Python sidecar POSTing to the local
 `hecate-daemon`'s `/api/mesh/publish`. It was deleted within a
-day and refrained as `codeberg.org/hecate-services/hecate-victron`
+day and refrained as `github.com/hecate-services/hecate-victron`
 following this antipattern's correct pattern. Three reasons made
 the switch immediately worth it:
 

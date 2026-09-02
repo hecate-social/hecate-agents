@@ -134,6 +134,7 @@ The ones worth knowing up front:
 | `MACULA_MCP_VERSION` | Pin the installer to a specific package version instead of latest. | latest |
 | `MACULA_MCP_SKIP_CLI_INSTALL` | Don't touch `macula-cli` at all — use if you manage its version yourself. | unset |
 | `MACULA_MCP_SKIP_CONFIGURE` | Install the package but don't register with any client. | unset |
+| `MACULA_MCP_PORTAL_URL` | The portal `mesh_join_realm` creates its join session at. | `https://macula.io` |
 | `MACULA_MCP_IDENTITY` / `MACULA_MCP_WATCH_IDENTITY` / `MACULA_MCP_PRESENCE_IDENTITY` / `MACULA_MCP_SERVE_IDENTITY` / `MACULA_MCP_OBSERVE_IDENTITY` | Pin each of these five separate identities to a fixed file instead of a fresh temp one per process. Kept separate from each other on purpose — collisions between them are the failure mode this avoids. | fresh temp file per process, deleted on exit |
 
 ## What it actually exposes
@@ -150,6 +151,7 @@ One line each; the README has the full table with every parameter:
 | `mesh_publish` / `mesh_watch` | Pub/sub: emit a fact to a topic / watch a topic for up to 3600s. |
 | `mesh_open_lobby_session` / `mesh_send_chat` | Pairing and ad-hoc agent-to-agent chat. |
 | `mesh_hello` / `mesh_agents` / `mesh_read_inbox` / `mesh_goodbye` | Presence: announce yourself, see who else is around, read your inbox, leave deliberately. |
+| `mesh_join_realm` | Bind this agent's identity to a person's account through the portal (`MACULA_MCP_PORTAL_URL`, default `https://macula.io`): opens a join session and hands back the approval link + QR; the resulting realm shows under `mesh://identity`. |
 | `mesh_serve` / `mesh_unserve` | Advertise a procedure answered by a local shell command — a standing inbound trigger. |
 | `mesh_observe_lobby` / `mesh_lobby_transcript` / `mesh_unobserve_lobby` | Standing read-only watch over the public lobby, with a queryable transcript. |
 

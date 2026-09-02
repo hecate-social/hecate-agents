@@ -88,7 +88,8 @@ A pipeline is a module that declares its steps in order:
 
 ```erlang
 -module(record_exit_pipeline).
--behaviour(evoq_pipeline).
+%% Implements the pipeline contract (steps/0); `evoq_pipeline' is
+%% proposed, not shipped -- see "Future: evoq Behaviour Support" below.
 
 -export([steps/0]).
 
@@ -176,7 +177,7 @@ PM gen_server (in its sibling slice — see PROCESS_MANAGERS.md)
 Dispatch to target aggregate
 ```
 
-The PM module stays thin — it `pg:join`s in `init/1` and runs `evoq_pipeline:run(PipelineMod, Cmd, Ctx)` on each event. All the cross-domain work lives in the pipeline. See [PROCESS_MANAGERS.md](PROCESS_MANAGERS.md) for the PM slice structure.
+The PM module stays thin — it implements `evoq_event_handler` (`interested_in/0` + `handle_event/4`) and runs the pipeline runner on each event (`pipeline_runner:run/3` today; `evoq_pipeline:run/3` is proposed, not shipped — see below). All the cross-domain work lives in the pipeline. See [PROCESS_MANAGERS.md](PROCESS_MANAGERS.md) for the PM slice structure.
 
 This collapses two patterns into one. There is no separate "PM with enrichment logic" pattern — there is just "pipeline, with HOPE-driven or event-driven entry."
 

@@ -77,7 +77,7 @@ services:
     environment:
       - HECATE_REALM=${HECATE_REALM:?set HECATE_REALM}
       - TURN_SHARED_SECRET=${TURN_SHARED_SECRET:?set TURN_SHARED_SECRET}
-      - MACULA_STATION_SEEDS=${MACULA_STATION_SEEDS:-https://station-de-frankfurt.macula.io:4433}
+      - MACULA_STATION_SEEDS=${MACULA_STATION_SEEDS:-https://station-de-frankfurt.macula.io:4433,https://station-de-nuremberg.macula.io:4433,https://station-de-falkenstein.macula.io:4433}
       - HECATE_HEALTH_PORT=${HECATE_HEALTH_PORT:-8494}
 ```
 ⚠ Always run this with an explicit project name
@@ -147,28 +147,22 @@ WantedBy=default.target
 `AutoUpdate=registry` is Podman's own native mechanism (driven by
 `podman-auto-update.timer`) — no watchtower needed or wanted.
 
-⚠ **Two things worth verifying before you rely on them, found live and
-in tension with each other during this FAQ's own research:**
+**How a unit gets installed on msi00.lab:** `hecate-reconciler.service`
+(a `systemd --user` unit) watches `~/.hecate/gitops/apps/` and symlinks
+each `.container` file it finds into `~/.config/containers/systemd/`.
+`hecate-whiteboard`, `hecate-graph` and `hecate-spartan` are installed
+that way; `hecate-embedder` is a plain file dropped into the systemd
+directory by hand. Either way the unit ends up in the same directory and
+`systemctl --user daemon-reload && systemctl --user start <name>` brings
+it up.
 
-- This unit's own comment states the actual install path is via
-  "`hecate-reconciler.service`, which watches `~/.hecate/gitops/apps/`
-  locally and symlinks into `~/.config/containers/systemd/`" — and dates
-  that as confirmed with the operator on 2026-08-25, explicitly
-  superseding an older "temporarily obsolete" characterization.
-- Separately, other guidance in this workspace still describes
-  `~/.hecate/gitops/` and its reconciler as abandoned/parked leftovers
-  of an earlier, different plan, and says not to build on them.
-
-Both can't be current at once. Confirm with whoever owns msi00.lab which
-is actually true before following either — this FAQ deliberately isn't
-resolving it for you.
-
-Also unverified in this pass (flagging rather than asserting): whether
-`podman-auto-update.timer`'s cadence has actually been dropped to 5
-minutes via a `cadence.conf` override, or still runs on the package
-default (`OnCalendar=daily`). Check the live timer
-(`systemctl --user list-timers podman-auto-update.timer` on the box
-itself) if the deploy's timing matters to you.
+**How fast a new image lands:** `podman-auto-update.timer` fires every
+five minutes, not the package default of daily. A drop-in at
+`~/.config/systemd/user/podman-auto-update.timer.d/cadence.conf` resets
+`OnCalendar=` and then sets `OnCalendar=*:0/5` — the empty reset line is
+load-bearing, since systemd accumulates timer settings across drop-ins
+rather than replacing them. `systemctl --user list-timers
+podman-auto-update.timer` on the box shows the five-minute cadence.
 
 ## 5. Verify it's actually running and healthy
 
@@ -194,4 +188,6 @@ tool.
 ## See also
 
 - [FAQ: Developing Edge Services in BEAM Languages](FAQ_DEVELOP_EDGE_SERVICES_BEAM.md)
+- [FAQ: How do I add event sourcing to a new hecate service?](FAQ_ADD_EVENT_SOURCING.md) — what the scaffold's `store=1` option actually turns on
 - [FAQ: How do I join the Mesh?](FAQ_JOIN_THE_MESH.md) — running a station, not a service
+- [FAQ: How do I join a realm and get my service an identity/certificate?](FAQ_JOIN_A_REALM.md) — where the cert this page mounts into the container actually comes from

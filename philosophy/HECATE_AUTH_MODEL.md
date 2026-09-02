@@ -78,7 +78,7 @@ the narrowest scope in the chain, not just the caller's immediate token.
 
 The identity layer already exists: first run mints a puzzle-hardened
 Ed25519 keypair, persisted and reused (`internal/identitystore`,
-mirroring `hecate_om_identity:load_keypair/0`'s own
+mirroring `hecate_om_identity:keypair/0`'s own
 generate-if-missing-and-persist pattern). What's proposed here: when a
 command hits a gated capability, `macula-cli` holds a UCAN delegated
 from the human's realm-membership record — minted once via a

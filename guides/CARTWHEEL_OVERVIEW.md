@@ -215,8 +215,8 @@ Dive deeper into each sequence:
 
 ## Further Reading
 
-- [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md) — Full architecture documentation
-- [CLAUDE.md](../CLAUDE.md) — Development guidelines
+- [philosophy/CARTWHEEL.md](../philosophy/CARTWHEEL.md) — The Division Architecture in full
+- [CODEX.md](../CODEX.md) — Development guidelines
 
 ---
 

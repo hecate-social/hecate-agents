@@ -338,7 +338,7 @@ QRY Backoffice [Specialist]
 - [CARTWHEEL_WRITE_SEQUENCE.md](CARTWHEEL_WRITE_SEQUENCE.md) — CMD department details
 - [CARTWHEEL_PROJECTION_SEQUENCE.md](CARTWHEEL_PROJECTION_SEQUENCE.md) — PRJ department details
 - [CARTWHEEL_QUERY_SEQUENCE.md](CARTWHEEL_QUERY_SEQUENCE.md) — QRY department details
-- [DDD.md](../../DDD.md) — The Dossier Principle
+- [DDD.md](../philosophy/DDD.md) — The Dossier Principle
 
 ---
 

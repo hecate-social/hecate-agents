@@ -160,7 +160,7 @@ apply_event(#order{status = S} = O, {issue_reported, _}) ->
 
 apply_event(#order{status = S} = O, {issue_resolved, _}) ->
     %% Clear the issue flag
-    NewStatus = evoq_bit_flags:clear(S, ?ORDER_HAS_ISSUE),
+    NewStatus = evoq_bit_flags:unset(S, ?ORDER_HAS_ISSUE),
     O#order{status = NewStatus}.
 ```
 
@@ -170,11 +170,11 @@ apply_event(#order{status = S} = O, {issue_resolved, _}) ->
 
 The `evoq_bit_flags` module provides all needed operations:
 
-### has_flag/2 - Check if flag is set
+### has/2 - Check if flag is set
 
 ```erlang
 %% Is order validated?
-evoq_bit_flags:has_flag(Status, ?ORDER_VALIDATED).
+evoq_bit_flags:has(Status, ?ORDER_VALIDATED).
 %% => true | false
 ```
 
@@ -185,11 +185,11 @@ evoq_bit_flags:has_flag(Status, ?ORDER_VALIDATED).
 NewStatus = evoq_bit_flags:set(Status, ?ORDER_SHIPPED).
 ```
 
-### clear/2 - Clear a flag
+### unset/2 - Clear a flag
 
 ```erlang
 %% Remove issue flag
-NewStatus = evoq_bit_flags:clear(Status, ?ORDER_HAS_ISSUE).
+NewStatus = evoq_bit_flags:unset(Status, ?ORDER_HAS_ISSUE).
 ```
 
 ### has_any/2 - Check if ANY of multiple flags is set
@@ -206,12 +206,17 @@ evoq_bit_flags:has_any(Status, [?ORDER_SHIPPED, ?ORDER_DELIVERED]).
 evoq_bit_flags:has_all(Status, [?ORDER_VALIDATED, ?ORDER_SHIPPED]).
 ```
 
-### toggle/2 - Flip a flag
+### has_not/2 - Check that a flag is NOT set
 
 ```erlang
-%% Toggle issue flag
-NewStatus = evoq_bit_flags:toggle(Status, ?ORDER_HAS_ISSUE).
+%% Not yet shipped?
+evoq_bit_flags:has_not(Status, ?ORDER_SHIPPED).
 ```
+
+The full export list of `evoq_bit_flags` (evoq 1.23): `set/2`, `unset/2`,
+`set_all/2`, `unset_all/2`, `has/2`, `has_not/2`, `has_all/2`, `has_any/2`,
+`to_list/2`, `to_string/2,3`, `decompose/1`, `highest/2`, `lowest/2`. There
+is no toggle — use `unset/2` then `set/2` if you need to flip.
 
 ---
 
@@ -223,7 +228,7 @@ NewStatus = evoq_bit_flags:toggle(Status, ?ORDER_HAS_ISSUE).
 
 %% Can we ship this order?
 can_ship(#order{status = S}) ->
-    evoq_bit_flags:has_flag(S, ?ORDER_VALIDATED) andalso
+    evoq_bit_flags:has(S, ?ORDER_VALIDATED) andalso
     not evoq_bit_flags:has_any(S, [?ORDER_SHIPPED, ?ORDER_CANCELLED]).
 
 %% Can we cancel this order?
@@ -257,7 +262,7 @@ handle(Cmd, #order{status = S} = Aggregate) ->
     end.
 
 can_ship(S) ->
-    evoq_bit_flags:has_flag(S, ?ORDER_VALIDATED) andalso
+    evoq_bit_flags:has(S, ?ORDER_VALIDATED) andalso
     not evoq_bit_flags:has_any(S, [?ORDER_SHIPPED, ?ORDER_CANCELLED]).
 ```
 
@@ -290,12 +295,12 @@ SELECT * FROM orders WHERE (status & 64) != 0;
 ```erlang
 %% Filter list of aggregates
 ShippedOrders = [O || O <- Orders,
-                      evoq_bit_flags:has_flag(O#order.status, ?ORDER_SHIPPED)].
+                      evoq_bit_flags:has(O#order.status, ?ORDER_SHIPPED)].
 
 %% Complex filter
 ProblematicShipped = [O || O <- Orders,
-                           evoq_bit_flags:has_flag(O#order.status, ?ORDER_SHIPPED),
-                           evoq_bit_flags:has_flag(O#order.status, ?ORDER_HAS_ISSUE)].
+                           evoq_bit_flags:has(O#order.status, ?ORDER_SHIPPED),
+                           evoq_bit_flags:has(O#order.status, ?ORDER_HAS_ISSUE)].
 ```
 
 ---
@@ -398,7 +403,7 @@ format_status(Status) ->
         {?ORDER_REFUNDED, "REFUNDED"}
     ],
     ActiveFlags = [Name || {Flag, Name} <- Flags,
-                           evoq_bit_flags:has_flag(Status, Flag)],
+                           evoq_bit_flags:has(Status, Flag)],
     io_lib:format("~p (~s)", [Status, string:join(ActiveFlags, "|")]).
 
 %% Usage:

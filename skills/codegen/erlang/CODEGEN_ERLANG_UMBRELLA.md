@@ -132,12 +132,14 @@ QRY app:
 The root `rebar.config` declares ALL external dependencies and lists ALL apps in the release:
 
 ```erlang
+%% Loose constraints on purpose -- exact pins block coordinated library
+%% updates. hex.pm is the authority for the newest line.
 {deps, [
-    {cowboy, "2.12.0"},
-    {reckon_db, "1.3.2"},
-    {evoq, "1.3.1"},
-    {reckon_evoq, "1.1.4"},
-    {esqlite, "0.8.8"}
+    {cowboy,      "~> 2.18"},
+    {reckon_db,   "~> 5.11"},
+    {evoq,        "~> 1.23"},
+    {reckon_evoq, "~> 2.7"},
+    {esqlite,     "~> 0.9"}
 ]}.
 
 {relx, [

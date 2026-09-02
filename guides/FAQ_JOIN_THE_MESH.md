@@ -83,6 +83,15 @@ version instead. `:latest` only moves on a version tag, not on every
 only on an actual release. Every `:<git-sha>` and version tag stays in the
 registry permanently as a pinnable rollback target.
 
+**What the registry actually holds today:** no `v*` tag has ever been pushed
+on `macula-station`, so `ghcr.io/macula-io/macula-station` carries only
+`:main` and `:<git-sha>` tags — there is no `:latest` and no `X.Y.Z` tag to
+pull. The fleet's own compose files run
+`image: ghcr.io/macula-io/macula-station:${STATION_VERSION:-main}`. Until a
+first version tag is published, use `:main` (or pin a `:<git-sha>`) wherever
+the examples below would otherwise say `:latest` or `X.Y.Z`; the table above
+is what CI will do once a version tag exists.
+
 ---
 
 ## 3. Config file
@@ -222,7 +231,7 @@ carry realm membership.
 ```yaml
 services:
   station:
-    image: ghcr.io/macula-io/macula-station:latest
+    image: ghcr.io/macula-io/macula-station:main   # the only moving tag published so far, see §2
     restart: unless-stopped
     network_mode: host
     environment:
@@ -250,13 +259,14 @@ volumes:
 IPv4/IPv6 address for QUIC, not a container-bridge address peers can't
 reach; that's why there's no `ports:` section. Watchtower polls ghcr for a
 new digest at the currently-running tag and recreates the container in
-place — no redeploy step beyond pushing a `v*` tag. It does not touch config
-files or volumes.
+place — no redeploy step beyond a push that moves the tracked tag. It does
+not touch config files or volumes.
 
-⚠ Point watchtower-managed boxes at `:latest` (or a pinned `X.Y.Z`, no `v`
-prefix — see §2) and
-reserve `:main`/`:<sha>` for staging — a box tracking `:main` rolls on every
-commit, code included, not just releases.
+⚠ The fleet tracks `:main` today, the only moving tag that exists (§2), so a
+watchtower box rolls on every commit to `main` — code or not; put
+`paths-ignore` on the image build for docs-only changes. Once version tags
+are published, point production boxes at `:latest` (or a pinned `X.Y.Z`,
+no `v` prefix) and keep `:main`/`:<sha>` for staging.
 
 ---
 
@@ -275,7 +285,7 @@ ownership of the same unit.
 Description=Macula Station
 
 [Container]
-Image=ghcr.io/macula-io/macula-station:latest
+Image=ghcr.io/macula-io/macula-station:main
 Network=host
 Volume=%h/macula-station/config.json:/etc/macula-station/config.json:ro
 Volume=%h/macula-station/certs:/certs:ro
@@ -326,7 +336,7 @@ spec:
       dnsPolicy: ClusterFirstWithHostNet
       containers:
         - name: station
-          image: ghcr.io/macula-io/macula-station:1.0.0   # pin a real tag (no "v" prefix, see §2), not :latest
+          image: ghcr.io/macula-io/macula-station:<git-sha>   # pin a tag that exists (see §2): a git sha today, X.Y.Z once published
           env:
             - { name: MACULA_STATION_CONFIG, value: /etc/macula-station/config.json }
           ports:
@@ -355,8 +365,9 @@ spec:
         resources: { requests: { storage: 5Gi } }
 ```
 
-Pin an explicit `X.Y.Z` tag (no `v` prefix — see §2) rather than
-`:latest` — nothing in a plain
+Pin an explicit tag that exists (a `:<git-sha>` today, `X.Y.Z` with no `v`
+prefix once version tags are published — see §2) rather than a moving tag —
+nothing in a plain
 Kubernetes Deployment/StatefulSet polls the registry the way watchtower or
 `podman auto-update` do; `:latest` here just means "whatever was current the
 first time this pod scheduled," silently. If you want auto-updates, put a
@@ -396,3 +407,9 @@ guarantee.
   the equivalent walkthrough for a service, not a station
 - [FAQ: How do I run macula-cli?](FAQ_MACULA_CLI.md) — connecting to a
   station as a client, without running one yourself
+- [FAQ: How do I join a realm and get my service an identity/certificate?](FAQ_JOIN_A_REALM.md) —
+  the identity layer above this page's realm-agnostic station
+- [FAQ: How do I run a local station for dev/testing?](FAQ_RUN_A_LOCAL_STATION.md) —
+  a lighter-weight alternative to this page's production cert dance
+- [FAQ: How do I debug a service that won't show up on the mesh?](FAQ_DEBUG_MESH_DISCOVERY.md) —
+  troubleshooting once a station and a service are both actually running

@@ -9,7 +9,7 @@ stage: stable
 
 _Complete module templates for generating Division Architecture (Cartwheel) code. Fill variables, generate code._
 
-**Target:** Erlang/OTP with `reckon_evoq`
+**Target:** Erlang/OTP with `evoq` (~> 1.23) + `reckon_evoq` (~> 2.7, the reckon-db adapter)
 
 **Related files:**
 - [CODEGEN_ERLANG_CHECKLISTS.md](CODEGEN_ERLANG_CHECKLISTS.md) — Generation checklists
@@ -264,19 +264,19 @@ timestamp(#{{event}_v1{timestamp = V}}) -> V.
 
 -include_lib("kernel/include/logger.hrl").
 
-%% Entry point: dispatch command through evoq
+%% Entry point: dispatch the command through evoq. The aggregate's
+%% execute/2 (see the Aggregate Template) calls handle/2 and returns the
+%% events; evoq_router appends them through the configured adapter
+%% (reckon_evoq_adapter) and returns the new stream version.
+%% NEVER discard this result -- it is the only error channel (Demon 49).
+-spec dispatch(term()) -> {ok, non_neg_integer(), [map()]} | {error, term()}.
 dispatch(Cmd) ->
-    StreamId = {command}_v1:stream_id(Cmd),
-    case handle(Cmd) of
-        {ok, Event} ->
-            %% Persist event to store
-            EventMap = {event}_v1:to_map(Event),
-            EventType = {event}_v1:event_type(),
-            ok = reckon_evoq:append({domain}_store, StreamId, EventType, EventMap),
-            {ok, Event};
-        {error, _} = Error ->
-            Error
-    end.
+    EvoqCmd = evoq_command:new(
+        {command},                     %% command_type (atom)
+        {noun}_aggregate,              %% aggregate module
+        {command}_v1:stream_id(Cmd),   %% aggregate id = the stream id
+        {command}_v1:to_map(Cmd)),     %% payload the aggregate's execute/2 receives
+    evoq_router:dispatch(EvoqCmd).
 
 %% Handle command (stateless validation)
 handle(Cmd) ->
@@ -383,76 +383,54 @@ hope_to_command(Hope) ->
 ### {event}\_to_mesh.erl (Emitter - subscribes via evoq, publishes to mesh)
 
 **Subscribes to ReckonDB via evoq. NOT called manually from API handlers.**
-See [EVENT_SUBSCRIPTION_FLOW.md](../philosophy/EVENT_SUBSCRIPTION_FLOW.md).
+See [EVENT_SUBSCRIPTION_FLOW.md](../../../philosophy/EVENT_SUBSCRIPTION_FLOW.md).
 
 ```erlang
--module(emit_{event}_to_mesh).
--behaviour(gen_server).
+-module({event}_to_mesh).
+-behaviour(evoq_event_handler).
+%% Also the macula_publisher callback module for its own publishes:
+%% init/1 + handle_published/2 below.
 
--export([start_link/0]).
--export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
+-export([interested_in/0, init/1, handle_event/4]).
+-export([handle_published/2]).
 
 -include_lib("kernel/include/logger.hrl").
 
--define(EVENT_TYPE, <<"{event}">>).
--define(SUB_NAME, <<"emit_{event}_to_mesh">>).
--define(TOPIC, <<"hecate.{domain_noun}.{event}">>).
+%% Business verb topic, ids in the payload, never in the topic.
+-define(TOPIC, <<"{domain_noun}/{event}">>).
 
-%%====================================================================
-%% API
-%%====================================================================
+interested_in() -> [<<"{event}_v1">>].
 
-start_link() ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+%% Doubles as the macula_publisher init/1 (same shape: {ok, State}).
+init(_ConfigOrArgs) -> {ok, #{}}.
 
-%%====================================================================
-%% gen_server callbacks
-%%====================================================================
+%% The stored envelope is #{event_type, data, metadata, ...}: business
+%% fields live under `data' (Demon 40). hecate_om owns the mesh pool and
+%% realm; a service never opens its own connection.
+handle_event(_EventType, #{data := Data}, _Metadata, State) ->
+    publish(hecate_om:mesh_handles(), event_to_fact(Data)),
+    {ok, State}.
 
-init([]) ->
-    %% Subscribe to event store via evoq
-    {ok, _SubId} = reckon_evoq_adapter:subscribe(
-        dev_studio_store,
-        event_type,
-        ?EVENT_TYPE,
-        ?SUB_NAME,
-        #{subscriber_pid => self()}
-    ),
-    ?LOG_INFO("[~s] Emitter started, publishing to ~s", [?MODULE, ?TOPIC]),
-    {ok, #{}}.
+publish({ok, Pool, Realm}, Fact) ->
+    %% Supervised, fire-and-forget: macula_publisher wraps macula:publish/4
+    %% in its own process and calls handle_published/2 with the outcome.
+    {ok, _Pid} = macula_publisher:start_link(?MODULE, Pool, Realm, ?TOPIC, Fact),
+    ok;
+publish({error, mesh_unavailable}, _Fact) ->
+    ?LOG_WARNING("[~s] mesh unavailable, fact dropped", [?MODULE]).
 
-handle_call(_Request, _From, State) ->
-    {reply, {error, not_implemented}, State}.
+handle_published(Result, State) ->
+    ?LOG_INFO("[~s] publish outcome: ~p", [?MODULE, Result]),
+    {stop, normal, State}.
 
-handle_cast(_Msg, State) ->
-    {noreply, State}.
-
-handle_info({events, Events}, State) ->
-    lists:foreach(fun(EventData) ->
-        %% Transform EVENT to FACT (may have different structure)
-        Fact = event_to_fact(EventData),
-        %% Publish to mesh
-        ok = hecate_mesh:publish(?TOPIC, Fact),
-        ?LOG_DEBUG("[~s] Published FACT to ~s", [?MODULE, ?TOPIC])
-    end, Events),
-    {noreply, State};
-
-handle_info(_Info, State) ->
-    {noreply, State}.
-
-terminate(_Reason, _State) ->
-    ok.
-
-%%====================================================================
-%% Internal
-%%====================================================================
-
-%% Transform internal EVENT to external FACT
-%% FACT is a PUBLIC CONTRACT - may differ from EVENT structure
-event_to_fact(EventData) ->
+%% Transform internal EVENT to external FACT.
+%% FACT is a PUBLIC CONTRACT - may differ from EVENT structure.
+%% Text goes out as {text, Bin} (CBOR text string); no booleans on the
+%% wire -- use 0/1.
+event_to_fact(Data) ->
     #{
-        {field1} => maps:get(<<"{field1}">>, EventData),
-        {field2} => maps:get(<<"{field2}">>, EventData),
+        {field1} => {text, hecate_om_wire:field({field1}, Data)},
+        {field2} => {text, hecate_om_wire:field({field2}, Data)},
         published_at => erlang:system_time(millisecond)
     }.
 ```
@@ -474,8 +452,10 @@ start_link() ->
 
 init([]) ->
     Children = [
+        %% evoq_event_handler is the generic gen_server; the PM module is
+        %% its callback module. One-line child spec, no bespoke process.
         #{id => on_{src_event}_{action}_{target},
-          start => {on_{src_event}_{action}_{target}, start_link, []},
+          start => {evoq_event_handler, start_link, [on_{src_event}_{action}_{target}, #{}]},
           restart => permanent,
           type => worker}
     ],
@@ -485,76 +465,50 @@ init([]) ->
 #### `on_{src_event}_{action}_{target}.erl`
 
 ```erlang
+%%% @doc Process Manager: {trigger_event}_v1 -> {command}_v1.
+%%% Reads every field it needs from the event itself -- never from a read
+%%% model (Demon 41). Lives in the TARGET domain's CMD app.
 -module(on_{src_event}_{action}_{target}).
--behaviour(gen_server).
+-behaviour(evoq_event_handler).
 
--export([start_link/0]).
--export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
+-export([interested_in/0, init/1, handle_event/4]).
 
 -include_lib("kernel/include/logger.hrl").
 
-%%====================================================================
-%% API
-%%====================================================================
+interested_in() -> [<<"{trigger_event}_v1">>].
 
-start_link() ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+init(_Config) -> {ok, #{}}.
 
-%%====================================================================
-%% gen_server callbacks
-%%====================================================================
+%% The stored envelope is #{event_type, data, metadata, ...}: business
+%% fields live under `data' (Demon 40).
+handle_event(_EventType, #{data := Data}, _Metadata, State) ->
+    trigger(should_trigger(Data), Data),
+    {ok, State}.
 
-init([]) ->
-    %% Subscribe to trigger events from another domain
-    ok = reckon_evoq:subscribe({trigger_domain}_store, self(), #{
-        event_types => [<<"{trigger_event}_v1">>]
-    }),
-    ?LOG_INFO("[~s] Policy started", [?MODULE]),
-    {ok, #{}}.
+trigger(false, _Data) ->
+    ok;
+trigger(true, Data) ->
+    dispatched({command}_v1:new(event_to_command_params(Data))).
 
-handle_call(_Request, _From, State) ->
-    {reply, {error, not_implemented}, State}.
+%% Never discard a dispatch result -- it is the only error channel (Demon 49).
+dispatched({ok, Cmd}) ->
+    report(maybe_{command}:dispatch(Cmd));
+dispatched({error, Reason}) ->
+    ?LOG_WARNING("[~s] cannot build {command} from {trigger_event}: ~p", [?MODULE, Reason]).
 
-handle_cast(_Msg, State) ->
-    {noreply, State}.
+report({ok, _Version, _Events}) ->
+    ?LOG_INFO("[~s] {command} dispatched from {trigger_event}", [?MODULE]);
+report({error, Reason}) ->
+    ?LOG_WARNING("[~s] {command} rejected: ~p", [?MODULE, Reason]).
 
-handle_info({evoq_event, _StreamId, EventType, EventData, _Position}, State)
-  when EventType =:= <<"{trigger_event}_v1">> ->
-    %% Transform trigger event to command
-    case should_trigger(EventData) of
-        true ->
-            Cmd = event_to_command(EventData),
-            case maybe_{command}:dispatch(Cmd) of
-                {ok, _Event} ->
-                    ?LOG_DEBUG("[~s] Triggered {command} from {trigger_event}", [?MODULE]);
-                {error, Reason} ->
-                    ?LOG_WARNING("[~s] Failed to trigger: ~p", [?MODULE, Reason])
-            end;
-        false ->
-            ok
-    end,
-    {noreply, State};
+should_trigger(_Data) ->
+    true.   %% policy: decide from the event's own fields only
 
-handle_info(_Info, State) ->
-    {noreply, State}.
-
-terminate(_Reason, _State) ->
-    ok.
-
-%%====================================================================
-%% Internal
-%%====================================================================
-
-should_trigger(_EventData) ->
-    %% TODO: Add policy logic
-    true.
-
-event_to_command(EventData) ->
-    %% Transform trigger event data to command
-    {command}_v1:new(#{
-        {field1} => maps:get(<<"{trigger_field}">>, EventData),
-        {field2} => maps:get(<<"{other_field}">>, EventData, <<>>)
-    }).
+event_to_command_params(Data) ->
+    #{
+        {field1} => hecate_om_wire:field({trigger_field}, Data),
+        {field2} => hecate_om_wire:field({other_field}, Data, <<>>)
+    }.
 ```
 
 ---
@@ -601,7 +555,7 @@ start_link() ->
 init([]) ->
     Children = [
         #{id => {event}_to_{read_store},
-          start => {{event}_to_{read_store}, start_link, []},
+          start => {evoq_event_handler, start_link, [{event}_to_{read_store}, #{}]},
           type => worker}
     ],
     {ok, {#{strategy => one_for_one, intensity => 5, period => 10}, Children}}.
@@ -610,64 +564,33 @@ init([]) ->
 ### {event}_to_{read_store}.erl (Projection)
 
 ```erlang
+%%% @doc Projection: {event}_v1 -> {read_store} table.
+%%% All calculations happen here, at projection time (never at query
+%%% time). Writes only to its own read model, reads from no other.
 -module({event}_to_{read_store}).
--behaviour(gen_server).
+-behaviour(evoq_event_handler).
 
--export([start_link/0]).
--export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
+-export([interested_in/0, init/1, handle_event/4]).
 
--include_lib("kernel/include/logger.hrl").
+interested_in() -> [<<"{event}_v1">>].
 
-%%====================================================================
-%% API
-%%====================================================================
+init(_Config) -> {ok, #{}}.
 
-start_link() ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+%% The stored envelope is #{event_type, data, metadata, ...}: business
+%% fields live under `data' (Demon 40). Returning {ok, State} is the
+%% checkpoint -- there is no manual ack.
+handle_event(_EventType, #{data := Data}, _Metadata, State) ->
+    ok = project(Data),
+    {ok, State}.
 
-%%====================================================================
-%% gen_server callbacks
-%%====================================================================
-
-init([]) ->
-    %% Subscribe to events from CMD domain store
-    ok = reckon_evoq:subscribe({domain}_store, self(), #{
-        event_types => [<<"{event}_v1">>]
-    }),
-    ?LOG_INFO("[~s] Projection started", [?MODULE]),
-    {ok, #{}}.
-
-handle_call(_Request, _From, State) ->
-    {reply, {error, not_implemented}, State}.
-
-handle_cast(_Msg, State) ->
-    {noreply, State}.
-
-handle_info({evoq_event, StreamId, EventType, EventData, Position}, State)
-  when EventType =:= <<"{event}_v1">> ->
-    ok = project(EventData),
-    %% Checkpoint position for recovery
-    ok = reckon_evoq:ack({domain}_store, Position),
-    {noreply, State};
-
-handle_info(_Info, State) ->
-    {noreply, State}.
-
-terminate(_Reason, _State) ->
-    ok.
-
-%%====================================================================
-%% Internal
-%%====================================================================
-
-project(EventData) ->
+project(Data) ->
     Row = #{
-        {pk_field} => maps:get(<<"{pk_field}">>, EventData),
-        {field1} => maps:get(<<"{field1}">>, EventData),
-        {field2} => maps:get(<<"{field2}">>, EventData),
+        {pk_field} => hecate_om_wire:field({pk_field}, Data),
+        {field1}   => hecate_om_wire:field({field1}, Data),
+        {field2}   => hecate_om_wire:field({field2}, Data),
         updated_at => erlang:system_time(millisecond)
     },
-    %% Upsert for idempotency
+    %% Upsert for idempotency (replay-safe)
     query_{domain_noun}_store:upsert({read_store}, Row).
 ```
 
@@ -1003,45 +926,31 @@ apply_submitted(#{noun}_state{status = Status} = State) ->
 ### {event}\_to\_pg.erl
 
 **For intra-daemon integration** (projections, process managers within the same BEAM VM).
-pg emitters are **gen_servers** that subscribe to ReckonDB via evoq at startup.
+pg emitters are `evoq_event_handler`s started by the owning slice's supervisor
+(`{evoq_event_handler, start_link, [Mod, #{}]}`) -- evoq subscribes them; the
+module only says which event and where it goes.
 
-**They are NOT called manually from API handlers.** See [EVENT_SUBSCRIPTION_FLOW.md](../philosophy/EVENT_SUBSCRIPTION_FLOW.md).
+**They are NOT called manually from API handlers.** See [EVENT_SUBSCRIPTION_FLOW.md](../../../philosophy/EVENT_SUBSCRIPTION_FLOW.md).
 
 ```erlang
--module(emit_{event}_to_pg).
--behaviour(gen_server).
+%%% @doc Emitter: {event}_v1 -> pg (internal pub/sub).
+%%% Receives events via evoq_event_handler, broadcasts to the pg group.
+-module({event}_v1_to_pg).
+-behaviour(evoq_event_handler).
 
--export([start_link/0]).
--export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
+-export([interested_in/0, init/1, handle_event/4]).
 
--define(EVENT_TYPE, <<"{event}">>).
--define(PG_GROUP, {event}).
--define(SUB_NAME, <<"emit_{event}_to_pg">>).
+-define(PG_GROUP, {event}_v1).
 
-start_link() ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+interested_in() -> [<<"{event}_v1">>].
 
-init([]) ->
-    {ok, _SubId} = reckon_evoq_adapter:subscribe(
-        dev_studio_store,
-        event_type,
-        ?EVENT_TYPE,
-        ?SUB_NAME,
-        #{subscriber_pid => self()}
-    ),
-    {ok, #{}}.
+init(_Config) -> {ok, #{}}.
 
-handle_info({events, Events}, State) ->
-    lists:foreach(fun(Event) ->
-        pg:send(pg, ?PG_GROUP, {?PG_GROUP, Event})
-    end, Events),
-    {noreply, State};
-handle_info(_Info, State) ->
-    {noreply, State}.
-
-handle_call(_Req, _From, State) -> {reply, ok, State}.
-handle_cast(_Msg, State) -> {noreply, State}.
-terminate(_Reason, _State) -> ok.
+handle_event(_EventType, Event, _Metadata, State) ->
+    Members = pg:get_members(pg, ?PG_GROUP),
+    Msg = {?PG_GROUP, Event},
+    lists:foreach(fun(Pid) -> Pid ! Msg end, Members),
+    {ok, State}.
 ```
 
 ---
@@ -1051,8 +960,11 @@ terminate(_Reason, _State) -> ok.
 ```erlang
 {erl_opts, [debug_info]}.
 
+%% Loose constraints on purpose; hex.pm is the authority for the newest line.
 {deps, [
-    {reckon_evoq, {git, "https://github.com/reckon-db-org/reckon_evoq.git", {branch, "main"}}}
+    {evoq,        "~> 1.23"},
+    {reckon_db,   "~> 5.11"},
+    {reckon_evoq, "~> 2.7"}
 ]}.
 
 %% Include desk directories

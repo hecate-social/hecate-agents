@@ -165,7 +165,7 @@ implementation.
 
 Every Layer-2 service:
 
-1. Lives at `codeberg.org/hecate-services/hecate-X`
+1. Lives at `github.com/hecate-services/hecate-X`
 2. Implements the `hecate_om_service` behaviour (six callbacks:
    `info/0`, `start/1`, `stop/1`, `health/0`, `capabilities/0`,
    `identity_spec/0`)
@@ -181,7 +181,7 @@ Every Layer-2 service:
 8. Exposes `/health` on loopback (port 8470) for Podman's
    HEALTHCHECK; no externally-routable ports
 
-The substrate library [`hecate-om`](https://codeberg.org/hecate-services/hecate-om)
+The substrate library [`hecate-om`](https://github.com/hecate-services/hecate-om)
 provides 1, 7, and 8 for free. Services just implement the
 behaviour and wire their `_mesh_rpc.erl` dispatch table.
 
@@ -213,7 +213,7 @@ external source ──► subscriber slice ──► command
                         is mesh-reachable)
                                 │
                                 ▼
-                        macula:publish/3
+                        macula:publish/4
 ```
 
 The substrate already supports this directly. `hecate_om_service`
@@ -418,6 +418,5 @@ Future watchlist (not yet built):
 
 Memory references for context:
 - `[[project_hecate_services_tier]]` — the migration log
-- `[[reference_codeberg_push_mirror_403]]` — bootstrap quirk you'll hit
 - `[[feedback_stations_route_daemons_publish]]` — why Layer 0 is
   realm-agnostic

@@ -734,8 +734,9 @@ event_data(Event) ->                              %% raw in-memory event
 
 ### What Happened
 
-`evoq_dispatcher:dispatch/2` returns `{ok, Version, Events}` on success
-and `{error, Reason}` on failure. The error channel is the ONLY channel
+`evoq_dispatcher:dispatch/2` (today `evoq_router:dispatch/1,2` — same
+return shape) returns `{ok, Version, Events}` on success and
+`{error, Reason}` on failure. The error channel is the ONLY channel
 for validation rejections (stream-id format, payload shape) and
 aggregate-side `{error, _}` returns from `execute/2`.
 
@@ -797,12 +798,12 @@ discarded return value.
 This is the application-side mirror of the Feedback pattern (see
 `../INTEGRATION_ACTORS.md` § Session-Level Consistency). The same
 return shape that carries `{ok, Version, Events}` (or
-`{ok, Version, Events, State}` from `dispatch_with_state/1`) is also
+`{ok, Version, Events, State}` from `evoq_command_router:dispatch_with_state/2`) is also
 the error channel. Throwing it away means throwing away both the
 canonical answer AND the canonical error report.
 
 The same rule applies to integration-layer dispatches into evoq
-adapters, to `reckon_evoq_adapter:append_events/4` returns, and to any
+adapters, to `reckon_evoq_adapter:append/4` returns, and to any
 other "the result IS the answer" API across the family.
 
 ---
