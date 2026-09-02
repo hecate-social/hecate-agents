@@ -418,4 +418,116 @@ lookup(AtomKey, BinKey, Payload, Default) ->
 
 ---
 
+## 🔥🔥🔥 Demon 61: The Store That Stores Without Indexing
+
+**Date:** 2026-09-02
+**Repo:** hecate-services/hecate-rag (barrel: `barrel_docdb` + `barrel_vectordb`)
+
+### The Lie
+
+> "The store owns embedding. Writing a document puts it in the index."
+
+### What Happened
+
+`rag_store` opens barrel in record mode with an embedding policy of
+`fields => []`, which means barrel embeds **nothing** on its own: every
+vector is the caller's to compute and to carry. Two separate write paths
+forgot that, in two different ways, and both failed in complete silence.
+
+**Half one — a write with no vector.** `put_chunk/3` writes content and
+metadata and no vector. The corpus git loop and the bulk seeder both used
+it. Every markdown file the mesh ingested was fetchable byte-for-byte and
+invisible to semantic search, for months. `get_document_verbatim` was
+perfect, which is exactly what made it look fine.
+
+**Half two — a read-modify-write.** Attaching topic labels to a chunk read
+the document back and wrote it again with the labels on it:
+
+```erlang
+{ok, Doc} = barrel:get_doc(Db, ChunkId),
+barrel:put_doc(Db, Doc#{<<"topics">> => Topics})   %% ← chunk leaves the index
+```
+
+`barrel:get_doc/2` does **not** return `<<"_embedding">>` — the vector
+lives in its own column and never appears in the read body. So the
+re-written document carries no vector, matches no embedding rule under
+`fields => []`, and barrel resolves the write to `deindex`. The document
+survives in the document store and drops out of vector search. Two live
+capabilities (`classify_topics`, and `add_knowledge`'s `topics` field)
+silently made every chunk they touched unsearchable.
+
+Both halves return `ok`. Neither logs anything.
+
+### The Correct Pattern
+
+Ingestion embeds first, then writes content and vector together:
+
+```erlang
+%% Every ingestion desk goes through the one embedding worker.
+{Stored, Errors} = rag_chunk_embedder:embed_and_store(Chunks).
+```
+
+A metadata-only update carries the stored vector back onto the write:
+
+```erlang
+{ok, Doc} = barrel:get_doc(Db, ChunkId),
+Updated = case barrel:vector_get(Db, ChunkId) of
+              {ok, #{vector := V}} when is_list(V) -> Doc#{<<"_embedding">> => V};
+              _NoVector                            -> Doc   %% never indexed; keep it that way
+          end,
+barrel:put_doc(Db, Updated#{<<"topics">> => Topics}).
+```
+
+`barrel:vector_get/2` returns `{ok, #{vector := [float()], text := binary(),
+metadata := map()}}`. Its `text` is empty for a client-supplied vector —
+barrel only keeps text it embedded itself, which is the same reason a
+search hit comes back with no content and the content has to be read from
+the document store.
+
+### Why This Happens
+
+1. The names promise indexing. `put_chunk`, in a module called
+   `rag_store`, in a database whose whole point is vector search, reads as
+   "the chunk is now searchable." Nothing in the call says otherwise.
+2. Both module docs asserted the opposite of the code, and had for
+   months: "embedding happens automatically (barrel record-mode policy),
+   no separate embed call to make here." True of an earlier policy,
+   false since `fields => []`. Demon 53 again.
+3. The failure is invisible from every direction an operator looks. Exact
+   fetch works. Listing works. Ingestion reports success and real chunk
+   counts. Only a semantic query fails, and it fails by returning
+   somebody else's older documents rather than an error.
+4. A read-modify-write is the most ordinary shape in the language. Nothing
+   about `Doc#{<<"topics">> => Topics}` suggests it is destroying an index
+   entry, and the vector it drops was never visible in `Doc` to begin with.
+
+### Prevention
+
+Not another line in a document — a test that fails.
+
+- The regression that found half two already existed and was red:
+  `knowledge_pipeline_SUITE:add_knowledge_with_topics` tags a chunk and
+  then asserts the tagged chunk is still a search hit. It had been read as
+  flaky. **A red test is a finding until proven otherwise.**
+- Every ingestion path gets a round trip that ends in `search_text`, not
+  in "the document is there." Fetching it back proves storage, which was
+  never the broken half.
+- Confirm a storage library's behaviour against the library, not against
+  its documentation. Both halves here were settled in minutes by a
+  standalone probe: put with a vector, search, get and re-put the same
+  body, search again.
+
+### The Lesson
+
+> **When a store makes the caller own the vector, every write path that
+> forgets it fails silently, and a read-modify-write forgets it by
+> default. Ask of any storage write: which index does this update, and
+> what happens to that index if this field is absent?**
+
+> **"The document is retrievable" and "the document is findable" are two
+> different claims, and verifying the first tells you nothing about the
+> second.**
+
+---
+
 *We burned these demons so you don't have to. Keep the fire going.*
