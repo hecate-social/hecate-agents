@@ -16,11 +16,8 @@ Verified against a real example.
 `net8.0;net9.0;net10.0` — broader framework support than `macula-dotnet`
 (net10.0-only). **No F# examples exist for this client** (unlike
 `macula-dotnet`'s parallel C#/F# example trees) — this is C#-only real
-prior art today. ⚠ Published to **Codeberg's own NuGet feed**
-(`codeberg.org/api/packages/reckon-db-org/nuget/index.json`), not
-nuget.org — the same GitHub-migration fragility as Go's module path,
-arguably sharper here since it's the actual package distribution
-channel, not just an import string.
+prior art today. Published to nuget.org on every `v*` tag by
+`.github/workflows/ci.yml` (`dotnet add package Reckon.Client`).
 
 Real, complete example (`examples/QuickStart/Program.cs`) — includes a
 genuinely good DCB conflict demonstration:

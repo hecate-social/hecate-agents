@@ -12,12 +12,9 @@ stage: stable
 
 Verified against a real example.
 
-`reckon-go` **v0.9.0**. ⚠ Its module path is
-`codeberg.org/reckon-db-org/reckon-go` even though the repo's actual git
-`origin` is now GitHub — `go get` resolving that import path depends on
-the Codeberg mirror staying alive, which this workspace's own migration
-notes say is *not* guaranteed. Verify the module still resolves before
-depending on it for anything long-lived.
+`reckon-go` **v0.10.0** — module path `github.com/reckon-db-org/reckon-go`
+(the module moved off its old Codeberg import path in v0.10.0; anything
+still importing `codeberg.org/reckon-db-org/reckon-go` stays on v0.9.0).
 
 Real, complete example (`examples/streams-demo/main.go` — note this is
 the `reckon-go` wrapper client; the gateway README's own inline "Call
