@@ -255,6 +255,59 @@ bug is not success; it is the edit having done nothing.
 needs its outcome checked separately from its exit code. True of `str.replace`,
 of `sed -i`, of `grep -c` on a minified file, and of every helpful default.
 
+## 🔥 Demon 62: A Test That Passes For a Different Layer's Reason
+
+**Date exorcised:** 2026-09-05
+**Where it appeared:** `hecate-social/hecate-om`, `hecate_om_read_model.erl`'s new
+per-database TTL-sweep-config passthrough
+**Cost:** would have shipped, standing green, a passthrough that did nothing —
+caught before merge, not after, only because the author checked
+
+### The Lie
+
+"The test passed, so the fix works."
+
+### What Happened
+
+The task: thread `ttl_sweep_interval`/`ttl_sweep_batch` config through
+`hecate_om:boot/1` into `barrel_docdb:create_db/2`'s options, so a service can
+opt a database into barrel's own document-expiry sweep. The first test: write a
+doc with `expires_at` a few hundred ms in the future, sleep past it, assert the
+doc is gone.
+
+It passed. It also passed with the new passthrough code **completely stubbed
+out** — because `barrel_docdb`'s own read path treats an expired document as
+gone unconditionally, regardless of whether any sweep config was ever set. The
+sweep config only controls whether a background timer later reclaims the disk
+for a document already invisible to every reader. The test asserted a fact
+about `barrel_docdb`'s permanent behaviour and never once touched the code
+that was actually written.
+
+### The Signature
+
+**A test written against the visible SYMPTOM of a feature, rather than the
+boundary the new code itself owns, will pass whether or not that code runs at
+all.** The tell is that the assertion (`doc == not_found`) would read as
+correct even with the diff reverted — the two are close enough in outward
+behaviour that only checking the actual dependency chain reveals they're
+unrelated. The instinct to sleep-and-check felt like an integration test and
+was actually testing a different subsystem's own always-on guarantee.
+
+### The Rule
+
+**Stub the exact thing you just wrote and confirm the test goes RED before
+trusting it GREEN.** Concretely here: point the assertion at the boundary the
+new code actually owns — `barrel_docdb:db_info/1`'s reported `config` map
+carrying the sweep settings — not at a downstream effect that a completely
+different, pre-existing mechanism could produce on its own. If a test still
+passes with your diff commented out, it is not testing your diff; find the
+real seam and assert there instead. Same mechanism as Demon 57, aimed at a
+different failure to reach it: `str.replace` returning unchanged input and a
+document's *visible* expiry both give a green check that proves nothing about
+the code under test.
+
+---
+
 ## The Session This File Came From
 
 2026-08-07, one working day, one author. Findings: an archipelago whose attack

@@ -457,4 +457,64 @@ One `{profiles, ...}` tuple, all profiles inside it:
 
 ---
 
+## 🔥 Demon 63: Existence Mistaken for Freshness in a Build Cache
+
+**Date exorcised:** 2026-09-05
+**Where it appeared:** `macula-io/macula` and `reckon-db-org/reckon-db`, both
+`priv/build-nifs.sh` (reckon-db's own header even says "modeled on macula's");
+also `macula_quic`'s `fetch-nif.sh`
+**Cost:** every "clean `rebar3 eunit`" claim against the affected NIF that day
+was silently exercising a compiled binary that predated the fix by hours,
+including once for a real security patch
+
+### The Lie
+
+"The `.so` is already there, so it's built."
+
+### What Happened
+
+`build_nif()` skipped compilation whenever the target `priv/*.so` already
+existed — an existence check, nothing else. Editing `deterministic.rs` and
+running `rebar3 compile && rebar3 eunit` produced a fully green suite that had
+tested the SAME artifact as before the edit, because nothing in the script ever
+compared the `.so`'s age against the source tree's. A second, related bug rode
+along in `fetch-nif.sh`: `MACULA_FORCE_SOURCE_BUILD=1` was meant to force a
+rebuild regardless, but the bare existence check ran *before* that flag was
+ever consulted, so the one lever built to defeat a stale cache did nothing
+whenever the cache had anything cached at all.
+
+### The Signature
+
+**A build script whose cache check is "does the output exist," not "is the
+output newer than its inputs," reports success on stale work indefinitely.**
+It costs nothing to write and nothing to notice, because the failure mode is
+not an error — it's a correct-looking green run against the wrong code. Found
+here only because a parallel scratch build, done out of habit rather than
+suspicion, disagreed with the "clean" result.
+
+### The Rule
+
+**A build-skip decision must compare source mtime against artifact mtime, not
+just check the artifact exists.**
+
+```sh
+# WRONG — existence only
+[ -f "$SO_PATH" ] && return 0
+
+# RIGHT — rebuild if any source file is newer than the artifact
+if [ -f "$SO_PATH" ] && [ -z "$(find "$CRATE_DIR" -newer "$SO_PATH" \
+    \( -name '*.rs' -o -name 'Cargo.toml' -o -name 'Cargo.lock' \))" ]; then
+  return 0
+fi
+```
+
+Verified RED (an aged `.so` plus a newer source file → old logic says skip,
+reproducing the exact incident in miniature) then GREEN (same fixture, new
+logic rebuilds) against an isolated fixture — not just read the diff and
+agreed it looked right. And where a force-rebuild escape hatch exists, order
+matters: check it **before** any cache-hit path can return early, or the
+escape hatch is dead code the day a cache entry exists.
+
+---
+
 *We burned these demons so you don't have to. Keep the fire going.* 🔥🗝️🔥

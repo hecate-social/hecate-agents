@@ -76,6 +76,8 @@ stage: reversed
 | 59 | Hand-Rolled Mesh Capability Advertising | A service calls `macula_response:advertise_direct` itself instead of declaring the capability in `hecate_om_service:capabilities/0` — library fixes (TTL, `reuse_sup`) never reach the duplicate; hit twice, five months apart, on the same file | 2026-09-01 |
 | **61** | **🔥🔥🔥 The Store That Stores Without Indexing** | **A barrel write with no vector, and a read-modify-write that drops the one it had (`get_doc` never returns `_embedding`) — both return `ok`, both silently remove the document from semantic search while exact fetch keeps working perfectly** | **2026-09-02** |
 | 60 | Mesh RPC Payloads Arrive Atom-Keyed AND CBOR-Value-Wrapped | Two compounding hazards, fixed a day apart: macula's frame decoder atomizes an inbound payload's keys (a hard `#{<<"key">> := V}` match silently never matches), AND a CBOR text-string value decodes to `{text, binary()}`, not a bare binary — fixing the keys alone still didn't resolve the live symptom until a diagnostic log found the second one | 2026-09-01 |
+| 62 | A Test That Passes For a Different Layer's Reason | A TTL-config-passthrough test slept past `expires_at` and asserted the doc was gone — passed even with the passthrough completely stubbed out, because barrel_docdb's own reads treat expired docs as gone unconditionally, sweep config or not. Caught by stubbing the fix and demanding RED first | 2026-09-05 |
+| 63 | Existence Mistaken for Freshness in a Build Cache | `build-nifs.sh` skipped recompiling a NIF whenever the `.so` already existed — no comparison against source mtime, so every "clean eunit" that day silently tested a stale binary, once for a real security fix. A force-rebuild env var was also dead code because the existence check ran before it was ever consulted | 2026-09-05 |
 
 ---
 
@@ -132,11 +134,11 @@ Demons #19, #20, #21, #35, #38, **#60**, **#61**. esqlite3 return types and argu
 
 ### [antipatterns/release.md](release.md) — Release, Testing & Packaging
 
-Demons #27, #28, #29, #30, #36, #52. Hardcoded IDs, missing tests, plugin discovery routes, version bumping, hex packaging, the containerized-reckon_db dynamic-node-name 502, and the duplicate `{profiles}` rebar.config tuple that ships an ERTS-less release.
+Demons #27, #28, #29, #30, #36, #52, **#63**. Hardcoded IDs, missing tests, plugin discovery routes, version bumping, hex packaging, the containerized-reckon_db dynamic-node-name 502, the duplicate `{profiles}` rebar.config tuple that ships an ERTS-less release, and a NIF build cache that checks existence instead of freshness.
 
 ### [antipatterns/verification.md](verification.md) — What We Wrote Down vs What We Built
 
-Demons #53, #54, #55, #56, #57. The gap between a repository's prose and its behaviour.
+Demons #53, #54, #55, #56, #57, **#62**. The gap between a repository's prose and its behaviour.
 Every other file here catalogues a technical mistake; this one catalogues the
 mistake of believing the technical mistakes were caught. **Read it before adding a
 demon to this index**, because it is about why adding one is not enough.
