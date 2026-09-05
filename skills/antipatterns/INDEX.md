@@ -87,6 +87,7 @@ stage: reversed
 | 60 | Mesh RPC Payloads Arrive Atom-Keyed AND CBOR-Value-Wrapped | Two compounding hazards, fixed a day apart: macula's frame decoder atomizes an inbound payload's keys (a hard `#{<<"key">> := V}` match silently never matches), AND a CBOR text-string value decodes to `{text, binary()}`, not a bare binary — fixing the keys alone still didn't resolve the live symptom until a diagnostic log found the second one | 2026-09-01 |
 | 62 | A Test That Passes For a Different Layer's Reason | A TTL-config-passthrough test slept past `expires_at` and asserted the doc was gone — passed even with the passthrough completely stubbed out, because barrel_docdb's own reads treat expired docs as gone unconditionally, sweep config or not. Caught by stubbing the fix and demanding RED first | 2026-09-05 |
 | 63 | Existence Mistaken for Freshness in a Build Cache | `build-nifs.sh` skipped recompiling a NIF whenever the `.so` already existed — no comparison against source mtime, so every "clean eunit" that day silently tested a stale binary, once for a real security fix. A force-rebuild env var was also dead code because the existence check ran before it was ever consulted | 2026-09-05 |
+| 64 | A Split Name Doesn't Mean a Split Namespace | A rename to fix a PyPI collision kept the old import name, citing beautifulsoup4/bs4 as precedent — but bs4 is a name nothing else uses, while the kept name WAS the colliding package's own real import namespace. A human's one question caught it; nobody checked before that | 2026-09-05 |
 
 ---
 
@@ -143,7 +144,7 @@ Demons #19, #20, #21, #35, #38, **#60**, **#61**. esqlite3 return types and argu
 
 ### [antipatterns/release.md](release.md) — Release, Testing & Packaging
 
-Demons #27, #28, #29, #30, #36, #52, **#63**. Hardcoded IDs, missing tests, plugin discovery routes, version bumping, hex packaging, the containerized-reckon_db dynamic-node-name 502, the duplicate `{profiles}` rebar.config tuple that ships an ERTS-less release, and a NIF build cache that checks existence instead of freshness.
+Demons #27, #28, #29, #30, #36, #52, #63, **#64**. Hardcoded IDs, missing tests, plugin discovery routes, version bumping, hex packaging, the containerized-reckon_db dynamic-node-name 502, the duplicate `{profiles}` rebar.config tuple that ships an ERTS-less release, a NIF build cache that checks existence instead of freshness, and a rename that kept a name someone else's package already imports.
 
 ### [antipatterns/verification.md](verification.md) — What We Wrote Down vs What We Built
 

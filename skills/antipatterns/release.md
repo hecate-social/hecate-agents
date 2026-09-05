@@ -530,4 +530,70 @@ escape hatch is dead code the day a cache entry exists.
 
 ---
 
+## 🔥 Demon 64: A Split Name Doesn't Mean a Split Namespace
+
+**Date exorcised:** 2026-09-05
+**Where it appeared:** `macula-io/macula-py`, at its first-ever PyPI publish
+**Cost:** a first release plan built on a design that would have collided
+with an unrelated package's real import namespace, caught only because the
+user asked a sharp question, not because anyone reviewing it checked
+
+### The Lie
+
+"Renaming the distribution name is enough — pip and import are independent,
+like beautifulsoup4/bs4."
+
+### What Happened
+
+`macula-py`'s intended PyPI name, `macula`, was already registered — a real,
+unrelated project ("Library for creative software design and development",
+different author, confirmed live on PyPI). The proposed fix: publish under
+`macula-py` while leaving the actual Python import unchanged (`import
+macula`), citing `beautifulsoup4`/`bs4` as precedent for distribution and
+import names legitimately differing.
+
+That precedent doesn't transfer here, and an assistant reviewing the plan
+said so with confidence before checking. `bs4` is not just a *different*
+import name from `beautifulsoup4` — it's a name **nothing else uses**. This
+case is the opposite: `macula` isn't merely a name the plan wanted to keep,
+it is the actual, already-occupied import namespace of the unrelated PyPI
+project. Keeping `import macula` while renaming only the distribution name
+would mean any environment with both packages installed has two different
+projects racing to write into the same top-level `macula/` directory —
+whichever installs second silently overwrites or shadows the other. The user
+asked one question — "will it not collide when someone imports the original
+macula?" — and the answer was yes, immediately, on inspection.
+
+### The Signature
+
+**A real split-name precedent (distro name ≠ import name) was pattern-matched
+onto a new case without checking the one fact that actually decides whether
+it applies: is the shared string already claimed as an import namespace by
+someone else, or just unclaimed as a distribution name?** Those are different
+questions. The first makes the precedent irrelevant; the second is exactly
+what the precedent solves. Confident, correctly-worded, wrong: the AI
+reviewing the plan explained the bs4 pattern accurately and still misapplied
+it, because "matches a known-good pattern" was checked and "the specific
+premise that pattern depends on holds here" was not.
+
+### The Rule
+
+**When a rename is driven by a namespace collision, verify the fix removes
+the collision — don't just verify the rename happened.** The mechanical
+check that actually proves it: build the real artifact, install it into a
+fresh environment, and confirm the OLD, colliding name is now genuinely
+unreachable.
+
+```bash
+python -m build
+pip install --no-deps dist/macula_py-*.whl   # fresh venv, no local override
+python -c "import macula"                     # MUST raise ModuleNotFoundError
+python -c "import macula_py; macula_py.identity.KeyPair()"  # and the new name must actually work
+```
+
+If the old name still imports successfully after your "fix," the rename
+solved nothing — it just moved the string, not the namespace.
+
+---
+
 *We burned these demons so you don't have to. Keep the fire going.* 🔥🗝️🔥
