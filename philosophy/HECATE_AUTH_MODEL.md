@@ -115,9 +115,16 @@ public demo board or any service whose whole point is "anyone can use
 this" — it needs nothing from this doc.
 
 **Gated.** For a service managing something realm-scoped: reuse
-`macula-portal`'s existing pairing-code flow
-(`/api/console/pair` — built for `macula-console`, structurally
-unchanged by that being dead). The website shows a pairing code; the
+`macula-portal`'s existing pairing-code flow. ⚠ Verified 2026-09-05:
+no such route currently exists — `macula-portal`'s real API surface has
+`/api/v1/console/heartbeat`, `/api/v1/console/sync`, and
+`/api/v1/join-tokens` (join tokens for unattended nodes), none of which
+is a pairing-code flow. There is no route named `/api/console/pair` or
+similar. This paragraph's "existing" is aspirational, not current —
+building the flow described below is itself part of what this doc
+proposes, not a reuse of something already there.
+
+The design: the website shows a pairing code; the
 human's already-authenticated `macula-cli` (or, later, a push-approval
 from a paired phone) approves it; `macula-realm` mints a
 session-lifetime UCAN; the edge service verifies it per-request through
