@@ -7,7 +7,7 @@ stage: stable
 
 # Testing Patterns
 
-Guidelines for testing hecate-daemon Erlang applications.
+Guidelines for testing Hecate Erlang applications.
 
 ---
 

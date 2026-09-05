@@ -50,11 +50,12 @@ your callback module is a plain, focused piece of business logic.
 
 ## A real, cross-domain example (not just "publish to mesh")
 
-`hecate-social/hecate-daemon` has a genuine cross-app PM:
-`offering_terms_accepted_v1` is emitted by `guide_license_lifecycle`; the
-PM reacting to it lives in **`guide_procurement_lifecycle`** — the
+`hecate-daemon` (since removed) had a genuine cross-app PM, kept here
+as a worked illustration of the correct wiring shape:
+`offering_terms_accepted_v1` was emitted by `guide_license_lifecycle`;
+the PM reacting to it lived in **`guide_procurement_lifecycle`** — the
 target domain, per this workspace's own naming convention — and
-dispatches a real command into that domain's own aggregate, not a mesh
+dispatched a real command into that domain's own aggregate, not a mesh
 publish:
 
 ```erlang
@@ -127,9 +128,9 @@ domain needs to react").
 
 `on_{source_event}_{action}_{target}`, living in the **target** domain
 (the one whose command it dispatches) — this convention is genuinely
-followed at scale: 35+ real `on_*` directories exist across
-`hecate-daemon`, `hecate-tube`, `hecate-marketplace`, `hecate-victron`,
-and `hecate-app-martha` alone. This isn't a one-off pattern from a single
+followed at scale: dozens of real `on_*` directories exist across
+`hecate-tube`, `hecate-marketplace`, `hecate-victron`, and
+`hecate-app-martha` alone. This isn't a one-off pattern from a single
 example.
 
 ## See also

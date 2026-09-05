@@ -9,6 +9,20 @@ stage: stable
 
 *An architectural pattern for client-daemon communication.*
 
+> ⚠ **The concrete client/daemon named throughout this doc — hecate-web,
+> plugin frontends, `hecate-daemon` itself — have been REMOVED
+> (2026-09-05, see
+> [`HECATE_TIER_MODEL.md`](../philosophy/HECATE_TIER_MODEL.md)); there
+> is no daemon left to send a `hecate://` request to. The diagrams and
+> tables below are kept as a worked illustration of the underlying
+> principle, not as a description of anything currently running. The
+> principle itself is NOT tied to that architecture and still applies
+> to any client (terminal, coding agent, operator website, mobile app —
+> see [`HECATE_AUTH_MODEL.md`](../philosophy/HECATE_AUTH_MODEL.md))
+> talking to any event-sourced hecate-service: side effects must be
+> driven by materialized facts, never by a command's own
+> acknowledgment.**
+
 ---
 
 ## The Principle

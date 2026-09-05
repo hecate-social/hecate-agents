@@ -593,14 +593,19 @@ It looks reasonable until you list what's wrong with it.
 ### The Rule
 
 > **L2 services connect directly to their local `macula-station`
-> via the Macula SDK. They do not bridge through `hecate-daemon`.**
+> via the Macula SDK. They never bridge through a session-tier HTTP
+> API.**
 >
-> The daemon's `/api/mesh/*` HTTP API is for:
-> - Layer-4 plugins inside the daemon's BEAM
-> - External integrations like `macula-mcp` (stdio MCP server)
-> - Quick scripts and one-off agents that don't justify a release
->
-> An L2 service is never any of those.
+> `hecate-daemon` (the specific daemon this demon was named for) has
+> since been removed, along with the Layer-3/Layer-4 architecture it
+> hosted — see [`HECATE_TIER_MODEL.md`](../../philosophy/HECATE_TIER_MODEL.md).
+> Its `/api/mesh/*` HTTP API no longer exists, so this exact bridge is
+> no longer even possible. The principle below still applies to
+> whatever, if anything, ever plays a session-tier role again: an L2
+> service is never a Layer-4 plugin, an external stdio integration, or
+> a quick one-off script, and should never depend on a session-tier
+> process being installed, configured, and running just to reach the
+> mesh.
 
 ### The Correct Pattern
 

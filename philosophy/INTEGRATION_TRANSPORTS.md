@@ -7,18 +7,21 @@ stage: stable
 
 # Integration Transports
 
-How umbrella apps communicate within hecate-daemon, with hecate-web, and across the network.
+How umbrella apps communicated within hecate-daemon, with hecate-web, and across the network (Internal/Local layers), and how services communicate across the network today (External/mesh).
 
-> ⚠ **PARTIALLY OBSOLETE (2026-09-01).** The **Internal** and **Local**
-> layers below (`pg` within hecate-daemon, `hecate://` to hecate-web)
-> describe the now-dead per-user BEAM-VM plugin-host architecture —
-> `hecate-daemon`, `hecate-web`, and `hecate-gitops` are declared obsolete
-> now that mobile-app tooling exists (interaction moves to the terminal, a
-> coding agent, an "operator website" hosted by an edge service, or a
-> mobile/public web app). The **External/mesh** layer remains the relevant
-> pattern for service-to-service and edge-service communication going
-> forward. See [HECATE_AUTH_MODEL.md](HECATE_AUTH_MODEL.md) for how the
-> four channels identify themselves over that layer.
+> ⚠ **PARTIALLY DEAD ARCHITECTURE (noted 2026-09-01, deleted 2026-09-05).** `hecate-daemon`,
+> `hecate-web`, and `hecate-gitops` have been REMOVED — these names no
+> longer refer to anything present in this workspace. The **Internal**
+> and **Local** layers below (`pg` within hecate-daemon, `hecate://` to
+> hecate-web) describe that now-gone per-user BEAM-VM plugin-host
+> architecture, kept here only as historical record of how it worked;
+> there is nothing left to build on or extend. Interaction now moves to
+> the terminal, a coding agent, an "operator website" hosted by an edge
+> service, or a mobile/public web app. The **External/mesh** layer below
+> remains the relevant, live pattern for service-to-service and
+> edge-service communication going forward. See
+> [HECATE_AUTH_MODEL.md](HECATE_AUTH_MODEL.md) for how the four channels
+> identify themselves over that layer.
 
 ---
 

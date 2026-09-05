@@ -200,6 +200,19 @@ projection_with_record_test() ->
 
 **Demon #29** — 2026-02-24
 
+> ⚠ **HISTORICAL (2026-09-05): the plugin-daemon/hecate-web
+> architecture this demon describes has been removed.**
+> `hecate-daemon`, `hecate-web`, and the whole in-VM plugin-host model
+> no longer exist (see
+> [`HECATE_TIER_MODEL.md`](../../philosophy/HECATE_TIER_MODEL.md)) —
+> there is no more "plugin daemon" to add this route to. Kept as a
+> record of a real, instructive bug: a missing static-file route can
+> make a component silently invisible to its consumer with zero
+> errors logged anywhere. That general lesson (verify every endpoint a
+> consumer actually depends on, not just the ones your own health
+> check exercises) is worth carrying into whatever architecture comes
+> next; the specific cowboy route below is not.
+
 ### What Happened
 
 The snake-duel daemon had a working `/manifest` endpoint and a healthy Unix socket. Its Dockerfile correctly built the SvelteKit frontend and copied `dist/` into `priv/static/`. But the plugin never appeared in hecate-web.

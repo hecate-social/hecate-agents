@@ -9,6 +9,15 @@ stage: reversed
 
 *Mistakes we've made and corrected. Read this. Don't repeat them.*
 
+> ⚠ **`hecate-daemon`, `hecate-web`, and `hecate-gitops` have been
+> REMOVED (2026-09-05) and no longer exist anywhere in this workspace.**
+> Several demons below name them as where a bug was originally found —
+> that provenance is accurate history and untouched. But do not treat
+> any of the three as live infrastructure to read, extend, deploy
+> through, or register a new component with. See the authoritative
+> note in [`../../philosophy/HECATE_TIER_MODEL.md`](../../philosophy/HECATE_TIER_MODEL.md)
+> (2026-09-05 amendment) for what replaced them and why.
+
 ---
 
 ## Demon Index

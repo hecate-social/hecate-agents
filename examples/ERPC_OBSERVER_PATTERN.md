@@ -16,8 +16,9 @@ _A gen_server that polls another BEAM node for state via erpc._
 
 ## The Problem
 
-You need to read state from another BEAM node (e.g. hecate-daemon)
-without that node knowing about you. One-way dependency.
+You need to read state from another BEAM node (e.g. a sibling
+hecate-* service) without that node knowing about you. One-way
+dependency.
 
 ## The Solution
 

@@ -112,8 +112,8 @@ endpoint. That's it." Real `Dockerfile`, a real `docker run` one-liner
 (`MACULA_RELAYS`, `HECATE_MESH_REALM` default `io.macula`,
 `HECATE_GEO_CITY`/`COUNTRY`/`LAT`/`LNG`, `HEALTH_PORT` default `8080`), and
 a real `rebar3 shell` local-run path. Small enough to read start to finish
-in a sitting — a better first read than the full production
-`hecate-daemon`.
+in a sitting — a better first read than a full multi-app production
+service.
 
 ## Erlang — `hecate_om_service` (the recommended path for a real service)
 

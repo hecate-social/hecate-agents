@@ -59,8 +59,8 @@ uses everywhere.
 
 The fleet's real GitOps source of truth is
 [`macula-io/macula-demo`](https://github.com/macula-io/macula-demo)'s
-`infrastructure/` directory — not `hecate-social/hecate-gitops`, which is
-archived and was never wired up here. A currently-live example
+`infrastructure/` directory — not `hecate-gitops`, which has been removed
+(it was never wired up here). A currently-live example
 (`hecate-turn-credentials`, added 2026-08-28) shows the exact shape:
 
 **`infrastructure/scripts/docker-compose.<name>.yml`** — despite living

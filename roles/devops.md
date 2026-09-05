@@ -118,8 +118,8 @@ Once QA has passed the division at the Review Gate, execute the release:
 5. Once the image is published, apply the deployment path for this service's actual target:
    - **Beam cluster (docker + watchtower)**: add/update the service's compose file and its line in the target node's `reconcile.manifest` under `macula-demo/infrastructure/beam0X.lab/`, commit, push. `hecate-reconcile.timer` picks it up; watchtower tracks `:latest` afterward.
    - **msi00.lab (podman + Quadlet)**: update the `.container` unit under `~/.config/containers/systemd/`; `podman-auto-update.timer` picks up the new digest.
-   - There is no third "just `docker run` it" path. `hecate-gitops` isn't
-     it either — that repo is archived and read-only, and was never
+   - There is no third "just `docker run` it" path. `hecate-gitops`
+     isn't it either — that repo has been removed; it was never
      actually wired up on the fleet.
 
 ### Rules

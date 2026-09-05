@@ -33,6 +33,13 @@ identity/auth design for the four channels is drafted in
 [HECATE_AUTH_MODEL.md](HECATE_AUTH_MODEL.md); no replacement for the rest
 of what Layers 3-4 covered exists yet.
 
+Amended 2026-09-05. `hecate-daemon`, `hecate-web`, and `hecate-gitops`
+have gone from declared-obsolete to actually **deleted**. These names
+no longer refer to anything present in this workspace; treat every
+mention of them below (and in the diagram that follows) as historical
+description of a since-deleted architecture, not as live
+infrastructure to read, extend, or deploy through.
+
 This document is shaping material. Future Claude sessions, future
 contributors, and grant-reviewer audiences should be able to read it
 in five minutes and answer "where does X belong?" without asking
@@ -43,15 +50,19 @@ anyone.
 ## The four tiers
 
 ```
-Layer 4 — apps        hecate-app-martha, hecate-app-rag, hecate-app-scribe, …
-                      User-facing plugins. Per-identity, per-session.
-                      Live inside hecate-daemon's BEAM as in_vm plugins.
+Layer 4 — apps        REMOVED 2026-09-05. Was: hecate-app-martha,
+                      hecate-app-rag, hecate-app-scribe, … — user-facing
+                      plugins, per-identity, per-session, living inside
+                      hecate-daemon's BEAM as in_vm plugins. The
+                      in-VM-plugin hosting mechanism no longer exists;
+                      whether any individual app moved elsewhere is not
+                      tracked here.
 
-Layer 3 — session     hecate-daemon
-                      One per human identity. Plugin host. Owns the
+Layer 3 — session     REMOVED 2026-09-05. Was: hecate-daemon — one per
+                      human identity, plugin host, owner of the
                       desktop-shell connection, SSE streams, and the
-                      user's local Macula client pool.
-                      Runs on user laptops + MaculaOS edge devices.
+                      user's local Macula client pool. Ran on user
+                      laptops + MaculaOS edge devices.
 
 Layer 2 — services    hecate-services/hecate-{om, rag, dns, git, llm, …}
                       Always-on, multi-tenant, realm-bound, each with
@@ -71,8 +82,8 @@ Layer 0 — kernel      macula-station
 
 Every node runs Layer 0 (`macula-station`). Layer 1 (`hecate-realm`)
 runs where the realm's stewards put it. Layer 2 services dial out to a
-station from wherever they are hosted. Layer 3 (`hecate-daemon`) runs
-per-user on laptops. Layer 4 plugins live inside the daemon.
+station from wherever they are hosted. Layers 3 and 4 are removed — see
+the 2026-09-05 amendment above.
 
 **The cut is lifecycle and identity, never hardware.** What makes
 something Layer 2 is that it runs without a logged-in user and answers
@@ -253,7 +264,9 @@ has its own keypair and a realm-signed credential. The metaphor:
 
 In Hecate terms:
 
-- **Citizens** (humans, hecate-daemon) carry realm-membership certs.
+- **Citizens** (humans, via whichever of the four channels in
+  [HECATE_AUTH_MODEL.md](HECATE_AUTH_MODEL.md) they're using) carry
+  realm-membership certs.
 - **Institutions** (hecate-services/*) carry service-principal
   certs, also signed by the realm, but with narrower `actions`
   and `resources`.
@@ -289,12 +302,14 @@ Three things this model explicitly forbids:
    bus, no central registry, no horizontal layer of "service
    plumbing". The realm coordinates through Macula RPC, not a
    service framework.
-4. **No bridging L2-shaped work through `hecate-daemon`'s REST
-   API.** The daemon's `/api/mesh/publish`, `/api/mesh/call`, etc.
-   are for Layer-4 plugins inside the daemon's BEAM and for
-   external integrations like `macula-mcp`. An L2 service uses
-   the Macula SDK directly against its local `macula-station` —
-   no HTTP middleman, no L3 dependency, correct identity. See
+4. **No bridging L2-shaped work through a session-tier HTTP API.**
+   `hecate-daemon` (now removed) used to expose exactly this
+   temptation via `/api/mesh/publish`, `/api/mesh/call`, etc. The
+   specific daemon is gone, but the principle outlives it: an L2
+   service uses the Macula SDK directly against its local
+   `macula-station` — no HTTP middleman, no Layer-3/session
+   dependency, correct identity — regardless of what, if anything,
+   ever plays a session-tier role again. See
    `skills/antipatterns/integration.md` Demon 50.
 
 ## Placement rules
@@ -375,7 +390,7 @@ own credential; the realm verifies both sides.
 | Prefix | Means | Examples |
 |--------|-------|----------|
 | `macula-` | Realm-agnostic infrastructure (Layer 0–1) | `macula-station`, `macula-realm`, `macula-rag` (federation protocol — uses SDK), `macula-mcp` |
-| `hecate-` | Realm-aware service or app (Layer 2–4) | `hecate-realm`, `hecate-rag`, `hecate-llm`, `hecate-daemon`, `hecate-app-martha` |
+| `hecate-` | Realm-aware service (Layer 2; Layers 3-4 removed 2026-09-05) | `hecate-realm`, `hecate-rag`, `hecate-llm`, `hecate-app-martha` |
 
 The `macula-X` prefix means *"depends on the Macula SDK"*, not
 *"runs inside macula-station"*. `macula-rag` (the federation

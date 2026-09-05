@@ -14,10 +14,11 @@ systems.*
 Written 2026-09-01, alongside declaring `hecate-daemon`, `hecate-web`,
 and `hecate-gitops` obsolete (see the amendment in
 [HECATE_TIER_MODEL.md](HECATE_TIER_MODEL.md) and the banner on
-[INTEGRATION_TRANSPORTS.md](INTEGRATION_TRANSPORTS.md)). Those removed
-Layers 3-4's session host and its plugin apps; this doc is the
-replacement identity/auth story for the four channels that took their
-place. **Status: draft.** The identity primitives it builds on
+[INTEGRATION_TRANSPORTS.md](INTEGRATION_TRANSPORTS.md)). As of
+2026-09-05 those three have been deleted outright, not just declared
+obsolete. Those three were Layers 3-4's session host and its plugin
+apps; this doc is the replacement identity/auth story for the four
+channels that took their place. **Status: draft.** The identity primitives it builds on
 (`hecate_om_identity`, `macula-realm`, `macula-cli`'s local keypair,
 `hecate_om`'s `ucan_token`/`verify => true` RPC option) are real and
 already shipping. The parts specific to this doc — a human-membership-

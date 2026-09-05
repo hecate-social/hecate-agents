@@ -9,7 +9,7 @@ stage: stable
 
 Companion to the authoritative spec at `macula-io/macula/docs/guides/TOPIC_NAMING_GUIDE.md`.
 
-This guide is for developers writing publishers, subscribers, and RPC procedures inside Hecate-org repos (`hecate-daemon`, `hecate-app-trader`, `hecate-app-martha`, future plugins). It assumes you have read the spec and focuses on **how to pick the right tier** in real Hecate situations.
+This guide is for developers writing publishers, subscribers, and RPC procedures inside Hecate-org repos (`hecate-app-trader`, `hecate-app-martha`, future services). It assumes you have read the spec and focuses on **how to pick the right tier** in real Hecate situations.
 
 ## TL;DR
 
@@ -75,7 +75,10 @@ These are the actual classifications applied during the topic-tiering audit.
 
 ## How `hecate_topics` is structured
 
-Inside `hecate-daemon`, `apps/shared/src/hecate_topics.erl` is the wrapper. It pre-fills the realm and the `(org, app)` constants so call-sites stay short.
+`apps/shared/src/hecate_topics.erl` is the wrapper (this specific
+module lived in `hecate-daemon`, since removed — kept here as a
+worked illustration of the pattern for whichever repo builds the
+equivalent wrapper today). It pre-fills the realm and the `(org, app)` constants so call-sites stay short.
 
 ```erlang
 -module(hecate_topics).
@@ -159,7 +162,7 @@ Don't reach across app namespaces. That makes the cross-app coupling invisible.
 
 ### 4. Subscribing before you have authority
 
-Subscribing to a realm-tier topic with an `anonymous` MRI is meaningless. The pre-join hecate-daemon currently does this for `membership/revoked` and the listener never has a real DID to match against. The fix is a process-manager that gates subscription on `realm_joined_v1`. See the related task in MEMORY.md.
+Subscribing to a realm-tier topic with an `anonymous` MRI is meaningless. The pre-join `hecate-daemon` (since removed) used to do exactly this for `membership/revoked`, and the listener never had a real DID to match against. The fix, for any future code in the same shape: a process-manager that gates subscription on `realm_joined_v1`.
 
 ### 5. Promoting an app-tier topic to org or realm tier without coordination
 

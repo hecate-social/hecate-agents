@@ -85,6 +85,6 @@ FAQ_JOIN_THE_MESH           — the station you connect to
 Railroad terms used throughout, if unfamiliar: `macula` SDK = the
 **track** (QUIC/HTTP-3 transport), `macula-station` = the **station**
 (DHT/SWIM/routing), `macula-realm` = the **train company** (identity and
-certs), a hecate-service or `hecate-daemon` = a **passenger** (outbound-only,
+certs), a hecate-service = a **passenger** (outbound-only,
 connects out, never accepts inbound connections directly). See
 [`GLOSSARY.md`](../GLOSSARY.md) for the full canonical vocabulary.

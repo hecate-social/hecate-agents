@@ -76,12 +76,11 @@ The shell application. Owns infrastructure that spans all domain apps:
 | Module | Purpose |
 |--------|---------|
 | `*_app.erl` | Application callback — starts cowboy, ensures directory layout |
-| `*_sup.erl` | Supervises shell-level workers only (e.g. plugin registrar) |
+| `*_sup.erl` | Supervises shell-level workers only |
 | `*_paths.erl` | Path resolution (base_dir, sqlite_dir, socket_dir, etc.) |
 | `*_api_utils.erl` | Shared HTTP response helpers (json_response, json_error) |
 | `*_health_api.erl` | `GET /health` endpoint |
 | `*_manifest_api.erl` | `GET /manifest` endpoint |
-| `*_plugin_registrar.erl` | Registers with hecate-daemon |
 
 The root app's cowboy routes reference handler modules from ALL apps (root + domain apps). This is fine — modules are globally visible within a release.
 
