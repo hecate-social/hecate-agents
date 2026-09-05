@@ -15,10 +15,80 @@ realm itself. This page is the other half: how a **service** actually
 gets a realm-signed identity so it can be authorized to do something on
 the mesh.
 
-This is a genuinely two-layer situation and this page keeps the layers
-separate rather than blending them: a real, working cert-issuance flow
-you can use today, and a broader identity/authorization model that is an
+This is a genuinely three-layer situation and this page keeps the
+layers separate rather than blending them: how a **human** actually
+joins today, a real working cert-issuance flow for **services** you can
+use today, and a broader identity/authorization model that is an
 active, dated design-in-progress — not yet built.
+
+---
+
+## 0. How a human joins today: macula-realm's join-session flow
+
+This is the section this page's title has always promised and, until
+now, never actually delivered — sections 1-3 below are all about
+**service** identity, not a person joining. Verified live 2026-09-05
+against production `realm.macula.io`, a real join producing a genuine
+`201`.
+
+**`realm.macula.io` owns this — not `macula-portal`, and not the bare
+`macula.io` domain.** The two split 2026-08-30 (`macula-realm` for
+mesh-membership/join, `macula-portal` for org/app management and
+licensing); the join flow lived briefly on `macula.io` itself before
+that, which is why older material may point there or at
+`macula-portal`. Both are stale — if you land here from `macula-mcp`'s
+own `MACULA_MCP_PORTAL_URL`, that variable no longer controls this flow
+at all; the correct one is `MACULA_MCP_REALM_URL`, default
+`https://realm.macula.io`.
+
+**If you're an agent using `macula-mcp`**, the tool is `mesh_join_realm`
+and you don't need anything below this paragraph — call it, hand the
+person the link/QR it returns, then call it again with `wait_seconds`
+once they've had a chance to confirm. The rest of this section is the
+wire-level detail underneath that tool, for anyone building a different
+client against the same endpoint.
+
+**The flow** (RFC 8628 device-authorization shape):
+
+```
+POST /api/v1/join/sessions
+Content-Type: application/json
+
+{
+  "node_id":          "base64-or-hex-encoded-ed25519-public-key",
+  "timestamp":        1757000000000,
+  "proof_signature":  "base64-encoded-signature"
+}
+```
+
+`proof_signature` is a signature, by the same key named in `node_id`,
+over the exact byte layout `node_id (32 raw bytes) ++ timestamp (8
+bytes, big-endian) ++ "macula_realm.join_session" (raw UTF-8, no
+delimiters)` — proof that whoever is requesting the session actually
+holds the private key, not just claiming a public one. The procedure
+string is part of the signed bytes, not a label: it has to match
+`macula-realm`'s own `join_session_controller.ex`/`joining.ex`
+`@join_procedure` exactly, or a perfectly valid signature verifies
+against the wrong message and is rejected.
+
+→ `201`, a ten-minute session: an approval URL (usable directly as a
+link, or rendered as a QR code) for the person to open. They sign in
+with Hanko, see which agent on which machine is asking, and confirm.
+
+```
+GET /api/v1/join/sessions/:id
+```
+
+polls for the outcome. Once confirmed, it hands back the org identity
+(`mri:org:io.macula/<handle>`), a refresh token for the realm's own
+API, and a realm-CA-signed certificate for the requesting key — the
+same shape §1 below describes for a service, but for a human-vouched
+identity instead of an operator-provisioned one.
+
+Two-step by nature: the link has to physically reach the person before
+anything can be confirmed, so any client built on this should return
+the link/QR immediately and poll separately for the outcome, rather
+than blocking on one call.
 
 ---
 
@@ -149,6 +219,7 @@ would go stale the moment the plan moves.
 
 ## See also
 
+- [FAQ: macula-mcp](FAQ_MACULA_MCP.md) — the `mesh_join_realm` tool that wraps §0's flow for an agent
 - [FAQ: How do I join the Mesh?](FAQ_JOIN_THE_MESH.md) — the realm-agnostic station layer this page's realm layer sits above
 - [FAQ: How do I authorize a procedure or topic with UCAN?](FAQ_AUTHORIZE_WITH_UCAN.md) — the one authorization primitive that IS enforced by the SDK today
 - [FAQ: Developing Edge Services in BEAM Languages](FAQ_DEVELOP_EDGE_SERVICES_BEAM.md) — `identity_spec/0` and the `hecate_om_service` behaviour
